@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -53,24 +52,94 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         {"id": i, "start": round(c["start"], 1), "end": round(c["end"], 1), "text": c["text"][:900]}
         for i, c in enumerate(candidates)
     ]
+
+    # OllamaのJSON modeは配列を直接返すとは限らないため、最上位をobjectに固定し、
+    # clips配列の中に必要な選択結果を入れさせる。
+    schema = {
+        "type": "object",
+        "properties": {
+            "clips": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "title": {"type": "string"},
+                        "reason": {"type": "string"},
+                        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+                    },
+                    "required": ["id", "title", "reason", "score"],
+                },
+                "maxItems": max_clips,
+            }
+        },
+        "required": ["clips"],
+    }
+
     prompt = (
-        "あなたは日本語配信の切り抜き編集者です。以下の候補から、視聴者が面白い・驚く・上手い・" 
+        "あなたは日本語配信の切り抜き編集者です。以下の候補から、視聴者が面白い・驚く・上手い・"
         "感情が動くと思う場面を最大" + str(max_clips) + "個選んでください。VALORANT等のゲーム配信を想定。\n"
-        "JSON配列だけを返してください。各要素は {\"id\":整数,\"title\":\"短い日本語タイトル\",\"reason\":\"理由\",\"score\":0-100}。\n"
+        "必ずJSONオブジェクトを返し、clips配列に選択結果を入れてください。"
+        "各要素は候補id、短い日本語タイトル、選んだ理由、0-100のscoreを含めてください。\n"
         "候補:\n" + json.dumps(compact, ensure_ascii=False)
     )
+
     r = requests.post(
         f"{OLLAMA_URL}/api/chat",
-        json={"model": OLLAMA_MODEL, "stream": False, "messages": [{"role": "user", "content": prompt}], "options": {"temperature": 0.2}},
+        json={
+            "model": OLLAMA_MODEL,
+            "stream": False,
+            "format": schema,
+            "messages": [{"role": "user", "content": prompt}],
+            "options": {"temperature": 0.2},
+        },
         timeout=120,
     )
     r.raise_for_status()
-    content = r.json()["message"]["content"]
-    match = re.search(r"\[.*\]", content, re.S)
-    if not match:
-        raise RuntimeError("OllamaがJSON配列を返しませんでした")
-    data = json.loads(match.group(0))
-    return [x for x in data if isinstance(x, dict) and isinstance(x.get("id"), int)]
+    payload = r.json()
+    content = payload.get("message", {}).get("content", "")
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        # 念のためJSON部分だけを復旧する。
+        match = re.search(r"\{.*\}", content, re.S)
+        if not match:
+            raise RuntimeError("Ollamaが有効なJSONを返しませんでした")
+        data = json.loads(match.group(0))
+
+    if isinstance(data, list):
+        selected = data
+    elif isinstance(data, dict) and isinstance(data.get("clips"), list):
+        selected = data["clips"]
+    elif isinstance(data, dict) and isinstance(data.get("answer"), str):
+        # 古いモデルがanswer形式を返した場合でも、候補本文との一致から1件だけ復旧する。
+        answer = data["answer"].strip()
+        selected = []
+        for i, candidate in enumerate(candidates):
+            if answer and answer in candidate["text"]:
+                selected.append({
+                    "id": i,
+                    "title": "AI選出ハイライト",
+                    "reason": "Ollamaが候補本文を選択しました。",
+                    "score": 70,
+                })
+                break
+    else:
+        selected = []
+
+    valid: list[dict[str, Any]] = []
+    for item in selected:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), int):
+            continue
+        if not 0 <= item["id"] < len(candidates):
+            continue
+        item["score"] = max(0, min(100, int(item.get("score", 0))))
+        valid.append(item)
+
+    if not valid:
+        raise RuntimeError("Ollamaから切り抜き候補を1件も選べませんでした")
+    return valid
 
 
 def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
@@ -92,17 +161,26 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
 
     for index, item in enumerate(selected[:max_clips], 1):
         cid = item["id"]
-        if cid < 0 or cid >= len(candidates):
-            continue
         c = candidates[cid]
         start = max(0.0, min(c["start"], duration - 1.0))
         end = max(start + 8.0, min(c["end"], duration))
         title = str(item.get("title") or f"切り抜き{index}")
         path = make_clip(vod_path, start, end, title, index)
         outputs.append(path)
-        results.append({"file": str(path), "start": start, "end": end, "title": title, "reason": item.get("reason", ""), "score": item.get("score", 0), "transcript": c["text"]})
+        results.append({
+            "file": str(path),
+            "start": start,
+            "end": end,
+            "title": title,
+            "reason": item.get("reason", ""),
+            "score": item.get("score", 0),
+            "transcript": c["text"],
+        })
 
-    (RESULT_DIR / f"{vod_path.stem}.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    (RESULT_DIR / f"{vod_path.stem}.json").write_text(
+        json.dumps(results, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     return outputs
 
 
