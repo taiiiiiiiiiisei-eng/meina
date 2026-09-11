@@ -16,6 +16,9 @@ RESULT_DIR = ROOT / "twitch_clip_results"
 OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
 
+# 切り抜き同士はこの秒数以上あける。0なら境界が接するところまで許可。
+MIN_CLIP_GAP_SECONDS = 5.0
+
 
 def _candidate_windows(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
     windows: list[dict[str, Any]] = []
@@ -53,8 +56,10 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         for i, c in enumerate(candidates)
     ]
 
-    # OllamaのJSON modeは配列を直接返すとは限らないため、最上位をobjectに固定し、
-    # clips配列の中に必要な選択結果を入れさせる。
+    # 最終的にはmax_clips本だけ作るが、先に多めの候補をAIに選ばせる。
+    # 近い時間帯が複数選ばれても、後段の重複除外で別の場面を優先できる。
+    selection_limit = min(len(candidates), max(max_clips * 3, max_clips))
+
     schema = {
         "type": "object",
         "properties": {
@@ -70,7 +75,7 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
                     },
                     "required": ["id", "title", "reason", "score"],
                 },
-                "maxItems": max_clips,
+                "maxItems": selection_limit,
             }
         },
         "required": ["clips"],
@@ -78,7 +83,9 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
 
     prompt = (
         "あなたは日本語配信の切り抜き編集者です。以下の候補から、視聴者が面白い・驚く・上手い・"
-        "感情が動くと思う場面を最大" + str(max_clips) + "個選んでください。VALORANT等のゲーム配信を想定。\n"
+        "感情が動くと思う場面を最大" + str(selection_limit) + "個選んでください。VALORANT等のゲーム配信を想定。\n"
+        "重要: 同じ出来事やほぼ同じ時間帯の候補はできるだけ選ばず、配信内の別々の場面を優先してください。"
+        "最終的には別々の場面から最大" + str(max_clips) + "本を作ります。\n"
         "必ずJSONオブジェクトを返し、clips配列に選択結果を入れてください。"
         "各要素は候補id、短い日本語タイトル、選んだ理由、0-100のscoreを含めてください。\n"
         "候補:\n" + json.dumps(compact, ensure_ascii=False)
@@ -129,17 +136,94 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         selected = []
 
     valid: list[dict[str, Any]] = []
+    seen_ids: set[int] = set()
     for item in selected:
         if not isinstance(item, dict) or not isinstance(item.get("id"), int):
             continue
-        if not 0 <= item["id"] < len(candidates):
+        cid = int(item["id"])
+        if not 0 <= cid < len(candidates) or cid in seen_ids:
             continue
+        seen_ids.add(cid)
         item["score"] = max(0, min(100, int(item.get("score", 0))))
         valid.append(item)
 
     if not valid:
         raise RuntimeError("Ollamaから切り抜き候補を1件も選べませんでした")
     return valid
+
+
+def _overlaps(start: float, end: float, selected_ranges: list[tuple[float, float]]) -> bool:
+    """既に選んだ切り抜きと重なるかを判定する。"""
+    for other_start, other_end in selected_ranges:
+        if start < other_end + MIN_CLIP_GAP_SECONDS and end + MIN_CLIP_GAP_SECONDS > other_start:
+            return True
+    return False
+
+
+def _select_non_overlapping(
+    selected: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    max_clips: int,
+    duration: float,
+) -> list[dict[str, Any]]:
+    """AI選出結果から、時間が重ならない切り抜きを最大max_clips本選ぶ。"""
+    # AIスコア順。ただし同点なら元候補のヒューリスティックを優先する。
+    ranked = sorted(
+        selected,
+        key=lambda item: (
+            int(item.get("score", 0)),
+            int(candidates[int(item["id"])].get("heuristic", 0)),
+        ),
+        reverse=True,
+    )
+
+    selected_ranges: list[tuple[float, float]] = []
+    chosen_ids: set[int] = set()
+    result: list[dict[str, Any]] = []
+
+    def try_add(item: dict[str, Any]) -> bool:
+        cid = int(item["id"])
+        if cid in chosen_ids or not 0 <= cid < len(candidates):
+            return False
+        c = candidates[cid]
+        start = max(0.0, min(float(c["start"]), duration - 1.0))
+        end = max(start + 8.0, min(float(c["end"]), duration))
+        if _overlaps(start, end, selected_ranges):
+            return False
+        chosen_ids.add(cid)
+        selected_ranges.append((start, end))
+        result.append(item)
+        return True
+
+    # まずAIが選んだものから重複なしで採用。
+    for item in ranked:
+        if len(result) >= max_clips:
+            break
+        try_add(item)
+
+    # AIが近い場面ばかり選んだ場合は、残りの候補から別の時間帯を補充する。
+    if len(result) < max_clips:
+        fallback = sorted(
+            enumerate(candidates),
+            key=lambda pair: (
+                int(pair[1].get("heuristic", 0)),
+                float(pair[1].get("start", 0.0)),
+            ),
+            reverse=True,
+        )
+        for cid, _candidate in fallback:
+            if len(result) >= max_clips:
+                break
+            if cid in chosen_ids:
+                continue
+            try_add({
+                "id": cid,
+                "title": f"AI選出ハイライト{len(result) + 1}",
+                "reason": "AI選出候補と時間が重ならない別の場面を補充しました。",
+                "score": int(candidates[cid].get("heuristic", 0)),
+            })
+
+    return result
 
 
 def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
@@ -152,12 +236,12 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
         raise RuntimeError("切り抜き候補を作れませんでした")
 
     selected = _ask_ollama(candidates, max_clips)
-    selected.sort(key=lambda x: int(x.get("score", 0)), reverse=True)
 
     RESULT_DIR.mkdir(exist_ok=True)
     results: list[dict[str, Any]] = []
     outputs: list[Path] = []
     duration = _duration_seconds(vod_path)
+    selected = _select_non_overlapping(selected, candidates, max_clips, duration)
 
     for index, item in enumerate(selected[:max_clips], 1):
         cid = item["id"]
