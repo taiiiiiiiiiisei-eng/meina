@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -8,7 +9,6 @@ from typing import Any
 
 import requests
 from faster_whisper import WhisperModel
-
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "twitch_config.json"
@@ -20,9 +20,7 @@ TRANSCRIPT_DIR = ROOT / "twitch_transcripts"
 
 def load_config() -> dict[str, Any]:
     if not CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            f"{CONFIG_PATH} がありません。twitch_config.example.json をコピーして設定してください。"
-        )
+        raise FileNotFoundError(f"{CONFIG_PATH} がありません。twitch_config.example.json をコピーして設定してください。")
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
@@ -107,11 +105,24 @@ def make_clip(vod_path: Path, start_seconds: float, end_seconds: float, title: s
     subprocess.run(
         [
             "ffmpeg", "-y", "-ss", str(start), "-i", str(vod_path),
-            "-t", str(end - start), "-c:v", "libx264", "-c:a", "aac", str(output)
+            "-t", str(end - start), "-c:v", "libx264", "-c:a", "aac", str(output),
         ],
         check=True,
     )
     return output
+
+
+def _duration_seconds(vod_path: Path) -> float:
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1", str(vod_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return float(result.stdout.strip())
 
 
 def transcribe_vod(vod_path: Path) -> list[dict[str, Any]]:
@@ -124,14 +135,17 @@ def transcribe_vod(vod_path: Path) -> list[dict[str, Any]]:
     subprocess.run(
         [
             "ffmpeg", "-y", "-i", str(vod_path), "-vn", "-ac", "1", "-ar", "16000",
-            "-c:a", "pcm_s16le", str(audio_path)
+            "-c:a", "pcm_s16le", str(audio_path),
         ],
         check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
 
-    model = WhisperModel("large-v3", device="cuda", compute_type="float16")
+    model_name = os.getenv("MEINA_WHISPER_MODEL", "large-v3")
+    device = os.getenv("MEINA_WHISPER_DEVICE", "cuda")
+    compute_type = os.getenv("MEINA_WHISPER_COMPUTE_TYPE", "float16")
+    model = WhisperModel(model_name, device=device, compute_type=compute_type)
     segments, _ = model.transcribe(str(audio_path), language="ja", vad_filter=True)
     result = [
         {"start": float(seg.start), "end": float(seg.end), "text": seg.text.strip()}
@@ -142,16 +156,6 @@ def transcribe_vod(vod_path: Path) -> list[dict[str, Any]]:
     return result
 
 
-def _duration_seconds(vod_path: Path) -> float:
-    result = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(vod_path)],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return float(result.stdout.strip())
-
-
 def process_latest_vod(download_only: bool = False) -> Path | None:
     config = load_config()
     vod = get_latest_vod(config)
@@ -160,17 +164,18 @@ def process_latest_vod(download_only: bool = False) -> Path | None:
         return None
 
     state = load_state()
+    existing = DOWNLOAD_DIR / f"{vod['id']}.mp4"
     if state.get("last_vod_id") == vod["id"] and not download_only:
-        existing = DOWNLOAD_DIR / f"{vod['id']}.mp4"
         if existing.exists():
             return existing
         print(f"新しいVODなし: {vod['id']}")
         return None
 
-    print(f"新しいVOD: {vod['id']} / {vod['title']}")
+    print(f"VOD取得対象: {vod['id']} / {vod.get('title', '')}")
     path = download_vod(vod)
-    state["last_vod_id"] = vod["id"]
-    save_state(state)
+    if not download_only:
+        state["last_vod_id"] = vod["id"]
+        save_state(state)
     print(f"VOD取得完了: {path}")
     return path
 
