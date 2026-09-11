@@ -20,14 +20,12 @@ def main():
     if not backup.exists():
         shutil.copy2(AGENT, backup)
 
-    # Imports
     text = text.replace(
         "import os\n",
         "import os\nimport json\nfrom datetime import datetime\n",
         1,
     )
 
-    # Recognition fixes that are common with the Japanese Whisper model.
     old = '''        ("メイナー", "メイナ"),\n        ("めいナー", "めいな"),'''
     new = '''        ("ばろらんとと", "バロラント"),\n        ("バロラントト", "バロラント"),\n        ("バロラントー", "バロラント"),\n        ("ばろらんと", "バロラント"),\n        ("メイナー", "メイナ"),\n        ("めいナー", "めいな"),'''
     if old in text:
@@ -71,11 +69,14 @@ def answer_datetime(text):
     now = datetime.now()
     weekdays = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
 
-    if any(key in value for key in ("何時", "時間", "時刻")):
+    time_phrases = ("今何時", "いま何時", "現在何時", "今の時間", "現在の時間", "現在時刻", "今何時ですか")
+    date_phrases = ("今日の日付", "今日は何日", "何月何日", "現在の日付")
+
+    if any(key in value for key in time_phrases) or value in ("何時", "時間", "時刻"):
         return f"現在は{now.hour}時{now.minute}分です。"
-    if any(key in value for key in ("今日の日付", "今日は何日", "何月何日", "日付")):
+    if any(key in value for key in date_phrases) or value == "日付":
         return f"今日は{now.year}年{now.month}月{now.day}日です。"
-    if "何曜日" in value or "曜日" in value:
+    if "何曜日" in value or value == "曜日":
         return f"今日は{weekdays[now.weekday()]}です。"
     return None
 
@@ -86,7 +87,6 @@ def answer_datetime(text):
         raise SystemExit("Ollama会話セクションが見つかりません")
     text = text.replace(ollama_marker, memory_block + ollama_marker, 1)
 
-    # Replace chat function with context-aware persistent conversation history.
     chat_pattern = re.compile(
         r"def chat_with_meina\(text\):.*?(?=\n\n# =========================================================\n# 命令処理)",
         re.S,
@@ -133,7 +133,6 @@ def answer_datetime(text):
         raise SystemExit("chat_with_meina が見つかりません")
     text = chat_pattern.sub(chat_function, text, count=1)
 
-    # Exact date/time questions should never be answered by an LLM.
     process_marker = '''    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")\n\n    # =====================================================\n    # brain_core\n    # =====================================================\n'''
     process_replacement = '''    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")\n\n    # =====================================================\n    # 正確な日付・時刻\n    # =====================================================\n\n    datetime_answer = answer_datetime(text)\n    if datetime_answer:\n        print("🕒", datetime_answer)\n        speak(datetime_answer)\n        return\n\n    # =====================================================\n    # brain_core\n    # =====================================================\n'''
     if process_marker not in text:
