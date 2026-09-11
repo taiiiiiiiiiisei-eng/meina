@@ -1,0 +1,7 @@
+{
+    "name": "めいな",
+    "ollama_model": "meina",
+    "whisper_model": "large-v3",
+    "language": "ja",
+    "voice_rate": 170
+}
