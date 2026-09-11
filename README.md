@@ -5,9 +5,11 @@
 ## 構成
 
 - `meina_agent.py` — 音声入力・Whisper・TTS・AI判断・PC操作の統合本体
+- `run_meina.py` — 実行中のPython環境からCUDA DLLを自動検出して起動
 - `meina_brain/brain_core.py` — 自作AIブレイン
 - `meina2/tools.py` — PC操作・Web操作
 - `command_router.py` — 安全なコマンド振り分け
+- `self_test.py` — Whisper/Ollamaを起動せず構成を確認するセルフテスト
 
 ## 必要環境
 
@@ -26,13 +28,16 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+python self_test.py
 ```
 
 Ollamaでモデル `meina` を用意してから起動：
 
 ```powershell
-python meina_agent.py
+python run_meina.py
 ```
+
+または `start_meina.bat` を実行。
 
 ## 音声操作
 
