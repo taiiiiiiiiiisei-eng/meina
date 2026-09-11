@@ -1,0 +1,8 @@
+faster-whisper
+sounddevice
+pyttsx3
+ollama
+numpy
+requests
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
