@@ -4,7 +4,7 @@ import shutil
 
 ROOT = Path(__file__).resolve().parent
 AGENT = ROOT / "meina_agent.py"
-MARKER = "# MEINA_UPGRADE_V1"
+MARKER = "# MEINA_UPGRADE_V2"
 
 
 def main():
@@ -16,28 +16,28 @@ def main():
         print("Meina upgrade: already applied")
         return
 
-    backup = AGENT.with_name("meina_agent.py.backup_before_upgrade")
+    backup = AGENT.with_name("meina_agent.py.backup_before_upgrade_v2")
     if not backup.exists():
         shutil.copy2(AGENT, backup)
 
-    text = text.replace(
-        "import os\n",
-        "import os\nimport json\nfrom datetime import datetime\n",
-        1,
-    )
+    if "import json\n" not in text:
+        text = text.replace("import os\n", "import os\nimport json\n", 1)
+    if "from datetime import datetime\n" not in text:
+        text = text.replace("import json\n", "import json\nfrom datetime import datetime\n", 1)
 
     old = '''        ("メイナー", "メイナ"),\n        ("めいナー", "めいな"),'''
     new = '''        ("ばろらんとと", "バロラント"),\n        ("バロラントト", "バロラント"),\n        ("バロラントー", "バロラント"),\n        ("ばろらんと", "バロラント"),\n        ("メイナー", "メイナ"),\n        ("めいナー", "めいな"),'''
-    if old in text:
+    if old in text and "ばろらんとと" not in text:
         text = text.replace(old, new, 1)
 
-    memory_block = r'''# MEINA_UPGRADE_V1
+    memory_block = r'''# MEINA_UPGRADE_V2
 # =========================================================
-# 会話メモリ
+# 会話メモリ / 自然な会話
 # =========================================================
 
 MEMORY_FILE = os.path.join(os.path.dirname(__file__), "meina_memory.json")
-MAX_HISTORY = 12
+MAX_HISTORY = 16
+MAX_MEMORY_CHARS = 6000
 
 
 def load_memory():
@@ -54,13 +54,28 @@ def load_memory():
 
 def save_memory(history):
     try:
+        history = history[-MAX_HISTORY:]
         with open(MEMORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(history[-MAX_HISTORY:], f, ensure_ascii=False, indent=2)
+            json.dump(history, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print("⚠️ メモリ保存エラー:", e)
 
 
 conversation_history = load_memory()
+
+
+def _trim_history(history):
+    """会話履歴が大きくなりすぎないよう制限する。"""
+    result = []
+    total = 0
+    for item in reversed(history[-MAX_HISTORY:]):
+        content = str(item.get("content", ""))
+        total += len(content)
+        if total > MAX_MEMORY_CHARS:
+            break
+        result.append(item)
+    result.reverse()
+    return result
 
 
 def answer_datetime(text):
@@ -92,7 +107,7 @@ def answer_datetime(text):
         re.S,
     )
     chat_function = '''def chat_with_meina(text):
-    """普通の質問をOllamaのめいなへ送り、直近の会話を文脈として維持する。"""
+    """普通の会話をOllamaへ送り、直近の会話を文脈として維持する。"""
 
     if not text:
         return ""
@@ -100,7 +115,20 @@ def answer_datetime(text):
     global conversation_history
 
     try:
-        messages = conversation_history[-MAX_HISTORY:] + [
+        history = _trim_history(conversation_history)
+
+        system_prompt = (
+            "あなたはローカル音声AIアシスタント『めいな』です。"
+            "日本語で自然に会話してください。"
+            "ユーザーの発言に直接答え、短く自然な返答を優先してください。"
+            "雑談では堅苦しくならず、会話が続くように返してください。"
+            "PC操作を要求された場合は、別の安全な操作ルートが処理するため、"
+            "ここでは勝手にコマンドやシェル操作を提案しないでください。"
+        )
+
+        messages = [
+            {"role": "system", "content": system_prompt}
+        ] + history + [
             {"role": "user", "content": text}
         ]
 
@@ -117,7 +145,7 @@ def answer_datetime(text):
             {"role": "user", "content": text},
             {"role": "assistant", "content": answer},
         ])
-        conversation_history = conversation_history[-MAX_HISTORY:]
+        conversation_history = _trim_history(conversation_history)
         save_memory(conversation_history)
 
         print("🧠 めいな:", answer)
@@ -140,7 +168,7 @@ def answer_datetime(text):
     text = text.replace(process_marker, process_replacement, 1)
 
     AGENT.write_text(text, encoding="utf-8")
-    print("Meina upgrade: applied")
+    print("Meina upgrade: applied V2")
     print(f"Backup: {backup}")
 
 
