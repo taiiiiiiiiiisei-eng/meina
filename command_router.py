@@ -20,12 +20,12 @@ APP_ALIASES = {
 
 WEB_ALIASES = {
     "google": ("google", "グーグル"),
-    "youtube": ("youtube", "ユーチューブ", "ユーチューブ"),
+    "youtube": ("youtube", "ユーチューブ"),
 }
 
 
 def _compact(text):
-    return re.sub(r"[\s　]+", "", text.lower())
+    return re.sub(r"[\s　]+", "", str(text).lower())
 
 
 def _find_alias(text, aliases):
@@ -53,7 +53,7 @@ def _extract_search_query(text, aliases):
     query = re.sub(
         r"(?:について|に関して)?(?:を)?(?:検索|調べ|探)(?:する|して|して下さい|してください|て|て下さい|てください|す)?$",
         "",
-        query
+        query,
     )
     query = query.strip("、。！？? ")
 
@@ -66,10 +66,7 @@ def route_command(text, frame):
         return None
 
     command = _compact(text)
-    is_search = any(
-        word in command
-        for word in ("検索", "調べ", "探して", "探す")
-    )
+    is_search = any(word in command for word in ("検索", "調べ", "探して", "探す"))
     is_open = any(word in command for word in ("開く", "開いて", "起動", "立ち上げ"))
 
     web_target = _find_alias(command, WEB_ALIASES)
