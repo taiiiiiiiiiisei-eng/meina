@@ -9,14 +9,13 @@ from typing import Any
 import requests
 
 from twitch_clip_pipeline import make_clip, transcribe_vod, _duration_seconds
+from twitch_video_editor import edit_generated_clip
 
 ROOT = Path(__file__).resolve().parent
 CLIPS_DIR = ROOT / "clips"
 RESULT_DIR = ROOT / "twitch_clip_results"
 OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
-
-# 切り抜き同士はこの秒数以上あける。0なら境界が接するところまで許可。
 MIN_CLIP_GAP_SECONDS = 5.0
 
 
@@ -55,11 +54,7 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         {"id": i, "start": round(c["start"], 1), "end": round(c["end"], 1), "text": c["text"][:900]}
         for i, c in enumerate(candidates)
     ]
-
-    # 最終的にはmax_clips本だけ作るが、先に多めの候補をAIに選ばせる。
-    # 近い時間帯が複数選ばれても、後段の重複除外で別の場面を優先できる。
     selection_limit = min(len(candidates), max(max_clips * 3, max_clips))
-
     schema = {
         "type": "object",
         "properties": {
@@ -80,7 +75,6 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         },
         "required": ["clips"],
     }
-
     prompt = (
         "あなたは日本語配信の切り抜き編集者です。以下の候補から、視聴者が面白い・驚く・上手い・"
         "感情が動くと思う場面を最大" + str(selection_limit) + "個選んでください。VALORANT等のゲーム配信を想定。\n"
@@ -90,7 +84,6 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         "各要素は候補id、短い日本語タイトル、選んだ理由、0-100のscoreを含めてください。\n"
         "候補:\n" + json.dumps(compact, ensure_ascii=False)
     )
-
     r = requests.post(
         f"{OLLAMA_URL}/api/chat",
         json={
@@ -105,11 +98,9 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
     r.raise_for_status()
     payload = r.json()
     content = payload.get("message", {}).get("content", "")
-
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
-        # 念のためJSON部分だけを復旧する。
         match = re.search(r"\{.*\}", content, re.S)
         if not match:
             raise RuntimeError("Ollamaが有効なJSONを返しませんでした")
@@ -120,17 +111,11 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
     elif isinstance(data, dict) and isinstance(data.get("clips"), list):
         selected = data["clips"]
     elif isinstance(data, dict) and isinstance(data.get("answer"), str):
-        # 古いモデルがanswer形式を返した場合でも、候補本文との一致から1件だけ復旧する。
         answer = data["answer"].strip()
         selected = []
         for i, candidate in enumerate(candidates):
             if answer and answer in candidate["text"]:
-                selected.append({
-                    "id": i,
-                    "title": "AI選出ハイライト",
-                    "reason": "Ollamaが候補本文を選択しました。",
-                    "score": 70,
-                })
+                selected.append({"id": i, "title": "AI選出ハイライト", "reason": "Ollamaが候補本文を選択しました。", "score": 70})
                 break
     else:
         selected = []
@@ -146,37 +131,20 @@ def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[s
         seen_ids.add(cid)
         item["score"] = max(0, min(100, int(item.get("score", 0))))
         valid.append(item)
-
     if not valid:
         raise RuntimeError("Ollamaから切り抜き候補を1件も選べませんでした")
     return valid
 
 
 def _overlaps(start: float, end: float, selected_ranges: list[tuple[float, float]]) -> bool:
-    """既に選んだ切り抜きと重なるかを判定する。"""
     for other_start, other_end in selected_ranges:
         if start < other_end + MIN_CLIP_GAP_SECONDS and end + MIN_CLIP_GAP_SECONDS > other_start:
             return True
     return False
 
 
-def _select_non_overlapping(
-    selected: list[dict[str, Any]],
-    candidates: list[dict[str, Any]],
-    max_clips: int,
-    duration: float,
-) -> list[dict[str, Any]]:
-    """AI選出結果から、時間が重ならない切り抜きを最大max_clips本選ぶ。"""
-    # AIスコア順。ただし同点なら元候補のヒューリスティックを優先する。
-    ranked = sorted(
-        selected,
-        key=lambda item: (
-            int(item.get("score", 0)),
-            int(candidates[int(item["id"])].get("heuristic", 0)),
-        ),
-        reverse=True,
-    )
-
+def _select_non_overlapping(selected: list[dict[str, Any]], candidates: list[dict[str, Any]], max_clips: int, duration: float) -> list[dict[str, Any]]:
+    ranked = sorted(selected, key=lambda item: (int(item.get("score", 0)), int(candidates[int(item["id"])].get("heuristic", 0))), reverse=True)
     selected_ranges: list[tuple[float, float]] = []
     chosen_ids: set[int] = set()
     result: list[dict[str, Any]] = []
@@ -195,22 +163,13 @@ def _select_non_overlapping(
         result.append(item)
         return True
 
-    # まずAIが選んだものから重複なしで採用。
     for item in ranked:
         if len(result) >= max_clips:
             break
         try_add(item)
 
-    # AIが近い場面ばかり選んだ場合は、残りの候補から別の時間帯を補充する。
     if len(result) < max_clips:
-        fallback = sorted(
-            enumerate(candidates),
-            key=lambda pair: (
-                int(pair[1].get("heuristic", 0)),
-                float(pair[1].get("start", 0.0)),
-            ),
-            reverse=True,
-        )
+        fallback = sorted(enumerate(candidates), key=lambda pair: (int(pair[1].get("heuristic", 0)), float(pair[1].get("start", 0.0))), reverse=True)
         for cid, _candidate in fallback:
             if len(result) >= max_clips:
                 break
@@ -222,7 +181,6 @@ def _select_non_overlapping(
                 "reason": "AI選出候補と時間が重ならない別の場面を補充しました。",
                 "score": int(candidates[cid].get("heuristic", 0)),
             })
-
     return result
 
 
@@ -230,11 +188,9 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
     segments = transcribe_vod(vod_path)
     if not segments:
         raise RuntimeError("音声から字幕を取得できませんでした")
-
     candidates = _candidate_windows(segments)
     if not candidates:
         raise RuntimeError("切り抜き候補を作れませんでした")
-
     selected = _ask_ollama(candidates, max_clips)
 
     RESULT_DIR.mkdir(exist_ok=True)
@@ -242,6 +198,7 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
     outputs: list[Path] = []
     duration = _duration_seconds(vod_path)
     selected = _select_non_overlapping(selected, candidates, max_clips, duration)
+    vertical = os.getenv("MEINA_VERTICAL_SHORTS", "0").strip().lower() in {"1", "true", "yes", "on"}
 
     for index, item in enumerate(selected[:max_clips], 1):
         cid = item["id"]
@@ -249,22 +206,28 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
         start = max(0.0, min(c["start"], duration - 1.0))
         end = max(start + 8.0, min(c["end"], duration))
         title = str(item.get("title") or f"切り抜き{index}")
-        path = make_clip(vod_path, start, end, title, index)
+        raw_path = make_clip(vod_path, start, end, title, index)
+        path = raw_path
+        try:
+            path = edit_generated_clip(raw_path, segments, start, end, vertical=vertical)
+            print(f"🎬 自動編集完了: {path}")
+        except Exception as exc:
+            print(f"⚠️ 自動編集をスキップしました: {exc}")
         outputs.append(path)
         results.append({
             "file": str(path),
+            "raw_file": str(raw_path),
             "start": start,
             "end": end,
             "title": title,
             "reason": item.get("reason", ""),
             "score": item.get("score", 0),
             "transcript": c["text"],
+            "edited": path != raw_path,
+            "vertical": vertical,
         })
 
-    (RESULT_DIR / f"{vod_path.stem}.json").write_text(
-        json.dumps(results, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    (RESULT_DIR / f"{vod_path.stem}.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     return outputs
 
 
