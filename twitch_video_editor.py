@@ -31,14 +31,14 @@ def _find_executable(name: str) -> str:
     raise FileNotFoundError(f"{name} が見つかりません。FFmpegをインストールしてください。")
 
 
-def _run(cmd: list[str]) -> None:
-    subprocess.run(cmd, check=True)
+def _run(cmd: list[str], cwd: Path | None = None) -> None:
+    subprocess.run(cmd, check=True, cwd=str(cwd) if cwd else None)
 
 
 def _duration_seconds(path: Path) -> float:
     ffprobe = _find_executable("ffprobe")
     result = subprocess.run(
-        [ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        [ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path.resolve())],
         check=True,
         capture_output=True,
         text=True,
@@ -134,12 +134,6 @@ def _make_filter(highlight_times: list[float], vertical: bool) -> str:
     return video
 
 
-def _escape_filter_path(path: Path) -> str:
-    value = str(path).replace("\\", "/")
-    value = value.replace(":", r"\:")
-    return value
-
-
 def edit_clip(
     input_path: Path,
     output_path: Path,
@@ -152,24 +146,29 @@ def edit_clip(
 ) -> Path:
     """切り抜きに字幕・軽い演出・任意BGMを追加する。"""
     ffmpeg = _find_executable("ffmpeg")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    input_abs = input_path.resolve()
+    output_abs = output_path.resolve()
+    output_abs.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="meina_edit_") as tmp:
-        ass_path = Path(tmp) / "captions.ass"
+        tmp_dir = Path(tmp)
+        ass_path = tmp_dir / "captions.ass"
         highlight_times = _make_ass(segments, clip_start, clip_end, ass_path)
         vf = _make_filter(highlight_times, vertical)
-        vf += ",ass=" + _escape_filter_path(ass_path)
+        # ASS字幕ファイルはFFmpegの作業ディレクトリから相対指定することで、
+        # Windowsのドライブ文字(C:)をfilter parserに解釈させない。
+        vf += ",ass=captions.ass"
         duration = max(0.1, clip_end - clip_start)
 
         cmd = [
             ffmpeg, "-y",
             "-ss", f"{clip_start:.3f}",
-            "-i", str(input_path),
+            "-i", str(input_abs),
         ]
 
         use_bgm = bgm_path is not None and bgm_path.exists()
         if use_bgm:
-            cmd += ["-stream_loop", "-1", "-i", str(bgm_path)]
+            cmd += ["-stream_loop", "-1", "-i", str(bgm_path.resolve())]
 
         if use_bgm:
             cmd += [
@@ -194,11 +193,11 @@ def edit_clip(
             "-c:a", "aac",
             "-b:a", "192k",
             "-movflags", "+faststart",
-            str(output_path),
+            str(output_abs),
         ]
-        _run(cmd)
+        _run(cmd, cwd=tmp_dir)
 
-    return output_path
+    return output_abs
 
 
 def edit_generated_clip(
