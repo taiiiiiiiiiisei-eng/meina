@@ -1,0 +1,115 @@
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+from pathlib import Path
+from typing import Any
+
+import requests
+
+from twitch_clip_pipeline import make_clip, transcribe_vod, _duration_seconds
+
+ROOT = Path(__file__).resolve().parent
+CLIPS_DIR = ROOT / "clips"
+RESULT_DIR = ROOT / "twitch_clip_results"
+OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
+
+
+def _candidate_windows(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    windows: list[dict[str, Any]] = []
+    for i, seg in enumerate(segments):
+        start = max(0.0, float(seg["start"]) - 8.0)
+        end = min(float(segments[-1]["end"]), float(seg["end"]) + 15.0)
+        texts = [seg["text"]]
+        j = i + 1
+        while j < len(segments) and float(segments[j]["start"]) <= end:
+            texts.append(segments[j]["text"])
+            end = min(float(segments[-1]["end"]), float(segments[j]["end"]) + 8.0)
+            j += 1
+        text = " ".join(texts).strip()
+        if len(text) < 8:
+            continue
+        score = 0
+        for word in ("やば", "うま", "神", "えぐ", "勝った", "負け", "キル", "クラッチ", "www", "笑", "なんで", "無理", "最高", "すご", "マジ"):
+            if word in text:
+                score += 1
+        windows.append({"start": start, "end": min(start + 55.0, end), "text": text, "heuristic": score})
+    windows.sort(key=lambda x: x["heuristic"], reverse=True)
+    unique: list[dict[str, Any]] = []
+    for item in windows:
+        if any(abs(item["start"] - x["start"]) < 20 for x in unique):
+            continue
+        unique.append(item)
+        if len(unique) >= 15:
+            break
+    return unique
+
+
+def _ask_ollama(candidates: list[dict[str, Any]], max_clips: int) -> list[dict[str, Any]]:
+    compact = [
+        {"id": i, "start": round(c["start"], 1), "end": round(c["end"], 1), "text": c["text"][:900]}
+        for i, c in enumerate(candidates)
+    ]
+    prompt = (
+        "あなたは日本語配信の切り抜き編集者です。以下の候補から、視聴者が面白い・驚く・上手い・" 
+        "感情が動くと思う場面を最大" + str(max_clips) + "個選んでください。VALORANT等のゲーム配信を想定。\n"
+        "JSON配列だけを返してください。各要素は {\"id\":整数,\"title\":\"短い日本語タイトル\",\"reason\":\"理由\",\"score\":0-100}。\n"
+        "候補:\n" + json.dumps(compact, ensure_ascii=False)
+    )
+    r = requests.post(
+        f"{OLLAMA_URL}/api/chat",
+        json={"model": OLLAMA_MODEL, "stream": False, "messages": [{"role": "user", "content": prompt}], "options": {"temperature": 0.2}},
+        timeout=120,
+    )
+    r.raise_for_status()
+    content = r.json()["message"]["content"]
+    match = re.search(r"\[.*\]", content, re.S)
+    if not match:
+        raise RuntimeError("OllamaがJSON配列を返しませんでした")
+    data = json.loads(match.group(0))
+    return [x for x in data if isinstance(x, dict) and isinstance(x.get("id"), int)]
+
+
+def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
+    segments = transcribe_vod(vod_path)
+    if not segments:
+        raise RuntimeError("音声から字幕を取得できませんでした")
+
+    candidates = _candidate_windows(segments)
+    if not candidates:
+        raise RuntimeError("切り抜き候補を作れませんでした")
+
+    selected = _ask_ollama(candidates, max_clips)
+    selected.sort(key=lambda x: int(x.get("score", 0)), reverse=True)
+
+    RESULT_DIR.mkdir(exist_ok=True)
+    results: list[dict[str, Any]] = []
+    outputs: list[Path] = []
+    duration = _duration_seconds(vod_path)
+
+    for index, item in enumerate(selected[:max_clips], 1):
+        cid = item["id"]
+        if cid < 0 or cid >= len(candidates):
+            continue
+        c = candidates[cid]
+        start = max(0.0, min(c["start"], duration - 1.0))
+        end = max(start + 8.0, min(c["end"], duration))
+        title = str(item.get("title") or f"切り抜き{index}")
+        path = make_clip(vod_path, start, end, title, index)
+        outputs.append(path)
+        results.append({"file": str(path), "start": start, "end": end, "title": title, "reason": item.get("reason", ""), "score": item.get("score", 0), "transcript": c["text"]})
+
+    (RESULT_DIR / f"{vod_path.stem}.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    return outputs
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        raise SystemExit("使い方: python twitch_ai_clipper.py twitch_vods/VIDEO.mp4")
+    paths = create_ai_clips(Path(sys.argv[1]))
+    for path in paths:
+        print(f"完成: {path}")
