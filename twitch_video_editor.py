@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
@@ -12,7 +11,6 @@ ROOT = Path(__file__).resolve().parent
 EDITED_DIR = ROOT / "clips" / "edited"
 BGM_PATH = ROOT / "assets" / "bgm.mp3"
 
-# VALORANT配信で字幕・演出を入れやすい反応ワード。
 HIGHLIGHT_WORDS = (
     "やば", "うま", "神", "えぐ", "勝った", "負け", "キル", "クラッチ",
     "なんで", "無理", "最高", "すご", "マジ", "プラチナ", "びっくり", "わっしょい",
@@ -23,8 +21,6 @@ def _find_executable(name: str) -> str:
     found = shutil.which(name)
     if found:
         return found
-
-    # Windowsのwinget版FFmpegをPATHなしでも見つけられるようにする。
     if os.name == "nt":
         local = Path(os.environ.get("LOCALAPPDATA", ""))
         if local.exists():
@@ -68,7 +64,6 @@ def _make_ass(
     clip_end: float,
     path: Path,
 ) -> list[float]:
-    """Whisperの区間から字幕ASSを作り、演出を入れる相対時刻を返す。"""
     highlight_times: list[float] = []
     lines = [
         "[Script Info]",
@@ -94,8 +89,7 @@ def _make_ass(
         rel_start = start - clip_start
         rel_end = end - clip_start
         safe = _ass_escape(text)
-        is_highlight = any(word in text for word in HIGHLIGHT_WORDS)
-        if is_highlight:
+        if any(word in text for word in HIGHLIGHT_WORDS):
             safe = "{\\c&H00FFFF&}" + safe
             highlight_times.append(rel_start)
         lines.append(
@@ -107,7 +101,6 @@ def _make_ass(
 
 
 def _make_filter(highlight_times: list[float], vertical: bool) -> str:
-    # 軽い色調整＋常時わずかなパンチイン。
     if vertical:
         video = (
             "scale=608:1080:force_original_aspect_ratio=increase,"
@@ -123,13 +116,18 @@ def _make_filter(highlight_times: list[float], vertical: bool) -> str:
             "unsharp=5:5:0.35:5:5:0"
         )
 
-    # 反応ワード付近に一瞬だけ白フラッシュを入れる。
     for t in highlight_times[:12]:
         a = max(0.0, t)
         b = a + 0.10
         video += f",drawbox=x=0:y=0:w=iw:h=ih:color=white@0.18:t=fill:enable='between(t,{a:.3f},{b:.3f})'"
-
     return video
+
+
+def _escape_filter_path(path: Path) -> str:
+    # FFmpegのfilter引数用。Windowsのドライブ文字とバックスラッシュを処理する。
+    value = str(path).replace("\\", "/")
+    value = value.replace(":", r"\:")
+    return value
 
 
 def edit_clip(
@@ -150,11 +148,10 @@ def edit_clip(
         ass_path = Path(tmp) / "captions.ass"
         highlight_times = _make_ass(segments, clip_start, clip_end, ass_path)
         vf = _make_filter(highlight_times, vertical)
-        vf += f",ass={str(ass_path).replace(chr(92), '/').replace(':', '\\:')}"
+        vf += ",ass=" + _escape_filter_path(ass_path)
 
         cmd = [
-            ffmpeg,
-            "-y",
+            ffmpeg, "-y",
             "-ss", f"{clip_start:.3f}",
             "-to", f"{clip_end:.3f}",
             "-i", str(input_path),
@@ -164,18 +161,19 @@ def edit_clip(
         if use_bgm:
             cmd += ["-stream_loop", "-1", "-i", str(bgm_path)]
 
-        cmd += ["-vf", vf]
-
         if use_bgm:
-            # 元音声を主役にし、BGMはかなり小さく混ぜる。
             cmd += [
                 "-filter_complex",
-                "[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[voice];[1:a]volume=0.08[bgm];[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]",
-                "-map", "0:v:0",
+                f"[0:v]{vf}[vout];[0:a]loudnorm=I=-16:TP=-1.5:LRA=11[voice];[1:a]volume=0.08[bgm];[voice][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+                "-map", "[vout]",
                 "-map", "[aout]",
             ]
         else:
-            cmd += ["-map", "0:v:0", "-map", "0:a?"]
+            cmd += [
+                "-vf", vf,
+                "-map", "0:v:0",
+                "-map", "0:a?",
+            ]
 
         cmd += [
             "-c:v", "libx264",
