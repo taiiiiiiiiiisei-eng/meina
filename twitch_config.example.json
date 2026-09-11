@@ -1,0 +1,7 @@
+{
+  "channel_login": "YOUR_TWITCH_LOGIN",
+  "client_id": "YOUR_TWITCH_CLIENT_ID",
+  "client_secret": "YOUR_TWITCH_CLIENT_SECRET",
+  "check_interval_seconds": 300,
+  "max_clips": 3
+}
