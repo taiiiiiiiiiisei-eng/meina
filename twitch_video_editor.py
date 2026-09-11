@@ -35,6 +35,17 @@ def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
+def _duration_seconds(path: Path) -> float:
+    ffprobe = _find_executable("ffprobe")
+    result = subprocess.run(
+        [ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return float(result.stdout.strip())
+
+
 def _ass_time(seconds: float) -> str:
     seconds = max(0.0, float(seconds))
     h = int(seconds // 3600)
@@ -103,8 +114,8 @@ def _make_ass(
 def _make_filter(highlight_times: list[float], vertical: bool) -> str:
     if vertical:
         video = (
-            "scale=608:1080:force_original_aspect_ratio=increase,"
-            "crop=608:1080,"
+            "scale=-1:1080,"
+            "crop=608:1080:(iw-608)/2:0,"
             "eq=contrast=1.04:saturation=1.08,"
             "unsharp=5:5:0.35:5:5:0"
         )
@@ -124,7 +135,6 @@ def _make_filter(highlight_times: list[float], vertical: bool) -> str:
 
 
 def _escape_filter_path(path: Path) -> str:
-    # FFmpegのfilter引数用。Windowsのドライブ文字とバックスラッシュを処理する。
     value = str(path).replace("\\", "/")
     value = value.replace(":", r"\:")
     return value
@@ -149,11 +159,11 @@ def edit_clip(
         highlight_times = _make_ass(segments, clip_start, clip_end, ass_path)
         vf = _make_filter(highlight_times, vertical)
         vf += ",ass=" + _escape_filter_path(ass_path)
+        duration = max(0.1, clip_end - clip_start)
 
         cmd = [
             ffmpeg, "-y",
             "-ss", f"{clip_start:.3f}",
-            "-to", f"{clip_end:.3f}",
             "-i", str(input_path),
         ]
 
@@ -176,6 +186,7 @@ def edit_clip(
             ]
 
         cmd += [
+            "-t", f"{duration:.3f}",
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", "19",
@@ -208,3 +219,41 @@ def edit_generated_clip(
         vertical=vertical,
         bgm_path=BGM_PATH if BGM_PATH.exists() else None,
     )
+
+
+def _edit_standalone(input_path: Path, vertical: bool = False) -> Path:
+    """既存の切り抜き動画を単体編集する。字幕用にその動画自身をWhisperで認識する。"""
+    if not input_path.exists():
+        raise FileNotFoundError(f"動画が見つかりません: {input_path}")
+
+    from twitch_clip_pipeline import transcribe_vod
+
+    print(f"🎬 編集開始: {input_path}")
+    print("🧠 字幕用に音声を認識しています...")
+    segments = transcribe_vod(input_path)
+    duration = _duration_seconds(input_path)
+    output = EDITED_DIR / f"{input_path.stem}_edited.mp4"
+    result = edit_clip(
+        input_path,
+        output,
+        segments,
+        0.0,
+        duration,
+        vertical=vertical,
+        bgm_path=BGM_PATH if BGM_PATH.exists() else None,
+    )
+    print(f"✅ 編集完了: {result}")
+    return result
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) < 2:
+        raise SystemExit(
+            '使い方: python twitch_video_editor.py "clips\\動画.mp4"'
+        )
+
+    input_path = Path(sys.argv[1])
+    vertical = os.getenv("MEINA_VERTICAL_SHORTS", "0").strip().lower() in {"1", "true", "yes", "on"}
+    _edit_standalone(input_path, vertical=vertical)
