@@ -2,6 +2,16 @@
 
 ローカルで動作する JARVIS 型 AI アシスタント。
 
+## AI開発ルール
+
+このリポジトリはGPT/Codexによる継続的な開発を前提にしています。
+
+- `AGENTS.md` — AI開発エージェント向けの設計・変更・テスト・Gitルール
+- `ci_self_test.py` — 外部依存なしで実行できる静的セルフテスト
+- `.github/workflows/static-self-test.yml` — push / pull request時の自動静的テスト
+
+エージェントは、既存コードを確認 → 必要な変更だけ実装 → テスト → 結果を確認、の順で進めます。
+
 ## 構成
 
 - `meina_agent.py` — 音声入力・Whisper・TTS・AI判断・PC操作の統合本体
@@ -12,6 +22,7 @@
 - `self_test.py` — Whisper/Ollamaを起動せず構成を確認するセルフテスト
 - `twitch_clip_pipeline.py` — Twitch VOD取得・音声抽出・Whisper文字起こし・FFmpeg切り抜き
 - `twitch_ai_clipper.py` — Whisper候補をOllamaで評価して自動切り抜き
+- `twitch_video_editor.py` — 字幕・映像効果・動画編集
 - `meina_twitch.py` / `meina_twitch_voice.py` — めいなからTwitch切り抜きを呼び出す処理
 - `twitch_auto_clip.py` — 新しいVODを定期監視して自動切り抜き
 
@@ -35,6 +46,7 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python self_test.py
+python ci_self_test.py
 ```
 
 Ollamaでモデル `meina` を用意してから起動：
@@ -43,7 +55,7 @@ Ollamaでモデル `meina` を用意してから起動：
 python run_meina.py
 ```
 
-または `start_meina.bat` を実行。起動時にTwitch音声連携の安全なパッチも適用されます。
+または `start_meina.bat` を実行。起動時に必要なアップグレードパッチを適用してから本体を起動します。
 
 ## 音声操作
 
