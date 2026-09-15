@@ -12,6 +12,7 @@ REQUIRED_FILES = {
     "command_router.py": ["route_command"],
     "meina_pc_status.py": ["get_pc_status", "format_pc_status"],
     "meina_task_plans.py": ["detect_task_plan", "get_task_plan", "validate_task_plan"],
+    "upgrade_meina_task_plan.py": ["main"],
     "meina2/tools.py": ["open_browser", "google_search", "youtube_search"],
     "meina_brain/brain_core.py": ["process_command"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
@@ -40,6 +41,12 @@ def main() -> None:
         for name in required:
             assert name in names, f"{relative}: missing {name}"
         print(f"OK: {relative}")
+
+    task_upgrade = (ROOT / "upgrade_meina_task_plan.py").read_text(encoding="utf-8")
+    assert "MEINA_UPGRADE_TASK_PLAN_V1" in task_upgrade
+    assert "_route_command_with_task_plan" in task_upgrade
+    assert "execute_task_plan" in task_upgrade
+    assert "配信準備" not in (ROOT / "command_router.py").read_text(encoding="utf-8")
 
     print("CI static self-test passed")
 
