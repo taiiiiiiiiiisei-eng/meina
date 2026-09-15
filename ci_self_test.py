@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parent
 REQUIRED_FILES = {
     "meina_agent.py": ["process_command"],
     "command_router.py": ["route_command"],
+    "meina_pc_status.py": ["get_pc_status", "format_pc_status"],
+    "meina_task_plans.py": ["detect_task_plan", "get_task_plan", "validate_task_plan"],
     "meina2/tools.py": ["open_browser", "google_search", "youtube_search"],
     "meina_brain/brain_core.py": ["process_command"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
