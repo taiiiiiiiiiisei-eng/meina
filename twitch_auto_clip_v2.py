@@ -3,20 +3,29 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from typing import Any
 
 from twitch_ai_clipper import create_ai_clips
 from twitch_clip_pipeline import download_vod, get_latest_vod, load_config, load_state, save_state
+from twitch_ffmpeg_env import find_executable
 
 INTERVAL = int(os.getenv("MEINA_TWITCH_INTERVAL", "300"))
 MAX_CLIPS = int(os.getenv("MEINA_TWITCH_MAX_CLIPS", "3"))
 
 
+def configure_ffmpeg() -> None:
+    """Make FFmpeg/ffprobe discoverable by child processes on Windows."""
+    ffmpeg = Path(find_executable("ffmpeg")).resolve()
+    bin_dir = str(ffmpeg.parent)
+    current = os.environ.get("PATH", "")
+    if bin_dir not in current.split(os.pathsep):
+        os.environ["PATH"] = bin_dir + os.pathsep + current
+
+
 def process_new_vod() -> list[Path] | None:
     """Process only a VOD that has not already been processed successfully."""
+    configure_ffmpeg()
     config = load_config()
-    token = __import__("twitch_clip_pipeline").twitch_app_token(config)
-    vod = get_latest_vod(config, token)
+    vod = get_latest_vod(config)
     if not vod:
         return None
 
