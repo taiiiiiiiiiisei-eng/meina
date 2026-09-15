@@ -1,0 +1,1 @@
+Phase 1 stabilization note: command routing now normalizes canonical app targets and regression tests verify extracted search queries.
