@@ -5,7 +5,6 @@ import re
 
 MIN_CONFIDENCE = 0.70
 
-
 APP_ALIASES = {
     "notepad": ("メモ帳",),
     "calculator": ("電卓", "計算機"),
@@ -22,6 +21,22 @@ WEB_ALIASES = {
     "google": ("google", "グーグル"),
     "youtube": ("youtube", "ユーチューブ"),
 }
+
+PC_STATUS_PHRASES = (
+    "pcの状態",
+    "pc状態",
+    "パソコンの状態",
+    "パソコン状態",
+    "pcのスペック",
+    "パソコンのスペック",
+    "pc情報",
+    "パソコン情報",
+    "メモリ使用量",
+    "メモリの状態",
+    "ディスク容量",
+    "gpuの状態",
+    "gpu情報",
+)
 
 
 def _compact(text):
@@ -68,6 +83,14 @@ def route_command(text, frame):
     command = _compact(text)
     is_search = any(word in command for word in ("検索", "調べ", "探して", "探す"))
     is_open = any(word in command for word in ("開く", "開いて", "起動", "立ち上げ"))
+
+    if any(phrase in command for phrase in PC_STATUS_PHRASES):
+        return {
+            "kind": "pc_status",
+            "target": "pc",
+            "query": None,
+            "confidence": _confidence(frame),
+        }
 
     web_target = _find_alias(command, WEB_ALIASES)
     if web_target:
