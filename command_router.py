@@ -10,12 +10,12 @@ APP_ALIASES = {
     "notepad": ("メモ帳",),
     "calculator": ("電卓", "計算機"),
     "explorer": ("エクスプローラー", "ファイルエクスプローラー", "explorer"),
-    "Discord": ("discord", "ディスコード"),
-    "Steam": ("steam", "スチーム"),
-    "Chrome": ("chrome", "クローム"),
-    "Edge": ("edge", "エッジ"),
-    "OBS": ("obs", "オービーエス"),
-    "VALORANT": ("valorant", "バロラント"),
+    "discord": ("discord", "ディスコード"),
+    "steam": ("steam", "スチーム"),
+    "chrome": ("chrome", "クローム"),
+    "edge": ("edge", "エッジ"),
+    "obs": ("obs", "オービーエス"),
+    "valorant": ("valorant", "バロラント"),
 }
 
 WEB_ALIASES = {
@@ -30,7 +30,7 @@ def _compact(text):
 
 def _find_alias(text, aliases):
     for canonical, values in aliases.items():
-        if any(alias in text for alias in values):
+        if any(_compact(alias) in text for alias in values):
             return canonical
     return None
 
@@ -44,19 +44,16 @@ def _confidence(frame):
 
 def _extract_search_query(text, aliases):
     """サービス名と命令表現を取り除き、検索語だけを返す。"""
-    query = text
+    query = _compact(text)
 
     for alias in aliases:
-        query = query.replace(alias, "", 1)
+        query = query.replace(_compact(alias), "", 1)
 
     query = re.sub(r"^(?:で|に|を|から)", "", query)
-    query = re.sub(
-        r"(?:について|に関して)?(?:を)?(?:検索|調べ|探)(?:する|して|して下さい|してください|て|て下さい|てください|す)?$",
-        "",
-        query,
-    )
+    query = re.sub(r"(?:について|に関して)(?:を)?$", "", query)
+    query = re.sub(r"(?:検索|調べ|探して|探す)(?:する|して|してください|して下さい|て|す)?$", "", query)
     query = query.strip("、。！？? ")
-
+    query = re.sub(r"^(?:で|に|を|から)", "", query)
     return query or None
 
 
