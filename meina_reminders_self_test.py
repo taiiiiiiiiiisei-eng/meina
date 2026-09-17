@@ -2,29 +2,40 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
+import meina_reminder_parser
 import meina_reminders
 
 
 def main() -> int:
+    now = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
+    parsed = meina_reminder_parser.parse_reminder_command("10分後に宿題をリマインドして", now)
+    assert parsed is not None
+    assert parsed["text"] == "宿題を"
+    assert parsed["due_at"].startswith("2026-09-12T10:10:00")
+
+    parsed_clock = meina_reminder_parser.parse_reminder_command("18時に配信をリマインドして", now)
+    assert parsed_clock is not None
+    assert parsed_clock["text"] == "配信を"
+
     original = meina_reminders.REMINDER_PATH
-    with tempfile.TemporaryDirectory() as tmp:
-        meina_reminders.REMINDER_PATH = Path(tmp) / "reminders.json"
-        item = meina_reminders.add_reminder(
-            "テストする",
-            "2030-01-01T10:00:00+09:00",
-        )
-        assert item["done"] is False
-        assert meina_reminders.list_reminders()[0]["text"] == "テストする"
-        due = meina_reminders.due_reminders(
-            datetime.fromisoformat("2030-01-01T11:00:00+09:00")
-        )
-        assert len(due) == 1
-        assert meina_reminders.complete_reminder(item["id"])
-        assert meina_reminders.list_reminders() == []
-    meina_reminders.REMINDER_PATH = original
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            meina_reminders.REMINDER_PATH = Path(tmp) / "reminders.json"
+            item = meina_reminders.add_reminder("テストする", "2030-01-01T10:00:00+09:00")
+            assert item["done"] is False
+            assert meina_reminders.list_reminders()[0]["text"] == "テストする"
+            due = meina_reminders.due_reminders(
+                datetime.fromisoformat("2030-01-01T11:00:00+09:00")
+            )
+            assert len(due) == 1
+            assert meina_reminders.complete_reminder(item["id"])
+            assert meina_reminders.list_reminders() == []
+    finally:
+        meina_reminders.REMINDER_PATH = original
+
     print("Reminder self-test: PASS")
     return 0
 
