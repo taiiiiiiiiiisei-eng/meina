@@ -7,5 +7,5 @@ py upgrade_meina_twitch.py
 py upgrade_meina_twitch_v2.py
 py upgrade_meina_pc_status.py
 py upgrade_meina_task_plan.py
-py run_meina.py
+py meina_agent.py
 pause
