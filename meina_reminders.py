@@ -52,22 +52,7 @@ def find_reminders(query: str) -> list[dict[str, Any]]:
     return [item for item in list_reminders() if needle in str(item.get("text", "")).lower()]
 
 
-def today_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
-    current = now or datetime.now().astimezone()
-    result = []
-    for item in list_reminders():
-        try:
-            due = datetime.fromisoformat(str(item["due_at"])).astimezone(current.tzinfo)
-            if due.date() == current.date():
-                result.append(item)
-        except (KeyError, TypeError, ValueError):
-            continue
-    return result
-
-
-def tomorrow_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
-    current = now or datetime.now().astimezone()
-    target_date = (current + timedelta(days=1)).date()
+def _date_reminders(target_date, current: datetime) -> list[dict[str, Any]]:
     result = []
     for item in list_reminders():
         try:
@@ -76,6 +61,33 @@ def tomorrow_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
                 result.append(item)
         except (KeyError, TypeError, ValueError):
             continue
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def today_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
+    current = now or datetime.now().astimezone()
+    return _date_reminders(current.date(), current)
+
+
+def tomorrow_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
+    current = now or datetime.now().astimezone()
+    return _date_reminders((current + timedelta(days=1)).date(), current)
+
+
+def upcoming_reminders(days: int = 7, now: datetime | None = None) -> list[dict[str, Any]]:
+    """現在から指定日数以内の未完了予定を時刻順で返す。"""
+    current = now or datetime.now().astimezone()
+    end = current + timedelta(days=max(1, int(days)))
+    result = []
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item["due_at"])).astimezone(current.tzinfo)
+            if current <= due <= end:
+                result.append(item)
+        except (KeyError, TypeError, ValueError):
+            continue
+    result.sort(key=lambda item: str(item.get("due_at", "")))
     return result
 
 
