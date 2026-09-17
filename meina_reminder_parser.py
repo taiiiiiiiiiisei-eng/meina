@@ -7,12 +7,13 @@ from datetime import datetime, timedelta
 
 _RELATIVE = re.compile(r"(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*後")
 _CLOCK = re.compile(r"(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
+_REMINDER_WORDS = re.compile(r"(?:リマインド|リマインダー)(?:して|してね|お願いします|お願い)?")
 
 
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
-    """「10分後に宿題」「18時に配信」などをリマインダー情報へ変換する。"""
+    """「10分後に宿題をリマインドして」「18時に配信をリマインド」等を解析する。"""
     raw = str(text or "").strip()
-    if not raw or "リマインド" not in raw and "リマインダー" not in raw:
+    if not raw or not _REMINDER_WORDS.search(raw):
         return None
 
     current = now or datetime.now().astimezone()
@@ -28,7 +29,7 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
             "日": timedelta(days=amount),
         }[unit]
         due = current + delta
-        text_part = _extract_text(raw, match.span(), "後")
+        text_part = _extract_text(raw, match.span())
         if text_part:
             return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
         return None
@@ -42,21 +43,20 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if due <= current:
             due += timedelta(days=1)
-        text_part = _extract_text(raw, match.span(), "時")
+        text_part = _extract_text(raw, match.span())
         if text_part:
             return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
     return None
 
 
-def _extract_text(raw: str, span: tuple[int, int], marker: str) -> str:
-    before = raw[: span[0]]
-    after = raw[span[1] :]
-    parts = re.split(r"(?:に|へ|って|を)?(?:リマインド|リマインダー)(?:して|してね|お願い)?", before, maxsplit=1)
-    text = parts[-1] if len(parts) > 1 else after
-    if not text.strip():
+def _extract_text(raw: str, time_span: tuple[int, int]) -> str:
+    before = raw[: time_span[0]]
+    after = raw[time_span[1] :]
+    if before.strip():
+        text = before
+    else:
         text = after
-    text = re.sub(r"^[、。\s]+|[、。！？?\s]+$", "", text)
-    text = re.sub(r"^(?:に|を|の)\s*", "", text)
-    if not text and after:
-        text = after
+    text = _REMINDER_WORDS.sub("", text)
+    text = re.sub(r"^(?:に|へ|を|の|って)\s*", "", text)
+    text = re.sub(r"[、。！？?\s]+$", "", text)
     return text.strip(" 、。！？?")
