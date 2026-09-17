@@ -1,51 +1,93 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 import shutil
 
 ROOT = Path(__file__).resolve().parent
 AGENT = ROOT / "meina_agent.py"
-MARKER = "# MEINA_UPGRADE_TASK_PLAN_V1"
+ROUTER = ROOT / "command_router.py"
 
-IMPORT_BLOCK = '''from meina_task_plans import detect_task_plan, get_task_plan, validate_task_plan
-
-# MEINA_UPGRADE_TASK_PLAN_V1
-_original_route_command = command_router.route_command
+AGENT_MARKER = "# MEINA_UPGRADE_TASK_PLAN_LOCAL_V1"
+ROUTER_MARKER = "# MEINA_TASK_PLAN_ROUTER_LOCAL_V1"
 
 
-def _route_command_with_task_plan(text, frame):
-    plan_name = detect_task_plan(text)
-    if plan_name and validate_task_plan(plan_name):
-        try:
-            confidence = float(frame.get("confidence", 0))
-        except (AttributeError, TypeError, ValueError):
-            confidence = 0.0
-        if confidence >= command_router.MIN_CONFIDENCE:
-            return {
-                "kind": "task_plan",
-                "target": plan_name,
-                "query": None,
-                "confidence": confidence,
-            }
-    return _original_route_command(text, frame)
+def main() -> None:
+    if not AGENT.exists():
+        raise SystemExit("meina_agent.py が見つかりません")
+    if not ROUTER.exists():
+        raise SystemExit("command_router.py が見つかりません")
 
+    backup = AGENT.with_name("meina_agent.py.backup_before_task_plan_local")
+    if not backup.exists():
+        shutil.copy2(AGENT, backup)
+        print(f"Backup created: {backup}")
 
-command_router.route_command = _route_command_with_task_plan
+    # command_router: 固定・許可済みの「配信準備」は
+    # brain_core の自然言語 confidence に依存させない。
+    router_text = ROUTER.read_text(encoding="utf-8")
+    if ROUTER_MARKER not in router_text:
+        marker = '    if not text or _confidence(frame) < MIN_CONFIDENCE:\n        return None\n'
+        if marker not in router_text:
+            raise SystemExit("command_router.py の安全チェック位置を特定できません")
+
+        replacement = '''    # MEINA_TASK_PLAN_ROUTER_LOCAL_V1
+    # 「配信準備」は固定・許可済みタスクなので
+    # brain_coreの自然言語confidenceには依存しない。
+    compact_for_task = _compact(text)
+    if "配信準備" in compact_for_task:
+        return {
+            "kind": "task_plan",
+            "target": "stream_prepare",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+''' + marker
+        router_text = router_text.replace(marker, replacement, 1)
+        ROUTER.write_text(router_text, encoding="utf-8")
+        print("command_router.py: task plan routing applied")
+    else:
+        print("command_router.py: already patched")
+
+    # meina_agent: task_plan を固定手順として安全に実行する。
+    agent_text = AGENT.read_text(encoding="utf-8")
+    if AGENT_MARKER not in agent_text:
+        import_anchor = "import command_router\n"
+        if import_anchor not in agent_text:
+            raise SystemExit("command_router import が見つかりません")
+
+        import_block = '''import command_router
+from meina_task_plans import get_task_plan, validate_task_plan
+
+# MEINA_UPGRADE_TASK_PLAN_LOCAL_V1
 '''
+        agent_text = agent_text.replace(import_anchor, import_block, 1)
 
-EXEC_BLOCK = '''# MEINA_UPGRADE_TASK_PLAN_V1_EXEC
+        function_anchor = 'def execute_routed_command(route):\n'
+        if function_anchor not in agent_text:
+            raise SystemExit("execute_routed_command が見つかりません")
+        agent_text = agent_text.replace(
+            function_anchor,
+            'def _execute_routed_command_base(route):\n',
+            1,
+        )
 
+        insert_anchor = 'def execute_action(frame):\n'
+        if insert_anchor not in agent_text:
+            raise SystemExit("execute_action が見つかりません")
+
+        task_block = '''# MEINA_UPGRADE_TASK_PLAN_LOCAL_V1_EXEC
 
 def execute_task_plan(route):
-    """固定定義されたタスクだけを順番に実行する。"""
+    """安全な固定タスクだけを順番に実行する。"""
     plan_name = route.get("target")
     if not plan_name or not validate_task_plan(plan_name):
         print("⚠️ 不正なタスク計画のため実行しません")
         return False
 
     plan = get_task_plan(plan_name)
-    print("🧩 タスク計画:", plan_name)
+    print("")
+    print("🧩 固定タスク計画:", plan_name)
 
     for index, step in enumerate(plan, 1):
         print(f"  [{index}/{len(plan)}] {step['label']}")
@@ -53,53 +95,35 @@ def execute_task_plan(route):
             "kind": step["kind"],
             "target": step["target"],
             "query": step.get("query"),
-            "confidence": route.get("confidence", 1.0),
+            "confidence": 1.0,
         }
         if not _execute_routed_command_base(step_route):
-            print("❌ タスク計画を中断しました:", step["label"])
+            print("❌ タスク計画を中断:", step["label"])
             speak("配信準備を中断しました")
             return True
 
-    print("✅ タスク計画完了:", plan_name)
+    print("✅ 配信準備完了")
     speak("配信準備が完了しました")
     return True
 
 
+def execute_routed_command(route):
+    if route.get("kind") == "task_plan":
+        return execute_task_plan(route)
+    return _execute_routed_command_base(route)
+
+
 '''
+        agent_text = agent_text.replace(insert_anchor, task_block + insert_anchor, 1)
+        AGENT.write_text(agent_text, encoding="utf-8")
+        print("meina_agent.py: task plan integration applied")
+    else:
+        print("meina_agent.py: already patched")
 
-
-def main() -> None:
-    if not AGENT.exists():
-        raise SystemExit("meina_agent.py が見つかりません")
-
-    text = AGENT.read_text(encoding="utf-8")
-    if MARKER in text:
-        print("Meina task plan upgrade: already applied")
-        return
-
-    backup = AGENT.with_name("meina_agent.py.backup_before_task_plan")
-    if not backup.exists():
-        shutil.copy2(AGENT, backup)
-
-    anchor = "import command_router\n"
-    if anchor not in text:
-        raise SystemExit("command_router import が見つかりません")
-    text = text.replace(anchor, anchor + IMPORT_BLOCK + "\n", 1)
-
-    old_name = "def execute_routed_command(route):"
-    if old_name not in text:
-        raise SystemExit("execute_routed_command が見つかりません")
-    text = text.replace(old_name, "def _execute_routed_command_base(route):", 1)
-
-    action_anchor = "def execute_action(frame):"
-    if action_anchor not in text:
-        raise SystemExit("execute_action が見つかりません")
-    wrapper = "def execute_routed_command(route):\n    if route.get(\"kind\") == \"task_plan\":\n        return execute_task_plan(route)\n    return _execute_routed_command_base(route)\n\n\n" + EXEC_BLOCK
-    text = text.replace(action_anchor, wrapper + action_anchor, 1)
-
-    AGENT.write_text(text, encoding="utf-8")
-    print("Meina task plan upgrade: applied")
-    print(f"Backup: {backup}")
+    print("")
+    print("========================================")
+    print("配信準備タスクプラン導入完了")
+    print("========================================")
 
 
 if __name__ == "__main__":
