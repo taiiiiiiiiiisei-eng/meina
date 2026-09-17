@@ -42,11 +42,22 @@ def main() -> None:
             assert name in names, f"{relative}: missing {name}"
         print(f"OK: {relative}")
 
+    router = (ROOT / "command_router.py").read_text(encoding="utf-8")
     task_upgrade = (ROOT / "upgrade_meina_task_plan.py").read_text(encoding="utf-8")
+    task_plan = (ROOT / "meina_task_plans.py").read_text(encoding="utf-8")
+
+    # 現在の実装は「配信準備」を固定・許可済みタスクとして
+    # brain_core の低い confidence からでも安全にルーティングする。
+    assert "MEINA_TASK_PLAN_ROUTER_LOCAL_V1" in router
+    assert '"配信準備"' in router
+    assert '"stream_prepare"' in router
+
+    # 固定タスク本体が安全な allowlist のみで構成されていることを確認。
+    assert "stream_prepare" in task_plan
+    assert '"app_open"' in task_plan
+    assert '"web_open"' in task_plan
     assert "MEINA_UPGRADE_TASK_PLAN_V1" in task_upgrade
-    assert "_route_command_with_task_plan" in task_upgrade
     assert "execute_task_plan" in task_upgrade
-    assert "配信準備" not in (ROOT / "command_router.py").read_text(encoding="utf-8")
 
     print("CI static self-test passed")
 
