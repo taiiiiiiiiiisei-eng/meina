@@ -20,6 +20,8 @@ REQUIRED_FILES = {
     "twitch_video_editor.py": ["edit_generated_clip"],
     "meina_twitch.py": ["run_twitch_clip_command"],
     "meina_twitch_voice.py": ["handle_voice_command"],
+    "meina_reminders.py": ["add_reminder", "list_reminders", "today_reminders", "tomorrow_reminders", "upcoming_reminders"],
+    "meina_reminder_parser.py": ["parse_reminder_command"],
 }
 
 
@@ -45,19 +47,21 @@ def main() -> None:
     router = (ROOT / "command_router.py").read_text(encoding="utf-8")
     task_upgrade = (ROOT / "upgrade_meina_task_plan.py").read_text(encoding="utf-8")
     task_plan = (ROOT / "meina_task_plans.py").read_text(encoding="utf-8")
+    launcher = (ROOT / "start_meina.bat").read_text(encoding="utf-8")
 
-    # 現在の実装は「配信準備」を固定・許可済みタスクとして
-    # brain_core の低い confidence からでも安全にルーティングする。
     assert "MEINA_TASK_PLAN_ROUTER_LOCAL_V1" in router
     assert '"配信準備"' in router
     assert '"stream_prepare"' in router
-
-    # 固定タスク本体が安全な allowlist のみで構成されていることを確認。
+    assert "MEINA_SCHEDULE_ROUTER_V1" in router
+    assert '"reminder_upcoming"' in router
+    assert '"予定を追加"' in router
     assert "stream_prepare" in task_plan
     assert '"app_open"' in task_plan
     assert '"web_open"' in task_plan
     assert "MEINA_UPGRADE_TASK_PLAN_V1" in task_upgrade
     assert "execute_task_plan" in task_upgrade
+    assert "upgrade_meina_reminders_v7.py" in launcher
+    assert "MEINA_REMINDER_COMMANDS_V7" in (ROOT / "upgrade_meina_reminders_v7.py").read_text(encoding="utf-8")
 
     print("CI static self-test passed")
 
