@@ -65,7 +65,8 @@ def _extract_search_query(text, aliases):
 def route_command(text, frame):
     """安全に実行できる命令だけを固定形式で返し、それ以外は None を返す。"""
     # MEINA_TASK_PLAN_ROUTER_LOCAL_V1
-    if text and "配信準備" in _compact(text):
+    compact = _compact(text)
+    if text and "配信準備" in compact:
         return {
             "kind": "task_plan",
             "target": "stream_prepare",
@@ -73,17 +74,7 @@ def route_command(text, frame):
             "confidence": 1.0,
         }
 
-    # MEINA_REMINDER_ROUTER_V1
-    compact = _compact(text)
-    if text and any(word in compact for word in ("リマインド", "リマインダー")):
-        return {
-            "kind": "reminder",
-            "target": "local",
-            "query": str(text).strip(),
-            "confidence": 1.0,
-        }
-
-    # MEINA_REMINDER_LIST_ROUTER_V1
+    # MEINA_REMINDER_LIST_ROUTER_V1 — generic reminder routeより先に判定する。
     if text and any(phrase in compact for phrase in (
         "リマインダー一覧", "リマインド一覧", "リマインダーを教えて", "リマインドを教えて",
     )):
@@ -91,6 +82,15 @@ def route_command(text, frame):
             "kind": "reminder_list",
             "target": "local",
             "query": None,
+            "confidence": 1.0,
+        }
+
+    # MEINA_REMINDER_ROUTER_V1
+    if text and any(word in compact for word in ("リマインド", "リマインダー")):
+        return {
+            "kind": "reminder",
+            "target": "local",
+            "query": str(text).strip(),
             "confidence": 1.0,
         }
 
