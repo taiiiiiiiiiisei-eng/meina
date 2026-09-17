@@ -48,10 +48,10 @@ def route_command(text, frame):
     if text and "配信準備" in compact:
         return {"kind": "task_plan", "target": "stream_prepare", "query": None, "confidence": 1.0}
 
-    # MEINA_REMINDER_DATE_ROUTER_V2
-    if text and any(p in compact for p in ("明日のリマインダー", "明日の予定", "明日のリマインド")):
+    # MEINA_SCHEDULE_ROUTER_V1
+    if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
-    if text and any(p in compact for p in ("今日のリマインダー", "今日の予定", "今日のリマインド")):
+    if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
         return {"kind": "reminder_today", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("リマインダー一覧", "リマインド一覧", "リマインダーを教えて", "リマインドを教えて")):
         return {"kind": "reminder_list", "target": "local", "query": None, "confidence": 1.0}
