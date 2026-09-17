@@ -44,6 +44,19 @@ def list_reminders(include_done: bool = False) -> list[dict[str, Any]]:
     return [item for item in items if not item.get("done")]
 
 
+def today_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
+    current = now or datetime.now().astimezone()
+    result = []
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item["due_at"])).astimezone(current.tzinfo)
+            if due.date() == current.date():
+                result.append(item)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return result
+
+
 def due_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     current = now or datetime.now().astimezone()
     result = []
