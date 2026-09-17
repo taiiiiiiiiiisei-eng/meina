@@ -23,19 +23,9 @@ WEB_ALIASES = {
 }
 
 PC_STATUS_PHRASES = (
-    "pcの状態",
-    "pc状態",
-    "パソコンの状態",
-    "パソコン状態",
-    "pcのスペック",
-    "パソコンのスペック",
-    "pc情報",
-    "パソコン情報",
-    "メモリ使用量",
-    "メモリの状態",
-    "ディスク容量",
-    "gpuの状態",
-    "gpu情報",
+    "pcの状態", "pc状態", "パソコンの状態", "パソコン状態",
+    "pcのスペック", "パソコンのスペック", "pc情報", "パソコン情報",
+    "メモリ使用量", "メモリの状態", "ディスク容量", "gpuの状態", "gpu情報",
 )
 
 
@@ -60,10 +50,8 @@ def _confidence(frame):
 def _extract_search_query(text, aliases):
     """サービス名と命令表現を取り除き、検索語だけを返す。"""
     query = text
-
     for alias in aliases:
         query = query.replace(alias, "", 1)
-
     query = re.sub(r"^(?:で|に|を|から)", "", query)
     query = re.sub(
         r"(?:について|に関して)?(?:を)?(?:検索|調べ|探)(?:する|して|して下さい|してください|て|て下さい|てください|す)?$",
@@ -71,12 +59,21 @@ def _extract_search_query(text, aliases):
         query,
     )
     query = query.strip("、。！？? ")
-
     return query or None
 
 
 def route_command(text, frame):
     """安全に実行できる命令だけを固定形式で返し、それ以外は None を返す。"""
+    # MEINA_TASK_PLAN_ROUTER_LOCAL_V1
+    # 「配信準備」は固定・許可済みタスクなのでbrain_coreのconfidenceに依存しない。
+    if text and "配信準備" in _compact(text):
+        return {
+            "kind": "task_plan",
+            "target": "stream_prepare",
+            "query": None,
+            "confidence": 1.0,
+        }
+
     if not text or _confidence(frame) < MIN_CONFIDENCE:
         return None
 
@@ -105,7 +102,6 @@ def route_command(text, frame):
                     "confidence": _confidence(frame),
                 }
             return None
-
         if is_open:
             return {
                 "kind": "web_open",
@@ -113,7 +109,6 @@ def route_command(text, frame):
                 "query": None,
                 "confidence": _confidence(frame),
             }
-
         return None
 
     app_target = _find_alias(command, APP_ALIASES)
