@@ -47,8 +47,6 @@ def route_command(text, frame):
     compact = _compact(text)
     if text and "配信準備" in compact:
         return {"kind": "task_plan", "target": "stream_prepare", "query": None, "confidence": 1.0}
-
-    # MEINA_SCHEDULE_ROUTER_V1
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
@@ -63,6 +61,8 @@ def route_command(text, frame):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("リマインド", "リマインダー")):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
+    if text and any(p in compact for p in ("今後の予定", "予定表", "今週の予定", "これからの予定")):
+        return {"kind": "reminder_upcoming", "target": "local", "query": None, "confidence": 1.0}
 
     if not text or _confidence(frame) < MIN_CONFIDENCE: return None
     command = compact
