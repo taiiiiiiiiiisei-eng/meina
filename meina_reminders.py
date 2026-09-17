@@ -20,14 +20,10 @@ def _load() -> list[dict[str, Any]]:
 
 
 def _save(items: list[dict[str, Any]]) -> None:
-    REMINDER_PATH.write_text(
-        json.dumps(items, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    REMINDER_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def add_reminder(text: str, due_at: str) -> dict[str, Any]:
-    """ISO形式の日時を持つリマインダーを追加する。"""
     due = datetime.fromisoformat(due_at)
     item = {
         "id": f"r-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
@@ -72,3 +68,12 @@ def complete_reminder(reminder_id: str) -> bool:
     if changed:
         _save(items)
     return changed
+
+
+def delete_reminder(reminder_id: str) -> bool:
+    items = _load()
+    remaining = [item for item in items if item.get("id") != reminder_id]
+    if len(remaining) == len(items):
+        return False
+    _save(remaining)
+    return True
