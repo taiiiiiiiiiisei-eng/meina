@@ -74,11 +74,23 @@ def route_command(text, frame):
         }
 
     # MEINA_REMINDER_ROUTER_V1
-    if text and any(word in _compact(text) for word in ("リマインド", "リマインダー")):
+    compact = _compact(text)
+    if text and any(word in compact for word in ("リマインド", "リマインダー")):
         return {
             "kind": "reminder",
             "target": "local",
             "query": str(text).strip(),
+            "confidence": 1.0,
+        }
+
+    # MEINA_REMINDER_LIST_ROUTER_V1
+    if text and any(phrase in compact for phrase in (
+        "リマインダー一覧", "リマインド一覧", "リマインダーを教えて", "リマインドを教えて",
+    )):
+        return {
+            "kind": "reminder_list",
+            "target": "local",
+            "query": None,
             "confidence": 1.0,
         }
 
