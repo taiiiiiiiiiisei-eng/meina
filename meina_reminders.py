@@ -44,6 +44,17 @@ def list_reminders(include_done: bool = False) -> list[dict[str, Any]]:
     return [item for item in items if not item.get("done")]
 
 
+def find_reminders(query: str) -> list[dict[str, Any]]:
+    """内容にqueryを含む未完了リマインダーだけ返す。"""
+    needle = str(query or "").strip().lower()
+    if not needle:
+        return []
+    return [
+        item for item in list_reminders()
+        if needle in str(item.get("text", "")).lower()
+    ]
+
+
 def today_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     current = now or datetime.now().astimezone()
     result = []
