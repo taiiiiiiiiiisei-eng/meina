@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -49,10 +49,7 @@ def find_reminders(query: str) -> list[dict[str, Any]]:
     needle = str(query or "").strip().lower()
     if not needle:
         return []
-    return [
-        item for item in list_reminders()
-        if needle in str(item.get("text", "")).lower()
-    ]
+    return [item for item in list_reminders() if needle in str(item.get("text", "")).lower()]
 
 
 def today_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
@@ -62,6 +59,20 @@ def today_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
         try:
             due = datetime.fromisoformat(str(item["due_at"])).astimezone(current.tzinfo)
             if due.date() == current.date():
+                result.append(item)
+        except (KeyError, TypeError, ValueError):
+            continue
+    return result
+
+
+def tomorrow_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
+    current = now or datetime.now().astimezone()
+    target_date = (current + timedelta(days=1)).date()
+    result = []
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item["due_at"])).astimezone(current.tzinfo)
+            if due.date() == target_date:
                 result.append(item)
         except (KeyError, TypeError, ValueError):
             continue
