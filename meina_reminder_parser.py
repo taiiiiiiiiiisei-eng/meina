@@ -12,7 +12,7 @@ _COMMAND_WORDS = re.compile(
     r"(?:を)?(?:追加|登録|設定|リマインド)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?"
 )
-_DAY_WORDS = re.compile(r"(?P<day>今日|明日)")
+_DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")
 _TRAILING_COMMAND = re.compile(
     r"(?:を)?(?:追加|登録|設定|リマインド|リマインダー)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?$"
@@ -20,7 +20,7 @@ _TRAILING_COMMAND = re.compile(
 
 
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
-    """「10分後に宿題をリマインドして」「明日18時に配信予定を追加して」等を解析する。"""
+    """相対時間または今日/明日/明後日の時刻から予定・リマインダーを解析する。"""
     raw = str(text or "").strip()
     if not raw or not _COMMAND_WORDS.search(raw):
         return None
@@ -54,7 +54,9 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         return None
 
     day_match = _DAY_WORDS.search(raw)
-    day_offset = 1 if day_match and day_match.group("day") == "明日" else 0
+    day_name = day_match.group("day") if day_match else "今日"
+    day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_name]
+
     due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
     due += timedelta(days=day_offset)
     if day_offset == 0 and due <= current:
@@ -69,7 +71,6 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
 def _extract_text(raw: str, time_span: tuple[int, int]) -> str:
     before = raw[: time_span[0]]
     after = raw[time_span[1] :]
-
     text = after or before
     text = _DAY_WORDS.sub("", text)
     text = _COMMAND_WORDS.sub("", text)
