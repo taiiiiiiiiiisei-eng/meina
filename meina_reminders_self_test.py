@@ -27,12 +27,18 @@ def main() -> int:
     assert parsed_tomorrow["text"] == "配信"
     assert parsed_tomorrow["due_at"] == "2026-09-13T18:00:00+00:00"
 
+    parsed_after_tomorrow = meina_reminder_parser.parse_reminder_command("明後日20時に勉強予定を登録して", now)
+    assert parsed_after_tomorrow is not None
+    assert parsed_after_tomorrow["text"] == "勉強"
+    assert parsed_after_tomorrow["due_at"] == "2026-09-14T20:00:00+00:00"
+
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
         "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
         "リマインダー一覧を教えて": ("reminder_list", None),
         "今日の予定を教えて": ("reminder_today", None),
         "明日の予定を教えて": ("reminder_tomorrow", None),
+        "今後の予定を教えて": ("reminder_upcoming", None),
         "リマインダーを完了して宿題": ("reminder_done", "リマインダーを完了して宿題"),
         "リマインダーを削除して宿題": ("reminder_delete", "リマインダーを削除して宿題"),
     }
@@ -53,6 +59,7 @@ def main() -> int:
             assert meina_reminders.find_reminders("宿題")[0]["id"] == item["id"]
             assert len(meina_reminders.today_reminders(datetime.fromisoformat("2030-01-01T08:00:00+09:00"))) == 1
             assert len(meina_reminders.tomorrow_reminders(datetime.fromisoformat("2029-12-31T23:00:00+09:00"))) == 1
+            assert len(meina_reminders.upcoming_reminders(7, datetime.fromisoformat("2029-12-30T08:00:00+09:00"))) == 1
             due = meina_reminders.due_reminders(
                 datetime.fromisoformat("2030-01-01T11:00:00+09:00")
             )
