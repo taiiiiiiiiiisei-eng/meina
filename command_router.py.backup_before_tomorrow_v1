@@ -1,0 +1,19 @@
+"""許可済みの音声コマンドだけをPC操作へ変換する安全なルーター。"""
+
+import re
+
+MIN_CONFIDENCE = 0.70
+
+APP_ALIASES = {
+    "notepad": ("メモ帳",), "calculator": ("電卓", "計算機"),
+    "explorer": ("エクスプローラー", "ファイルエクスプローラー", "explorer"),
+    "Discord": ("discord", "ディスコード"), "Steam": ("steam", "スチーム"),
+    "Chrome": ("chrome", "クローム"), "Edge": ("edge", "エッジ"),
+    "OBS": ("obs", "オービーエス"), "VALORANT": ("valorant", "バロラント"),
+}
+WEB_ALIASES = {"google": ("google", "グーグル"), "youtube": ("youtube", "ユーチューブ")}
+PC_STATUS_PHRASES = (
+    "pcの状態", "pc状態", "パソコンの状態", "パソコン状態", "pcのスペック",
+    "パソコンのスペック", "pc情報", "パソコン情報", "メモリ使用量", "メモリの状態",
+    "ディスク容量", "gpuの状態", "gpu情報",
+)
