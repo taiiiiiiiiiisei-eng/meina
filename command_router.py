@@ -65,12 +65,20 @@ def _extract_search_query(text, aliases):
 def route_command(text, frame):
     """安全に実行できる命令だけを固定形式で返し、それ以外は None を返す。"""
     # MEINA_TASK_PLAN_ROUTER_LOCAL_V1
-    # 「配信準備」は固定・許可済みタスクなのでbrain_coreのconfidenceに依存しない。
     if text and "配信準備" in _compact(text):
         return {
             "kind": "task_plan",
             "target": "stream_prepare",
             "query": None,
+            "confidence": 1.0,
+        }
+
+    # MEINA_REMINDER_ROUTER_V1
+    if text and any(word in _compact(text) for word in ("リマインド", "リマインダー")):
+        return {
+            "kind": "reminder",
+            "target": "local",
+            "query": str(text).strip(),
             "confidence": 1.0,
         }
 
