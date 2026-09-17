@@ -5,13 +5,28 @@ import subprocess
 from pathlib import Path
 
 
-def _wmic_value(command: list[str]) -> str | None:
+def _run_text(command: list[str], timeout: int = 3) -> str | None:
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=3, check=False)
-        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        return lines[-1] if lines else None
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        return result.stdout.strip() or None
     except Exception:
         return None
+
+
+def _number_from_output(text: str | None) -> float | None:
+    if not text:
+        return None
+    for line in reversed(text.splitlines()):
+        value = line.strip()
+        if value.isdigit():
+            return float(value)
+    return None
 
 
 def get_pc_status() -> dict[str, str | int | float | None]:
@@ -31,27 +46,38 @@ def get_pc_status() -> dict[str, str | int | float | None]:
     except Exception:
         pass
 
-    total_kb = _wmic_value(["wmic", "computersystem", "get", "TotalPhysicalMemory"])
-    if total_kb and total_kb.isdigit():
-        status["ram_total_gb"] = round(int(total_kb) / 1024**3, 1)
-
-    free_kb = _wmic_value(["wmic", "os", "get", "FreePhysicalMemory"])
-    if free_kb and free_kb.isdigit():
-        status["ram_free_gb"] = round(int(free_kb) / 1024**2, 1)
-
-    try:
-        result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=False,
+    # WMIC is deprecated/absent on some Windows versions, so prefer CIM and fall back to WMIC.
+    total_text = _run_text([
+        "powershell", "-NoProfile", "-Command",
+        "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+    ])
+    total_bytes = _number_from_output(total_text)
+    if total_bytes is None:
+        total_bytes = _number_from_output(
+            _run_text(["wmic", "computersystem", "get", "TotalPhysicalMemory"])
         )
-        gpu = next((line.strip() for line in result.stdout.splitlines() if line.strip()), None)
+    if total_bytes is not None:
+        status["ram_total_gb"] = round(total_bytes / 1024**3, 1)
+
+    free_text = _run_text([
+        "powershell", "-NoProfile", "-Command",
+        "(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory",
+    ])
+    free_kb = _number_from_output(free_text)
+    if free_kb is None:
+        free_kb = _number_from_output(
+            _run_text(["wmic", "os", "get", "FreePhysicalMemory"])
+        )
+    if free_kb is not None:
+        status["ram_free_gb"] = round(free_kb / 1024**2, 1)
+
+    gpu_output = _run_text([
+        "nvidia-smi", "--query-gpu=name", "--format=csv,noheader"
+    ])
+    if gpu_output:
+        gpu = next((line.strip() for line in gpu_output.splitlines() if line.strip()), None)
         if gpu:
             status["gpu"] = gpu
-    except Exception:
-        pass
 
     return status
 
