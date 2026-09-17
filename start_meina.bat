@@ -11,5 +11,6 @@ py upgrade_meina_memory.py
 py upgrade_meina_reminders.py
 py upgrade_meina_reminders_v4.py
 py upgrade_meina_reminders_v5.py
+py upgrade_meina_reminders_v7.py
 py meina_agent.py
 pause
