@@ -12,6 +12,7 @@ from command_router import route_command
 
 def main() -> int:
     now = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
+
     parsed = meina_reminder_parser.parse_reminder_command("10分後に宿題をリマインドして", now)
     assert parsed is not None
     assert parsed["text"] == "宿題を"
@@ -19,10 +20,16 @@ def main() -> int:
 
     parsed_clock = meina_reminder_parser.parse_reminder_command("18時に配信をリマインドして", now)
     assert parsed_clock is not None
-    assert parsed_clock["text"] == "配信を"
+    assert parsed_clock["text"] == "配信"
+
+    parsed_tomorrow = meina_reminder_parser.parse_reminder_command("明日18時に配信予定を追加して", now)
+    assert parsed_tomorrow is not None
+    assert parsed_tomorrow["text"] == "配信"
+    assert parsed_tomorrow["due_at"] == "2026-09-13T18:00:00+00:00"
 
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
+        "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
         "リマインダー一覧を教えて": ("reminder_list", None),
         "今日の予定を教えて": ("reminder_today", None),
         "明日の予定を教えて": ("reminder_tomorrow", None),
