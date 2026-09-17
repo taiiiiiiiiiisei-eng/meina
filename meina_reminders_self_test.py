@@ -7,6 +7,7 @@ from pathlib import Path
 
 import meina_reminder_parser
 import meina_reminders
+from command_router import route_command
 
 
 def main() -> int:
@@ -19,6 +20,22 @@ def main() -> int:
     parsed_clock = meina_reminder_parser.parse_reminder_command("18時に配信をリマインドして", now)
     assert parsed_clock is not None
     assert parsed_clock["text"] == "配信を"
+
+    reminder_route = route_command("10分後に宿題をリマインドして", {"confidence": 0.10})
+    assert reminder_route == {
+        "kind": "reminder",
+        "target": "local",
+        "query": "10分後に宿題をリマインドして",
+        "confidence": 1.0,
+    }
+
+    list_route = route_command("リマインダー一覧を教えて", {"confidence": 0.10})
+    assert list_route == {
+        "kind": "reminder_list",
+        "target": "local",
+        "query": None,
+        "confidence": 1.0,
+    }
 
     original = meina_reminders.REMINDER_PATH
     try:
