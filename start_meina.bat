@@ -9,5 +9,6 @@ py upgrade_meina_pc_status.py
 py upgrade_meina_task_plan.py
 py upgrade_meina_memory.py
 py upgrade_meina_reminders.py
+py upgrade_meina_reminders_v4.py
 py meina_agent.py
 pause
