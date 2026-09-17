@@ -25,6 +25,7 @@ def main() -> int:
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
         "リマインダー一覧を教えて": ("reminder_list", None),
         "今日の予定を教えて": ("reminder_today", None),
+        "明日の予定を教えて": ("reminder_tomorrow", None),
         "リマインダーを完了して宿題": ("reminder_done", "リマインダーを完了して宿題"),
         "リマインダーを削除して宿題": ("reminder_delete", "リマインダーを削除して宿題"),
     }
@@ -44,6 +45,7 @@ def main() -> int:
             assert meina_reminders.list_reminders()[0]["text"] == "宿題をする"
             assert meina_reminders.find_reminders("宿題")[0]["id"] == item["id"]
             assert len(meina_reminders.today_reminders(datetime.fromisoformat("2030-01-01T08:00:00+09:00"))) == 1
+            assert len(meina_reminders.tomorrow_reminders(datetime.fromisoformat("2029-12-31T23:00:00+09:00"))) == 1
             due = meina_reminders.due_reminders(
                 datetime.fromisoformat("2030-01-01T11:00:00+09:00")
             )
