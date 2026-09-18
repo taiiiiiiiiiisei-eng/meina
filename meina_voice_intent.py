@@ -21,6 +21,16 @@ def correct_recognition(text: str) -> str:
         ("メイナー", "メイナ"),
         ("めいナー", "めいな"),
         ("メイナァ", "メイナ"),
+        ("メイナぁ", "メイナ"),
+        ("めいなぁ", "めいな"),
+        ("めいなー", "めいな"),
+        ("めーな", "めいな"),
+        ("メーな", "メイナ"),
+        ("メイな", "メイナ"),
+        ("メイ ナ", "メイナ"),
+        ("めい な", "めいな"),
+        ("メイ　ナ", "メイナ"),
+        ("めい　な", "めいな"),
         ("メインなぁ", "メイナ"),
         ("メインな", "メイナ"),
         ("バロラン", "バロラント"),
@@ -51,8 +61,22 @@ def normalize_text(text: str) -> str:
     return str(text).replace(" ", "").replace("　", "")
 
 
+def _remove_fuzzy_wake_words(text: str) -> str:
+    """Whisperが入れる空白や長音の揺れを許容してウェイクワードを除去する。"""
+    result = str(text)
+    patterns = (
+        r"め[\s　ー]*い[\s　ー]*な[\s　ー]*(?:ー|ぁ|あ)?",
+        r"メ[\s　ー]*イ[\s　ー]*ナ[\s　ー]*(?:ー|ァ|ぁ|ア)?",
+        r"メ[\s　ー]*ー[\s　]*ナ[\s　ー]*(?:ー|ァ|ぁ|ア)?",
+    )
+    for pattern in patterns:
+        result = re.sub(pattern, "", result)
+    return result
+
+
 def contains_wake_word(text: str) -> bool:
-    normalized = normalize_text(text)
+    corrected = correct_recognition(text)
+    normalized = normalize_text(corrected)
     if not normalized:
         return False
     return any(word in normalized for word in WAKE_WORDS)
@@ -62,7 +86,9 @@ def remove_wake_word(text: str) -> str:
     if not text:
         return ""
 
-    result = str(text)
+    result = correct_recognition(str(text))
+    result = _remove_fuzzy_wake_words(result)
+
     for word in sorted(WAKE_WORDS, key=len, reverse=True):
         result = result.replace(word, "")
 
