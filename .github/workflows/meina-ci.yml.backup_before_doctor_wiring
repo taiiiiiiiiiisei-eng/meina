@@ -1,0 +1,47 @@
+name: Meina CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python
+        run: |
+          python -m py_compile meina_agent.py
+          python -m py_compile command_router.py
+          python -m py_compile meina2/tools.py
+          python -m py_compile meina_app.py
+          python -m py_compile meina_health.py
+
+      - name: Test command router
+        run: python tests/test_command_router.py
+
+      - name: Generate diagnostic report
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: python ci_diagnostics.py
+
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meina-ci-diagnostic-${{ github.run_id }}
+          path: ci_diagnostic_report.md
+          if-no-files-found: warn
