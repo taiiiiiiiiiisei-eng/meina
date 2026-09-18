@@ -162,6 +162,11 @@ def route_command(text, frame):
             if query: return {"kind": "web_search", "target": web_target, "query": query, "confidence": _confidence(frame)}
             return None
         if is_open: return {"kind": "web_open", "target": web_target, "query": None, "confidence": _confidence(frame)}
+    if is_search:
+        query = _extract_search_query(command, WEB_ALIASES["google"])
+        if query:
+            return {"kind": "web_search", "target": "google", "query": query, "confidence": _confidence(frame)}
+        return None
     app_target = _find_alias(command, APP_ALIASES)
     if app_target and is_open:
         return {"kind": "app_open", "target": app_target, "query": None, "confidence": _confidence(frame)}
