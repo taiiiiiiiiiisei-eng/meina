@@ -89,7 +89,7 @@ def route_command(text, frame):
             mode = "current_temp"
 
         location = original
-        location = re.sub(r"^(?:今日|明日|現在|今)の?", "", location)
+        location = re.sub(r"(?:今日|明日|現在|今)の?", "", location)
         location = re.sub(r"(?:天気|気温|気候|何度).*$", "", location)
         location = re.sub(r"(?:について|を|が|は|教えて|教えてください|おしえて|おしえてください|知りたい|知ってる|知っています|ですか|です|？|\?)", "", location)
         location = location.strip("、。！？? 　")
