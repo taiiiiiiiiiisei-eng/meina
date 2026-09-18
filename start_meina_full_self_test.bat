@@ -37,8 +37,13 @@ echo [4/5] ルーター境界値テスト
 if errorlevel 1 goto :failed
 
 echo.
-echo [5/5] 音声認識補正テスト
+echo [5/6] 音声認識補正テスト
 "%MEINA_PYTHON%" meina_voice_intent_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [6/6] タスク計画実行ガードテスト
+"%MEINA_PYTHON%" meina_task_plan_execution_guard_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
