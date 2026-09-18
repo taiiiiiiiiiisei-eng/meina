@@ -14,7 +14,7 @@ from typing import Any
 
 import requests
 
-from twitch_clip_pipeline import load_config
+from twitch_clip_pipeline import get_user_id, load_config, twitch_app_token
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "twitch_live_highlights"
@@ -145,6 +145,18 @@ def append_candidate(candidate: dict[str, Any]) -> bool:
         handle.write(json.dumps(candidate, ensure_ascii=False) + "\n")
     return True
 
+def _get_live_stream(config: dict[str, Any], token: str, user_id: str) -> dict[str, Any] | None:
+    response = requests.get(
+        "https://api.twitch.tv/helix/streams",
+        headers={"Client-ID": config["client_id"], "Authorization": f"Bearer {token}"},
+        params={"user_id": user_id},
+        timeout=20,
+    )
+    response.raise_for_status()
+    data = response.json().get("data", [])
+    return data[0] if data else None
+
+
 def _resolve_audio_url(channel_login: str) -> str:
     result = subprocess.run(
         ["yt-dlp", "-g", "-f", "bestaudio/best", f"https://www.twitch.tv/{channel_login}"],
@@ -191,14 +203,36 @@ def monitor_live_highlights() -> None:
     channel_login = str(config["channel_login"]).strip()
     if not channel_login:
         raise ValueError("channel_login が設定されていません")
+    token = twitch_app_token(config)
+    user_id = get_user_id(config, token)
     audio_url = ""
     audio_url_refreshed_at = 0.0
+    stream_id = ""
+    stream_started_at: datetime | None = None
     print("🤖 めいな ライブ見どころ監視を開始")
     print(f"🎧 {CHUNK_SECONDS}秒ごとに音声を解析します。候補閾値={MIN_SCORE}")
 
     while True:
         chunk_started_at = datetime.now(timezone.utc)
         try:
+            stream = _get_live_stream(config, token, user_id)
+            if not stream:
+                audio_url = ""
+                stream_id = ""
+                stream_started_at = None
+                print("⏭️ 現在は配信していません")
+                time.sleep(15)
+                continue
+
+            current_stream_id = str(stream.get("id", ""))
+            current_started_at = _parse_time(str(stream.get("started_at", "")))
+            if current_stream_id != stream_id:
+                stream_id = current_stream_id
+                stream_started_at = current_started_at
+                audio_url = ""
+                audio_url_refreshed_at = 0.0
+                print(f"🔴 配信音声解析を開始: stream_id={stream_id}")
+
             now = time.time()
             if not audio_url or now - audio_url_refreshed_at >= REFRESH_URL_SECONDS:
                 audio_url = _resolve_audio_url(channel_login)
@@ -211,7 +245,7 @@ def monitor_live_highlights() -> None:
                 decision = score_transcript(segment["text"])
                 candidate = build_candidate(
                     chunk_started_at,
-                    None,
+                    stream_started_at,
                     segment["start"],
                     segment["end"],
                     segment["text"],
@@ -226,6 +260,19 @@ def monitor_live_highlights() -> None:
             print(f"⚠️ ライブ見どころ監視エラー: {exc}")
             audio_url = ""
             time.sleep(5)
+
+def start_monitor() -> bool:
+    """固定スクリプトとしてライブ見どころ監視を起動する。"""
+    env = os.environ.copy()
+    command = [os.sys.executable, str(Path(__file__).resolve())]
+    creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) if os.name == "nt" else 0
+    try:
+        subprocess.Popen(command, cwd=str(ROOT), env=env, creationflags=creationflags)
+        return True
+    except Exception as exc:
+        print(f"❌ ライブ見どころ監視の起動に失敗しました: {exc}")
+        return False
+
 
 if __name__ == "__main__":
     monitor_live_highlights()
