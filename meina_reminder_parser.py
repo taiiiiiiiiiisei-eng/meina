@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta
 
 
-_RELATIVE = re.compile(r"(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*後")
+_RELATIVE = re.compile(r"(?:あと\s*)?(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*(?:後|で)")
 _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
 _COMMAND_WORDS = re.compile(
     r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて)"
