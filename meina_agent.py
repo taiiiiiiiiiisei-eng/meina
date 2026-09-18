@@ -2,6 +2,7 @@ import os
 import time
 import asyncio
 import tempfile
+import sysconfig
 
 import sounddevice as sd
 import pyttsx3
@@ -28,31 +29,24 @@ print("============================================================")
 # CUDA DLL設定
 # =========================================================
 
-possible_site_packages = [
-    os.path.join(
-        BASE_DIR,
-        ".venv",
-        "Lib",
-        "site-packages"
-    ),
-
-    os.path.join(
-        os.path.dirname(BASE_DIR),
-        ".venv",
-        "Lib",
-        "site-packages"
-    )
+# 実際に現在のPythonプロセスが使っているsite-packagesを最優先する。
+# VS Codeのデバッガーや別の起動方法でも、Python本体とCUDA DLLの環境を一致させる。
+active_site_packages = sysconfig.get_paths().get("purelib", "")
+fallback_site_packages = [
+    os.path.join(BASE_DIR, ".venv", "Lib", "site-packages"),
+    os.path.join(os.path.dirname(BASE_DIR), ".venv", "Lib", "site-packages"),
 ]
 
-SITE_PACKAGES = None
-
-for path in possible_site_packages:
-    if os.path.exists(path):
-        SITE_PACKAGES = path
-        break
+SITE_PACKAGES = active_site_packages if os.path.exists(active_site_packages) else None
 
 if SITE_PACKAGES is None:
-    SITE_PACKAGES = possible_site_packages[-1]
+    for path in fallback_site_packages:
+        if os.path.exists(path):
+            SITE_PACKAGES = path
+            break
+
+if SITE_PACKAGES is None:
+    SITE_PACKAGES = fallback_site_packages[-1]
 
 
 CUBLAS_BIN = os.path.join(
