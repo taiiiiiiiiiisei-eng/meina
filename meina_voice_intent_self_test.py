@@ -11,10 +11,12 @@ from meina_voice_intent import (
 def main() -> int:
     assert contains_wake_word("めいな、メモ帳を開いて")
     assert contains_wake_word("メイナー、ブラウザを開いて")
+    assert contains_wake_word(correct_recognition("メインなぁ、メモ帳を開いて"))
     assert contains_wake_word(" メ イ ナ ")
     assert not contains_wake_word("メモ帳を開いて")
 
     assert correct_recognition("メイナー、バロランを開いて") == "メイナ、バロラントを開いて"
+    assert correct_recognition("メインなぁ、メモ帳を開いて") == "メイナ、メモ帳を開いて"
     assert correct_recognition("グーグルでUver Worldを検索") == "GoogleでUVERworldを検索"
     assert correct_recognition("グーグルでUber Worldを検索") == "GoogleでUVERworldを検索"
 
