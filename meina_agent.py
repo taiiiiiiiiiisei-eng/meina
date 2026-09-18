@@ -6,6 +6,9 @@ import pyttsx3
 import ollama
 
 import command_router
+from meina_task_plans import get_task_plan, validate_task_plan
+
+# MEINA_UPGRADE_TASK_PLAN_LOCAL_V1
 
 
 # =========================================================
@@ -587,7 +590,7 @@ def is_invalid_command(text):
 # PC操作
 # =========================================================
 
-def execute_routed_command(route):
+def _execute_routed_command_base(route):
     """command_router が許可した固定コマンドだけを実行する。"""
     kind = route["kind"]
     target = route["target"]
@@ -624,6 +627,43 @@ def execute_routed_command(route):
         print("❌ PC操作エラー:", e)
         speak("PC操作を実行できませんでした")
         return True
+
+
+# MEINA_UPGRADE_TASK_PLAN_LOCAL_V1_EXEC
+
+def execute_task_plan(route):
+    """安全な固定タスクだけを順番に実行する。"""
+    plan_name = route.get("target")
+    if not plan_name or not validate_task_plan(plan_name):
+        print("⚠️ 不正なタスク計画のため実行しません")
+        return False
+
+    plan = get_task_plan(plan_name)
+    print("")
+    print("🧩 固定タスク計画:", plan_name)
+
+    for index, step in enumerate(plan, 1):
+        print(f"  [{index}/{len(plan)}] {step['label']}")
+        step_route = {
+            "kind": step["kind"],
+            "target": step["target"],
+            "query": step.get("query"),
+            "confidence": 1.0,
+        }
+        if not _execute_routed_command_base(step_route):
+            print("❌ タスク計画を中断:", step["label"])
+            speak("配信準備を中断しました")
+            return True
+
+    print("✅ 配信準備完了")
+    speak("配信準備が完了しました")
+    return True
+
+
+def execute_routed_command(route):
+    if route.get("kind") == "task_plan":
+        return execute_task_plan(route)
+    return _execute_routed_command_base(route)
 
 
 def execute_action(frame):
