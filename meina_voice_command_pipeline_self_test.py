@@ -36,6 +36,7 @@ def main() -> int:
         ("メイナ、配信中の見どころ監視を停止して", "twitch_live_highlight_stop", "live"),
         ("メイナ、最新の見どころを教えて", "twitch_live_highlight_list", "live"),
         ("メイナ、おすすめの見どころを教えて", "twitch_live_highlight_shortlist", "live"),
+        ("メイナ、おすすめの切り抜きを作って", "twitch_shortlist_clip", "latest"),
     )
 
     for raw_text, expected_kind, expected_target in cases:
