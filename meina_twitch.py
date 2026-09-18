@@ -76,10 +76,23 @@ def run_twitch_clip_command(text: str, max_clips: int = 3) -> dict[str, Any]:
     if not is_twitch_clip_request(text):
         return {"ok": False, "message": "Twitch切り抜き命令ではありません"}
     clips = clip_twitch_stream(text, max_clips=max_clips)
+    queue_path = None
+    try:
+        from twitch_publish_queue import prepare_publish_queue
+        queue_result = prepare_publish_queue()
+        queue_path = queue_result.get("markdown_path")
+    except Exception as exc:
+        print(f"⚠️ 投稿準備キュー生成をスキップしました: {exc}")
+
+    message = f"Twitch配信から{len(clips)}本の切り抜きを作りました。"
+    if queue_path:
+        message += "投稿用の準備も完了しました。"
+
     return {
         "ok": True,
-        "message": f"Twitch配信から{len(clips)}本の切り抜きを作りました。",
+        "message": message,
         "clips": [str(p) for p in clips],
+        "publish_queue": queue_path,
     }
 
 
