@@ -24,6 +24,10 @@ jobs:
       - name: Run task plan self-test
         run: python meina_task_plan_self_test.py
 
+      - name: Run task plan integration self-test
+        run: python meina_task_plan_integration_self_test.py
+
+
       - name: Run PC status self-test
         run: python meina_pc_status_self_test.py
 
@@ -32,6 +36,10 @@ jobs:
 
       - name: Run reminder self-test
         run: python meina_reminders_self_test.py
+
+      - name: Run reminder AM PM self-test
+        run: python meina_reminder_ampm_self_test.py
+
 
       - name: Generate diagnostic report
         if: always()
