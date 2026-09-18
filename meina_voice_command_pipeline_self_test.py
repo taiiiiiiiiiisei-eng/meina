@@ -33,6 +33,7 @@ def main() -> int:
         ("メイナー、最新のVALORANT情報を調べて", "web_search", "google"),
         ("メイナ、18時に起こして", "reminder", "local"),
         ("メイナ、配信中の見どころを監視して", "twitch_live_highlight", "live"),
+        ("メイナ、配信中の見どころ監視を停止して", "twitch_live_highlight_stop", "live"),
     )
 
     for raw_text, expected_kind, expected_target in cases:
