@@ -6,6 +6,8 @@ Whisper本体や音声デバイスを起動せずにテストできるよう、
 
 from __future__ import annotations
 
+import re
+
 WAKE_WORDS = (
     "めいな",
     "メイナ",
