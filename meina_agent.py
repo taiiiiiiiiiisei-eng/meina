@@ -739,7 +739,11 @@ def _execute_routed_command_base(route):
     query = route["query"]
 
     try:
-        if kind == "app_open":
+        if kind == "weather":
+            result = tools.get_weather(
+                None if target == "current" else target
+            )
+        elif kind == "app_open":
             app_functions = {
                 "notepad": tools.open_notepad,
                 "calculator": tools.open_calculator,
