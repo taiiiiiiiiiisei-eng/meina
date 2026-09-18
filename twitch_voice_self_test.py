@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from meina_twitch import is_twitch_clip_request
+from meina_twitch_intent import is_twitch_clip_request
 
 
 CASES = {
