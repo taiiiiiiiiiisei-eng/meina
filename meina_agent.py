@@ -244,10 +244,11 @@ except Exception:
     print("🔊 Neural TTS: OFF（Windows TTSを使用）")
 
 engine = pyttsx3.init()
+_ENGINE_RATE_PRESETS = {"-18%": 140, "-8%": 158, "+8%": 176}
 engine.setProperty("rate", MEINA_TTS_RATE)
 engine.setProperty("volume", max(0.0, min(1.0, MEINA_TTS_VOLUME)))
 load_meina_voice_settings()
-engine.setProperty("rate", MEINA_TTS_RATE)
+engine.setProperty("rate", _ENGINE_RATE_PRESETS.get(MEINA_NEURAL_RATE, MEINA_TTS_RATE))
 engine.setProperty("volume", MEINA_TTS_VOLUME)
 
 MEINA_VOICE = os.environ.get("MEINA_VOICE", "Ayumi").strip().lower()
@@ -324,6 +325,7 @@ def set_meina_rate(preset):
     if preset not in rates:
         return False
     MEINA_NEURAL_RATE = rates[preset]
+    engine.setProperty("rate", _ENGINE_RATE_PRESETS.get(MEINA_NEURAL_RATE, MEINA_TTS_RATE))
     save_meina_voice_settings()
     return True
 
