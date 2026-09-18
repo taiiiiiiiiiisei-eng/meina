@@ -21,7 +21,18 @@ def _fallback(item: dict[str, Any], index: int) -> dict[str, Any]:
     title = str(item.get("title") or f"神プレイ切り抜き{index}")
     transcript = str(item.get("transcript") or "").strip()
     base = re.sub(r"\s+", " ", transcript)[:70]
-    hashtags = ["#VALORANT", "#ゲーム実況", "#切り抜き", "#Twitch"]
+    game_text = " ".join([
+        str(item.get("title") or ""),
+        str(item.get("reason") or ""),
+        transcript,
+    ]).lower()
+    if any(word in game_text for word in ("apex", "エーペックス", "エペ")):
+        game_tag = "#ApexLegends"
+    elif any(word in game_text for word in ("valorant", "valo", "バロ", "ヴァロ")):
+        game_tag = "#VALORANT"
+    else:
+        game_tag = "#ゲーム実況"
+    hashtags = [game_tag, "#ゲーム実況", "#切り抜き", "#Twitch"]
     return {
         "title": title[:60],
         "description": str(item.get("reason") or "配信から自動選出したハイライトです。"),
