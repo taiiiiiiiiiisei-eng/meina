@@ -175,6 +175,7 @@ class MeinaApp:
             command = meina_agent.remove_wake_word(text) if meina_agent.contains_wake_word(text) else text
             if not command:
                 self.root.after(0, lambda: self.add_message("めいな", "はい、どうしました？"))
+                meina_agent.speak("はい、どうしました？")
                 command = meina_agent.listen(duration=5.0)
                 if not command:
                     self.root.after(0, lambda: self.add_message("めいな", "うまく聞き取れませんでした。"))
