@@ -42,6 +42,7 @@ OPTIONAL_EXECUTABLES = (
 )
 
 OLLAMA_MODEL = "meina"
+WHISPER_CACHE_DIR_NAME = "models--Systran--faster-whisper-large-v3"
 
 
 def _version_ok() -> bool:
@@ -137,6 +138,26 @@ def _check_cuda_dlls() -> tuple[bool, str]:
     return True, "CUDA DLL directories: OK"
 
 
+
+def _check_whisper_cache() -> tuple[str, str]:
+    try:
+        home = Path.home()
+        candidates = [
+            home / ".cache" / "huggingface" / "hub" / WHISPER_CACHE_DIR_NAME,
+        ]
+        hf_home = os.environ.get("HF_HOME")
+        if hf_home:
+            candidates.insert(0, Path(hf_home) / "hub" / WHISPER_CACHE_DIR_NAME)
+
+        for candidate in candidates:
+            if candidate.exists():
+                return "OK", f"Whisper large-v3 cache: {candidate}"
+
+        return "WARN", "Whisper large-v3 cache not detected; first startup may download the model"
+    except Exception as exc:
+        return "WARN", f"Whisper cache check failed ({exc})"
+
+
 def main() -> int:
     print("=" * 68)
     print("🤖 めいな 起動前ヘルスチェック")
@@ -191,6 +212,11 @@ def main() -> int:
     if not cuda_ok:
         fatal = True
 
+    whisper_status, whisper_detail = _check_whisper_cache()
+    print()
+    print("Whisper model:")
+    print(f"[{whisper_status}] {whisper_detail}")
+
     print()
     print("Optional components:")
     for executable in OPTIONAL_EXECUTABLES:
@@ -203,7 +229,7 @@ def main() -> int:
         return 1
 
     print("✅ めいなの起動に必要な基本環境はOKです。")
-    print("   WARNは追加機能（Twitch/FFmpeg/ffprobe等）に関するものです。")
+    print("   WARNは追加機能や初回ダウンロードなど、起動は可能でも追加処理が必要な項目です。")
     return 0
 
 
