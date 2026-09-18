@@ -10,7 +10,7 @@ APP_ALIASES = {
     "Discord": ("discord", "ディスコード"), "Steam": ("steam", "スチーム"),
     "Chrome": ("chrome", "クローム"), "Edge": ("edge", "エッジ"),
     "OBS": ("obs", "オービーエス"),
-    "VALORANT": ("valorant", "バロラント", "ヴァロラント"),
+    "VALORANT": ("valorant", "valo", "バロ", "バロラント", "ヴァロ", "ヴァロラント"),
     "Apex": ("apex", "エーペックス", "エペ", "apexlegends"),
 }
 WEB_ALIASES = {"google": ("google", "グーグル"), "youtube": ("youtube", "ユーチューブ")}
