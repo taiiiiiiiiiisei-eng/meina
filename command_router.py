@@ -90,7 +90,7 @@ def route_command(text, frame):
         if any(p in compact for p in ("今の気温", "現在の気温", "今何度", "現在何度", "何度ですか", "何℃", "何度？", "何度?")):
             mode = "current_temp"
         elif any(p in compact for p in ("雨", "雨降る", "雨が降る", "雨降り", "降水確率", "傘いる", "傘必要", "傘は必要")):
-            mode = "rain"
+            mode = "tomorrow_rain" if "明日" in compact else "rain"
         elif "明日" in compact:
             mode = "tomorrow"
 
