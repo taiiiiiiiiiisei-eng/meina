@@ -24,8 +24,10 @@
 - `twitch_ai_clipper.py` — Whisper候補をOllamaで評価して自動切り抜き
 - `twitch_video_editor.py` — 字幕・映像効果・動画編集
 - `twitch_publish_metadata.py` — 切り抜き投稿用のAIタイトル・説明・キャプション・ハッシュタグ生成
+- `twitch_publish_queue.py` — 投稿前の動画・文章・ハッシュタグをローカルキューへまとめる
+- `twitch_live_monitor.py` — 配信中/終了を監視し、終了後にV2自動切り抜きを起動
 - `meina_twitch.py` / `meina_twitch_voice.py` — めいなからTwitch切り抜きを呼び出す処理
-- `twitch_auto_clip.py` — 新しいVODを定期監視して自動切り抜き
+- `twitch_auto_clip.py` — 配信監視を標準にした自動切り抜き入口（従来VOD監視も互換維持）
 
 ## 必要環境
 
@@ -104,11 +106,20 @@ python twitch_clip_runner.py "昨日の配信切り抜いて"
 python twitch_publish_queue.py
 ```
 
-新しいVODを自動監視する場合：
+配信中の状態を監視し、配信終了後に新しいVODを自動処理する場合：
 
 ```powershell
 python twitch_auto_clip.py
 ```
+
+既存の「新しいVODがあるかを定期確認する方式」に戻したい場合は：
+
+```powershell
+$env:MEINA_TWITCH_MONITOR_MODE="vod"
+python twitch_auto_clip.py
+```
+
+ライブ監視はTwitchのStreams APIで配信中かを確認し、配信終了を検知した後、VODの生成・反映時間を置いて既存のV2切り抜き処理を実行します。
 
 ### 注意
 
