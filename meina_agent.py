@@ -187,7 +187,6 @@ NEURAL_TTS_VOICE = os.environ.get("MEINA_NEURAL_VOICE", "ja-JP-NanamiNeural")
 MEINA_VOICE_PRESETS = {
     "nanami": "ja-JP-NanamiNeural",
     "nanami_neural": "ja-JP-NanamiNeural",
-    "nanami": "ja-JP-NanamiNeural",
     "keita": "ja-JP-KeitaNeural",
     "shiori": "ja-JP-ShioriNeural",
 }
