@@ -672,6 +672,10 @@ def _execute_routed_command_base(route):
             from twitch_live_highlight import format_shortlist, shortlist_candidates
             candidates = shortlist_candidates(limit=3)
             result = format_shortlist(candidates)
+        elif kind == "twitch_shortlist_clip":
+            from meina_twitch import run_shortlist_twitch_command
+            clip_result = run_shortlist_twitch_command(max_clips=3)
+            result = clip_result.get("message", "AIおすすめ候補から切り抜きを作成できませんでした。")
         elif kind == "twitch_publish_prep":
             from twitch_publish_queue import prepare_publish_queue
             queue_result = prepare_publish_queue()
