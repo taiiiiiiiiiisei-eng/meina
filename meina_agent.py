@@ -1361,13 +1361,13 @@ def process_command(text):
         frame
     )
 
-    if route:
+    if route is not None:
 
-        result = execute_routed_command(route)
-
-        if result:
-
-            return result
+        # ルートが存在する命令は、実行結果が空文字でも
+        # 通常会話へフォールバックしない。
+        # これにより「天気を教えて」などの固定コマンドが
+        # 意図せず Ollama 会話へ流れるのを防ぐ。
+        return execute_routed_command(route)
 
     # =====================================================
     # 普通の会話
