@@ -163,6 +163,7 @@ meina_agent.py.backup_*
 # Twitch secrets / generated media / local state
 twitch_config.json
 twitch_state.json
+twitch_live_state.json
 twitch_vods/
 twitch_transcripts/
 twitch_clip_results/
