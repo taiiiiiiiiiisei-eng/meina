@@ -1,0 +1,252 @@
+import subprocess
+import webbrowser
+import os
+import glob
+from datetime import datetime
+from urllib.parse import quote
+
+
+# ==========================================
+# 日付・時刻
+# ==========================================
+
+def get_date():
+    now = datetime.now()
+    return f"今日は{now.year}年{now.month}月{now.day}日です。"
+
+
+def get_time():
+    now = datetime.now()
+    return f"現在は{now.hour}時{now.minute}分です。"
+
+
+def get_weekday():
+    weekdays = [
+        "月曜日",
+        "火曜日",
+        "水曜日",
+        "木曜日",
+        "金曜日",
+        "土曜日",
+        "日曜日"
+    ]
+
+    return f"今日は{weekdays[datetime.now().weekday()]}です。"
+
+
+# ==========================================
+# Windows標準アプリ
+# ==========================================
+
+def open_notepad():
+    subprocess.Popen(["notepad.exe"])
+    return "メモ帳を開きました。"
+
+
+def open_calculator():
+    subprocess.Popen(["calc.exe"])
+    return "電卓を開きました。"
+
+
+def open_explorer():
+    subprocess.Popen(["explorer.exe"])
+    return "エクスプローラーを開きました。"
+
+
+# ==========================================
+# Web
+# ==========================================
+
+def open_google():
+    webbrowser.open("https://www.google.com")
+    return "Googleを開きました。"
+
+
+def open_youtube():
+    webbrowser.open("https://www.youtube.com")
+    return "YouTubeを開きました。"
+
+
+def open_browser():
+    webbrowser.open("https://www.google.com")
+    return "ブラウザを開きました。"
+
+
+def google_search(query):
+    url = "https://www.google.com/search?q=" + quote(query)
+    webbrowser.open(url)
+    return f"Googleで「{query}」を検索しました。"
+
+
+def youtube_search(query):
+    url = "https://www.youtube.com/results?search_query=" + quote(query)
+    webbrowser.open(url)
+    return f"YouTubeで「{query}」を検索しました。"
+
+
+# ==========================================
+# アプリ検索
+# ==========================================
+
+APP_ALIASES = {
+    "discord": [
+        "Discord.exe"
+    ],
+
+    "ディスコード": [
+        "Discord.exe"
+    ],
+
+    "steam": [
+        "Steam.exe"
+    ],
+
+    "スチーム": [
+        "Steam.exe"
+    ],
+
+    "chrome": [
+        "chrome.exe"
+    ],
+
+    "クローム": [
+        "chrome.exe"
+    ],
+
+    "edge": [
+        "msedge.exe"
+    ],
+
+    "エッジ": [
+        "msedge.exe"
+    ],
+
+    "obs": [
+        "obs64.exe",
+        "obs32.exe"
+    ],
+
+    "オービーエス": [
+        "obs64.exe",
+        "obs32.exe"
+    ],
+
+    "valorant": [
+        "VALORANT-Win64-Shipping.exe"
+    ],
+
+    "バロラント": [
+        "VALORANT-Win64-Shipping.exe"
+    ],
+
+    "apex": [
+        "r5apex.exe"
+    ],
+
+    "エーペックス": [
+        "r5apex.exe"
+    ],
+
+    "エペ": [
+        "r5apex.exe"
+    ]
+}
+
+
+def find_exe(exe_names):
+
+    search_dirs = [
+        os.environ.get("LOCALAPPDATA", ""),
+        os.environ.get("PROGRAMFILES", ""),
+        os.environ.get("PROGRAMFILES(X86)", "")
+    ]
+
+    for base_dir in search_dirs:
+
+        if not base_dir:
+            continue
+
+        for exe_name in exe_names:
+
+            pattern = os.path.join(
+                base_dir,
+                "**",
+                exe_name
+            )
+
+            try:
+
+                matches = glob.glob(
+                    pattern,
+                    recursive=True
+                )
+
+                if matches:
+                    return matches[0]
+
+            except Exception:
+                pass
+
+    return None
+
+
+def launch_app(app_name):
+
+    normalized = (
+        app_name
+        .lower()
+        .replace(" ", "")
+        .replace("　", "")
+    )
+
+    # --------------------------------------
+    # アプリを検索
+    # --------------------------------------
+
+    exe_names = None
+
+    for alias, names in APP_ALIASES.items():
+
+        if alias in normalized:
+            exe_names = names
+            break
+
+    if exe_names is None:
+        return f"{app_name}は対応していないアプリです。"
+
+
+    print(f"🔎 {app_name}を探しています...")
+
+
+    path = find_exe(exe_names)
+
+
+    if not path:
+        return f"{app_name}が見つかりませんでした。"
+
+
+    print(f"📍 発見: {path}")
+
+
+    try:
+
+        if (
+            normalized == "obs"
+            and os.path.normcase(path) == os.path.normcase(
+                r"C:\Program Files\obs-studio\bin\64bit\obs64.exe"
+            )
+        ):
+            subprocess.Popen(
+                [path],
+                cwd=r"C:\Program Files\obs-studio\bin\64bit"
+            )
+        else:
+            subprocess.Popen([path])
+
+        return f"{app_name}を起動しました。"
+
+    except Exception as e:
+
+        print("アプリ起動エラー:", e)
+
+        return f"{app_name}を起動できませんでした。"
