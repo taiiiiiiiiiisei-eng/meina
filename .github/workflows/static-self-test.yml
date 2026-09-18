@@ -61,6 +61,9 @@ jobs:
       - name: Run router edge-case self-test
         run: python command_router_edge_self_test.py
 
+      - name: Run execution path guard self-test
+        run: python meina_execution_path_self_test.py
+
       - name: Run Twitch static self-test
         run: python twitch_self_test.py
 
