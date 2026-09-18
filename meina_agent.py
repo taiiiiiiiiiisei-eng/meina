@@ -649,6 +649,12 @@ def _execute_routed_command_base(route):
                     ok = complete_reminder(item["id"]) if kind == "reminder_done" else delete_reminder(item["id"])
                     action = "完了" if kind == "reminder_done" else "削除"
                     result = f"「{item['text']}」を{action}しました。" if ok else f"「{item['text']}」を{action}できませんでした。"
+        elif kind == "twitch_live_highlight":
+            from twitch_live_highlight import start_monitor
+            if start_monitor():
+                result = "配信中の見どころ監視を開始しました。別ウィンドウで動作します。"
+            else:
+                result = "配信中の見どころ監視を開始できませんでした。"
         elif kind == "twitch_publish_prep":
             from twitch_publish_queue import prepare_publish_queue
             queue_result = prepare_publish_queue()
