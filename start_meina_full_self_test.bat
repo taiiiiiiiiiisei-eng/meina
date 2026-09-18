@@ -57,8 +57,13 @@ echo [9/10] Twitch自動切り抜きV2配線テスト
 if errorlevel 1 goto :failed
 
 echo.
-echo [10/10] Twitch投稿メタデータテスト
+echo [10/11] Twitch投稿メタデータテスト
 "%MEINA_PYTHON%" twitch_publish_metadata_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [11/11] Twitch投稿キューテスト
+"%MEINA_PYTHON%" twitch_publish_queue_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
