@@ -1,17 +1,17 @@
 @echo off
 cd /d "%~dp0"
 
-REM めいなの実際に動作確認済みのPython環境を使用
-set "MEINA_PYTHON=C:\Users\taiii\OneDrive\Desktop\meina\.venv\Scripts\python.exe"
+set "MEINA_PYTHON=%~dp0.venv\Scripts\python.exe"
 
-if exist "%MEINA_PYTHON%" (
-    "%MEINA_PYTHON%" meina_app.py
+if not exist "%MEINA_PYTHON%" (
+    echo.
+    echo めいなのPython環境が見つかりません。
+    echo 期待する場所: %MEINA_PYTHON%
+    echo.
     pause
-    exit /b
+    exit /b 1
 )
 
-echo.
-echo Python環境が見つかりません。
-echo 確認先: %MEINA_PYTHON%
-echo.
+REM 安定版ランチャー: 起動時に大量のアップグレード処理やpip実行をしない。
+"%MEINA_PYTHON%" meina_app.py
 pause
