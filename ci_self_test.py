@@ -27,7 +27,7 @@ REQUIRED_FILES = {
     "meina_task_plan_execution_guard_self_test.py": ["main", "_find_function", "_call_names"],
     "meina_brain/brain_core.py": ["extract_action_frame", "infer_intent"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
-    "twitch_ai_clipper.py": ["create_ai_clips"],
+    "twitch_ai_clipper.py": ["create_ai_clips", "_load_live_markers"],
     "twitch_live_monitor.py": ["get_current_stream", "stream_transition", "run_live_monitor"],
     "twitch_live_monitor_self_test.py": ["main"],
     "twitch_live_highlight.py": ["heuristic_score", "score_transcript", "build_candidate", "append_candidate", "start_monitor", "is_monitor_running", "stop_monitor"],
