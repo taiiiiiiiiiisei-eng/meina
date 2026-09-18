@@ -45,6 +45,9 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         text_part = _extract_text(raw, relative.span())
         if text_part:
             return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
+        direct_label = _default_direct_notice_text(raw)
+        if direct_label:
+            return {"text": direct_label, "due_at": due.isoformat(timespec="seconds")}
         return None
 
     clock = _CLOCK.search(raw)
