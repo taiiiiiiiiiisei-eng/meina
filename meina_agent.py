@@ -1,3 +1,4 @@
+import re
 import os
 import time
 import asyncio
@@ -726,18 +727,78 @@ def is_invalid_command(text):
 # PC操作
 # =========================================================
 
+def _format_reminders(items):
+    if not items:
+        return "予定はありません。"
+    lines = []
+    for item in items:
+        due = str(item.get("due_at", "")).replace("T", " ")
+        status = "完了" if item.get("done") else "未完了"
+        lines.append(f"・{item.get('text', '')} / {due} / {status}")
+    return "\n".join(lines)
+
+
 def _execute_routed_command_base(route):
     """command_router が許可した固定コマンドだけを実行する。"""
     kind = route["kind"]
-    target = route["target"]
-    query = route["query"]
+    target = route.get("target")
+    query = route.get("query")
 
     try:
         if kind == "weather":
             result = tools.get_weather(
                 None if target == "current" else target,
-                mode=route.get("query") or "today",
+                mode=query or "today",
             )
+        elif kind == "date":
+            result = tools.get_date()
+        elif kind == "time":
+            result = tools.get_time()
+        elif kind == "weekday":
+            result = tools.get_weekday()
+        elif kind == "pc_status":
+            from meina_pc_status import format_pc_status, get_pc_status
+            result = format_pc_status(get_pc_status())
+        elif kind == "reminder":
+            from meina_reminder_parser import parse_reminder_command
+            from meina_reminders import add_reminder
+            parsed = parse_reminder_command(query or "")
+            if not parsed:
+                result = "予定の日時を読み取れませんでした。例えば「30分後に宿題をする予定を追加して」と言ってください。"
+            else:
+                item = add_reminder(parsed["text"], parsed["due_at"])
+                result = f"予定を追加しました。「{item['text']}」は{item['due_at'].replace('T', ' ')}です。"
+        elif kind == "reminder_today":
+            from meina_reminders import today_reminders
+            items = today_reminders()
+            result = "今日の予定はありません。" if not items else "今日の予定です。\n" + _format_reminders(items)
+        elif kind == "reminder_tomorrow":
+            from meina_reminders import tomorrow_reminders
+            items = tomorrow_reminders()
+            result = "明日の予定はありません。" if not items else "明日の予定です。\n" + _format_reminders(items)
+        elif kind == "reminder_upcoming":
+            from meina_reminders import upcoming_reminders
+            items = upcoming_reminders()
+            result = "今後の予定はありません。" if not items else "今後の予定です。\n" + _format_reminders(items)
+        elif kind == "reminder_list":
+            from meina_reminders import list_reminders
+            items = list_reminders()
+            result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
+        elif kind in ("reminder_done", "reminder_delete"):
+            from meina_reminders import complete_reminder, delete_reminder, find_reminders
+            query_text = re.sub(r"(リマインダー|リマインド)(を)?(完了|削除)", "", query or "").strip(" 、。！？?")
+            matches = find_reminders(query_text)
+            if not matches:
+                result = "対象のリマインダーが見つかりませんでした。"
+            else:
+                item = matches[0]
+                ok = complete_reminder(item["id"]) if kind == "reminder_done" else delete_reminder(item["id"])
+                action = "完了" if kind == "reminder_done" else "削除"
+                result = f"「{item['text']}」を{action}しました。" if ok else f"「{item['text']}」を{action}できませんでした。"
+        elif kind == "twitch_clip":
+            from meina_twitch import run_twitch_clip_command
+            clip_result = run_twitch_clip_command(query or "")
+            result = clip_result.get("message", "Twitchの切り抜きを処理できませんでした。")
         elif kind == "app_open":
             app_functions = {
                 "notepad": tools.open_notepad,
@@ -770,7 +831,7 @@ def _execute_routed_command_base(route):
         return True
 
 
-# MEINA_UPGRADE_TASK_PLAN_LOCAL_V1_EXEC
+MEINA_UPGRADE_TASK_PLAN_LOCAL_V1_EXEC
 
 def execute_task_plan(route):
     """安全な固定タスクだけを順番に実行する。"""
