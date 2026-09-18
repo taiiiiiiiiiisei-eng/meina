@@ -17,6 +17,7 @@ COMMANDS = [
     ("Compile meina2/tools.py", [sys.executable, "-m", "py_compile", "meina2/tools.py"]),
     ("Compile meina_app.py", [sys.executable, "-m", "py_compile", "meina_app.py"]),
     ("Compile meina_health.py", [sys.executable, "-m", "py_compile", "meina_health.py"]),
+    ("Compile meina_doctor.py", [sys.executable, "-m", "py_compile", "meina_doctor.py"]),
     ("Compile meina_twitch_intent.py", [sys.executable, "-m", "py_compile", "meina_twitch_intent.py"]),
     ("Router regression tests", [sys.executable, "tests/test_command_router.py"]),
     ("Static self-test", [sys.executable, "ci_self_test.py"]),
