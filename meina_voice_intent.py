@@ -25,6 +25,7 @@ def correct_recognition(text: str) -> str:
         ("ばろらん", "バロラント"),
         ("Uberworld", "UVERworld"),
         ("Uber World", "UVERworld"),
+        ("Uver World", "UVERworld"),
         ("ユーバーワールド", "UVERworld"),
         ("ウーバーワールド", "UVERworld"),
         ("ディスコート", "Discord"),
