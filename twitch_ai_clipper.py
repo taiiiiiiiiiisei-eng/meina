@@ -24,9 +24,22 @@ MIN_CLIP_GAP_SECONDS = 5.0
 LIVE_MARKERS_PATH = ROOT / "twitch_live_highlights" / "candidates.jsonl"
 
 
-def _load_live_markers(vod_path: Path) -> list[dict[str, Any]]:
+def _load_live_markers(
+    vod_path: Path,
+    vod: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     if not LIVE_MARKERS_PATH.exists():
         return []
+
+    expected_stream_id = ""
+    if isinstance(vod, dict):
+        expected_stream_id = str(vod.get("stream_id", "")).strip()
+
+    # TwitchのGet Videos APIが返すstream_idを最優先で使う。
+    # 旧データやCLI直接実行との互換のため、VODファイル名をフォールバックに残す。
+    fallback_stream_id = vod_path.stem
+    accepted_stream_ids = {value for value in (expected_stream_id, fallback_stream_id) if value}
+
     markers: list[dict[str, Any]] = []
     try:
         for line in LIVE_MARKERS_PATH.read_text(encoding="utf-8").splitlines():
@@ -36,8 +49,8 @@ def _load_live_markers(vod_path: Path) -> list[dict[str, Any]]:
                 continue
             if not isinstance(item, dict):
                 continue
-            stream_id = str(item.get("stream_id", ""))
-            if stream_id and stream_id == vod_path.stem:
+            stream_id = str(item.get("stream_id", "")).strip()
+            if stream_id and stream_id in accepted_stream_ids:
                 markers.append(item)
     except OSError:
         return []
@@ -238,11 +251,15 @@ def _select_non_overlapping(selected: list[dict[str, Any]], candidates: list[dic
     return result
 
 
-def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
+def create_ai_clips(
+    vod_path: Path,
+    max_clips: int = 3,
+    vod: dict[str, Any] | None = None,
+) -> list[Path]:
     segments = transcribe_vod(vod_path)
     if not segments:
         raise RuntimeError("音声から字幕を取得できませんでした")
-    live_markers = _load_live_markers(vod_path)
+    live_markers = _load_live_markers(vod_path, vod)
     candidates = _candidate_windows(segments, live_markers)
     if not candidates:
         raise RuntimeError("切り抜き候補を作れませんでした")
