@@ -62,6 +62,18 @@
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
+    },
+    {
+      "label": "めいな: 実行エラーログを開く",
+      "type": "shell",
+      "command": "notepad.exe",
+      "args": [
+        "${workspaceFolder}\\\\meina_runtime_error.log"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     }
   ]
 }
