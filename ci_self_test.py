@@ -20,6 +20,7 @@ REQUIRED_FILES = {
     "twitch_ai_clipper.py": ["create_ai_clips"],
     "twitch_video_editor.py": ["edit_generated_clip"],
     "meina_twitch.py": ["run_twitch_clip_command"],
+    "meina_twitch_intent.py": ["is_twitch_clip_request", "requested_day"],
     "meina_twitch_voice.py": ["handle_voice_command"],
     "meina_reminders.py": ["add_reminder", "list_reminders", "today_reminders", "tomorrow_reminders", "upcoming_reminders"],
     "meina_reminder_parser.py": ["parse_reminder_command"],
