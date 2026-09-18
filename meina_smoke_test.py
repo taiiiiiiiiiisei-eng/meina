@@ -40,6 +40,8 @@ def main() -> int:
         ("PCの状態を教えて", "pc_status", "pc"),
         ("18時に起こして", "reminder", "local"),
         ("30分後に知らせて", "reminder", "local"),
+        ("あと30分で知らせて", "reminder", "local"),
+        ("30分で知らせて", "reminder", "local"),
         ("明日の予定を教えて", "reminder_tomorrow", "local"),
         ("今後の予定を教えて", "reminder_upcoming", "local"),
         ("今日の配信の切り抜きを作って", "twitch_clip", "latest"),
@@ -63,6 +65,9 @@ def main() -> int:
     parsed = parse_reminder_command("明日午後6時に配信予定を追加して")
     assert parsed is not None
     assert parsed["text"] == "配信"
+
+    assert parse_reminder_command("あと30分で知らせて") is not None
+    assert parse_reminder_command("30分で知らせて") is not None
 
     assert is_twitch_clip_request("昨日の配信切り抜いて")
     assert requested_day("昨日の配信切り抜いて") == "yesterday"
