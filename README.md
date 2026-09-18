@@ -138,7 +138,7 @@ python twitch_auto_clip.py
 「配信中の見どころを監視して」と話しかけると、別ウィンドウで短い音声チャンクを取得し、Whisperで文字起こししてOllamaの `meina` が候補を評価します。
 候補は `twitch_live_highlights/candidates.jsonl` に保存され、外部SNSへ自動投稿はしません。
 同じ監視処理を複数起動しないようロックを持ち、「配信中の見どころ監視を停止して」で実行中の監視を安全に停止できます。
-
+配信終了後のVOD切り抜きでは、TwitchのVOD情報に含まれる `stream_id` を使ってライブ候補と対応づけるため、VODファイル名そのものに配信IDが入ることを前提にしません。TwitchのVOD APIは `stream_id` を返します。
 CLIで直接起動する場合：
 
 ```powershell
