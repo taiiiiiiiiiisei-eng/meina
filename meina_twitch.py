@@ -85,13 +85,18 @@ def clip_shortlist_twitch_stream(max_clips: int = 3) -> list[Path]:
 
 
 def run_shortlist_twitch_command(max_clips: int = 3) -> dict[str, Any]:
-    clips = clip_shortlist_twitch_stream(max_clips=max_clips)
+    config = load_config()
+    vods = _get_vods(config)
+    if not vods:
+        raise RuntimeError("Twitchの最新VODが見つかりませんでした")
+    vod = vods[0]
+    vod_path = download_vod(vod)
+    clips = create_shortlist_clips(vod_path, max_clips=max_clips, vod=vod)
     queue_path = None
     try:
         from twitch_publish_queue import prepare_publish_queue
-        queue_result = prepare_publish_queue(
-            Path(clips[0]).parent.parent / "twitch_clip_results" / f"{Path(clips[0]).stem.rsplit('_', 1)[0]}_shortlist.json"
-        )
+        result_path = Path(__file__).resolve().parent / "twitch_clip_results" / f"{vod_path.stem}_shortlist.json"
+        queue_result = prepare_publish_queue(result_path)
         queue_path = queue_result.get("markdown_path")
     except Exception as exc:
         print(f"⚠️ おすすめ切り抜きの投稿準備キュー生成をスキップしました: {exc}")
