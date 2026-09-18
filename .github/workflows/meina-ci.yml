@@ -30,3 +30,17 @@ jobs:
 
       - name: Test command router
         run: python tests/test_command_router.py
+
+      - name: Generate diagnostic report
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: python ci_diagnostics.py
+
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meina-ci-diagnostic-${{ github.run_id }}
+          path: ci_diagnostic_report.md
+          if-no-files-found: warn
