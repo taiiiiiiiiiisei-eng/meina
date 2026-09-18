@@ -82,6 +82,19 @@ def main() -> int:
     finally:
         twitch_ai_clipper.LIVE_MARKERS_PATH = original_markers_path
 
+
+    formatted = module.format_candidates([
+        {
+            "score": 92,
+            "stream_time_start": 125.0,
+            "title": "クラッチ成功",
+            "text": "やばい！クラッチした！",
+        }
+    ])
+    assert "2分5秒" in formatted
+    assert "評価92" in formatted
+    assert "クラッチ成功" in formatted
+
     print("Twitch live highlight self-test: PASS")
     return 0
 
