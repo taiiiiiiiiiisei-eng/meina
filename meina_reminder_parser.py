@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 
 _RELATIVE = re.compile(r"(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*後")
-_CLOCK = re.compile(r"(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
+_CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
 _COMMAND_WORDS = re.compile(
     r"(?:リマインド|リマインダー|予定|スケジュール)"
     r"(?:を)?(?:追加|登録|設定|リマインド)?"
@@ -50,6 +50,11 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
 
     hour = int(clock.group("hour"))
     minute = int(clock.group("minute") or 0)
+    ampm = clock.group("ampm")
+    if ampm == "午前" and hour == 12:
+        hour = 0
+    elif ampm == "午後" and hour < 12:
+        hour += 12
     if hour > 23 or minute > 59:
         return None
 
