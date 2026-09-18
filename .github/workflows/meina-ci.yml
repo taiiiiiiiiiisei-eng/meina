@@ -28,6 +28,7 @@ jobs:
           python -m py_compile meina2/tools.py
           python -m py_compile meina_app.py
           python -m py_compile meina_health.py
+          python -m py_compile meina_doctor.py
 
       - name: Test command router
         run: python tests/test_command_router.py
