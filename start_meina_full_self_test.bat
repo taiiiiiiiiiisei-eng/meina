@@ -47,8 +47,13 @@ echo [7/8] リマインダー秘書安全配線テスト
 if errorlevel 1 goto :failed
 
 echo.
-echo [8/8] 音声認識補正テスト
+echo [8/9] 音声認識補正テスト
 "%MEINA_PYTHON%" meina_voice_intent_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [9/9] Twitch自動切り抜きV2配線テスト
+"%MEINA_PYTHON%" twitch_auto_clip_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
