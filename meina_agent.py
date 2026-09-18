@@ -1275,6 +1275,32 @@ def execute_action(frame):
 
 MEINA_CHAT_HISTORY = []
 MEINA_CHAT_HISTORY_LIMIT = 8
+MEINA_MEMORY_FILE = os.path.join(os.path.dirname(__file__), "meina_memory.json")
+MEINA_MEMORY_MAX_ITEMS = 30
+
+def load_meina_memory():
+    try:
+        import json
+        if not os.path.exists(MEINA_MEMORY_FILE):
+            return []
+        with open(MEINA_MEMORY_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            return []
+        return [item for item in data if isinstance(item, dict) and isinstance(item.get("content"), str)][-MEINA_MEMORY_MAX_ITEMS:]
+    except Exception as e:
+        print("⚠️ 長期記憶の読み込みをスキップ:", e)
+        return []
+
+def save_meina_memory(memory):
+    try:
+        import json
+        with open(MEINA_MEMORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(memory[-MEINA_MEMORY_MAX_ITEMS:], f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("⚠️ 長期記憶の保存をスキップ:", e)
+
+MEINA_MEMORY = load_meina_memory()
 
 
 def chat_with_meina(text):
@@ -1308,6 +1334,13 @@ def chat_with_meina(text):
             "content": answer,
         })
         del MEINA_CHAT_HISTORY[:-MEINA_CHAT_HISTORY_LIMIT]
+
+        if any(p in text for p in ("覚えて", "記憶して", "覚えといて", "忘れないで")):
+            MEINA_MEMORY.append({
+                "role": "user",
+                "content": text,
+            })
+            save_meina_memory(MEINA_MEMORY)
 
         print(
             "🧠 めいな:",
