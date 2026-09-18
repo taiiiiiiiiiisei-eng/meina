@@ -27,6 +27,14 @@ def main() -> int:
     assert parsed_tomorrow["text"] == "配信"
     assert parsed_tomorrow["due_at"] == "2026-09-13T18:00:00+00:00"
 
+    parsed_natural = meina_reminder_parser.parse_reminder_command("30分後に知らせて", now)
+    assert parsed_natural is not None
+    assert parsed_natural["text"] == "通知"
+
+    parsed_wake = meina_reminder_parser.parse_reminder_command("18時に起こして", now)
+    assert parsed_wake is not None
+    assert parsed_wake["text"] == "起床"
+
     parsed_after_tomorrow = meina_reminder_parser.parse_reminder_command("明後日20時に勉強予定を登録して", now)
     assert parsed_after_tomorrow is not None
     assert parsed_after_tomorrow["text"] == "勉強"
@@ -35,6 +43,8 @@ def main() -> int:
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
         "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
+        "18時に起こして": ("reminder", "18時に起こして"),
+        "30分後に知らせて": ("reminder", "30分後に知らせて"),
         "リマインダー一覧を教えて": ("reminder_list", None),
         "今日の予定を教えて": ("reminder_today", None),
         "明日の予定を教えて": ("reminder_tomorrow", None),
