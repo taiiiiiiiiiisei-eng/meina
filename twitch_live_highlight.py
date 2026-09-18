@@ -20,6 +20,7 @@ MARKERS_PATH = OUTPUT_DIR / "candidates.jsonl"
 CHUNK_SECONDS = max(10, int(os.getenv("MEINA_LIVE_HIGHLIGHT_CHUNK", "20")))
 MIN_SCORE = max(0, min(100, int(os.getenv("MEINA_LIVE_HIGHLIGHT_MIN_SCORE", "65"))))
 REFRESH_URL_SECONDS = max(60, int(os.getenv("MEINA_LIVE_HIGHLIGHT_URL_REFRESH", "300")))
+LOCK_PATH = OUTPUT_DIR / "monitor.lock.json"
 OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
 
@@ -27,6 +28,146 @@ HIGHLIGHT_WORDS = (
     "やば", "うま", "神", "えぐ", "クラッチ", "1v", "2k", "3k", "4k", "ace",
     "勝った", "逆転", "無理", "最高", "すご", "マジ", "笑", "www", "!?",
 )
+
+
+def _read_lock() -> dict[str, Any]:
+    if not LOCK_PATH.exists():
+        return {}
+    try:
+        data = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _pid_is_running(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _process_command_line(pid: int) -> str:
+    if pid <= 0:
+        return ""
+    try:
+        if os.name == "nt":
+            command = (
+                "$p = Get-CimInstance Win32_Process -Filter "
+                f"'ProcessId = {pid}'; "
+                "if ($p) { [Console]::Out.Write($p.CommandLine) }"
+            )
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", command],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=10,
+                check=False,
+            )
+            return result.stdout.strip()
+        proc_cmdline = Path(f"/proc/{pid}/cmdline")
+        if proc_cmdline.exists():
+            return proc_cmdline.read_bytes().decode("utf-8", errors="replace").replace("\x00", " ")
+    except Exception:
+        return ""
+    return ""
+
+
+def is_monitor_running() -> bool:
+    data = _read_lock()
+    try:
+        pid = int(data.get("pid", 0))
+    except (TypeError, ValueError):
+        pid = 0
+    if not _pid_is_running(pid):
+        try:
+            LOCK_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
+    command_line = _process_command_line(pid)
+    script_path = str(Path(__file__).resolve())
+    if command_line and script_path not in command_line:
+        try:
+            LOCK_PATH.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
+    return True
+
+
+def _acquire_monitor_lock() -> bool:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "pid": os.getpid(),
+        "script": str(Path(__file__).resolve()),
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+    for _ in range(2):
+        try:
+            fd = os.open(str(LOCK_PATH), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(fd, json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+            finally:
+                os.close(fd)
+            return True
+        except FileExistsError:
+            if is_monitor_running():
+                return False
+    return False
+
+
+def _release_monitor_lock() -> None:
+    try:
+        LOCK_PATH.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def stop_monitor() -> bool:
+    data = _read_lock()
+    try:
+        pid = int(data.get("pid", 0))
+    except (TypeError, ValueError):
+        pid = 0
+
+    if not _pid_is_running(pid):
+        _release_monitor_lock()
+        return False
+
+    command_line = _process_command_line(pid)
+    script_path = str(Path(__file__).resolve())
+    if not command_line or script_path not in command_line:
+        return False
+
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=15,
+                check=False,
+            )
+        else:
+            os.kill(pid, 15)
+        _release_monitor_lock()
+        return True
+    except Exception as exc:
+        print(f"❌ ライブ見どころ監視の停止に失敗しました: {exc}")
+        return False
+
 
 def heuristic_score(text: str) -> int:
     compact = str(text or "").strip().lower()
@@ -104,10 +245,10 @@ def build_candidate(
     chunk_started_at: datetime,
     stream_started_at: datetime | None,
     segment_start: float,
-    stream_id: str = "",
     segment_end: float,
     text: str,
     decision: dict[str, Any],
+    stream_id: str = "",
 ) -> dict[str, Any]:
     if stream_started_at is not None:
         absolute_start = max(0.0, (chunk_started_at - stream_started_at).total_seconds() + segment_start)
@@ -202,7 +343,7 @@ def _transcribe_chunk(audio_path: Path) -> list[dict[str, Any]]:
         if seg.text.strip()
     ]
 
-def monitor_live_highlights() -> None:
+def _monitor_live_highlights_loop() -> None:
     from twitch_clip_pipeline import get_user_id, load_config, twitch_app_token
 
     config = load_config()
@@ -255,8 +396,8 @@ def monitor_live_highlights() -> None:
                     segment["start"],
                     segment["end"],
                     segment["text"],
-                    stream_id,
                     decision,
+                    stream_id,
                 )
                 if append_candidate(candidate):
                     print(f"⭐ 見どころ候補: {candidate['score']} / {candidate['title']} / {candidate['text']}")
@@ -267,6 +408,17 @@ def monitor_live_highlights() -> None:
             print(f"⚠️ ライブ見どころ監視エラー: {exc}")
             audio_url = ""
             time.sleep(5)
+
+def monitor_live_highlights() -> None:
+    """ライブ見どころ監視を1プロセスだけ実行する。"""
+    if not _acquire_monitor_lock():
+        print("⚠️ ライブ見どころ監視はすでに起動しています")
+        return
+    try:
+        _monitor_live_highlights_loop()
+    finally:
+        _release_monitor_lock()
+
 
 def start_monitor() -> bool:
     """固定スクリプトとしてライブ見どころ監視を起動する。"""
