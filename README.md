@@ -41,8 +41,8 @@
 ```powershell
 git clone https://github.com/taiiiiiiiiiisei-eng/meina.git
 cd meina
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python -m venv .venv_new
+.\.venv_new\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 python self_test.py
