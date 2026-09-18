@@ -88,8 +88,8 @@ def youtube_search(query):
 # 天気
 # ==========================================
 
-def get_weather(location=None):
-    """wttr.inから現在地または指定地点の今日の天気を取得する。APIキー不要。"""
+def get_weather(location=None, mode="today"):
+    """wttr.inから今日/明日/現在気温の天気情報を取得する。APIキー不要。"""
     import requests
 
     target = str(location or "").strip()
@@ -105,25 +105,39 @@ def get_weather(location=None):
         data = response.json()
 
         current = data["current_condition"][0]
-        today = data["weather"][0]
+        forecast = data.get("weather", [])
+        today = forecast[0]
+        tomorrow = forecast[1] if len(forecast) > 1 else None
         area = data.get("nearest_area", [{}])[0]
         area_name = area.get("areaName", [{}])[0].get("value", "現在地")
         condition = current.get("lang_ja", [{}])[0].get("value") or current.get("weatherDesc", [{}])[0].get("value", "")
         temp = current.get("temp_C", "-")
         feels = current.get("FeelsLikeC", "-")
+
+        if mode == "current_temp":
+            return f"現在の気温は{temp}℃です。体感温度は{feels}℃です。"
+
+        if mode == "tomorrow" and tomorrow:
+            condition = (
+                tomorrow.get("hourly", [{}])[0].get("lang_ja", [{}])[0].get("value")
+                or tomorrow.get("hourly", [{}])[0].get("weatherDesc", [{}])[0].get("value", "")
+            )
+            max_temp = tomorrow.get("maxtempC", "-")
+            min_temp = tomorrow.get("mintempC", "-")
+            if target:
+                headline = f"{area_name}の明日の天気は{condition}です。"
+            else:
+                headline = f"明日の天気は{condition}です。"
+            return headline + f"最高{max_temp}℃、最低{min_temp}℃です。"
+
         max_temp = today.get("maxtempC", "-")
         min_temp = today.get("mintempC", "-")
-
         if target:
-            display_area = area_name or target
-            headline = f"{display_area}の今日の天気は{condition}です。"
+            headline = f"{area_name}の今日の天気は{condition}です。"
         else:
             headline = f"今日の天気は{condition}です。"
 
-        return (
-            headline
-            + f"現在{temp}℃、体感{feels}℃、最高{max_temp}℃、最低{min_temp}℃です。"
-        )
+        return headline + f"現在{temp}℃、体感{feels}℃、最高{max_temp}℃、最低{min_temp}℃です。"
     except Exception as e:
         print("天気取得エラー:", e)
         return "天気情報を取得できませんでした。インターネット接続を確認してください。"
