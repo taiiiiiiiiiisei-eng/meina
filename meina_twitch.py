@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from meina_twitch_intent import is_twitch_clip_request, requested_day
+
 try:
     import requests
 except ImportError:  # 判定系テストでは外部通信ライブラリを必須にしない
@@ -16,21 +18,9 @@ from twitch_clip_pipeline import download_vod, get_user_id, load_config, twitch_
 JST = timezone(timedelta(hours=9))
 
 
-def is_twitch_clip_request(text: str) -> bool:
-    compact = re.sub(r"\s+", "", text).lower()
-    return (
-        ("切り抜" in compact or "ハイライト" in compact)
-        and ("配信" in compact or "twitch" in compact or "昨日" in compact or "今日" in compact or "最近" in compact)
-    )
-
-
+# Backward-compatible private helper name used by existing tests/code.
 def _requested_day(text: str) -> str | None:
-    compact = re.sub(r"\s+", "", text)
-    if "昨日" in compact:
-        return "yesterday"
-    if "今日" in compact:
-        return "today"
-    return None
+    return requested_day(text)
 
 
 def _get_vods(config: dict[str, Any], day: str | None = None) -> list[dict[str, Any]]:
