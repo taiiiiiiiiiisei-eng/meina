@@ -1457,7 +1457,7 @@ def process_command(text):
     # 普通の会話
     # =====================================================
 
-    chat_with_meina(
+    return chat_with_meina(
         text
     )
 
