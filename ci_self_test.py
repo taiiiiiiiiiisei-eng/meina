@@ -60,7 +60,9 @@ def main() -> None:
     assert '"web_open"' in task_plan
     assert "MEINA_UPGRADE_TASK_PLAN_LOCAL_V1" in task_upgrade
     assert "execute_task_plan" in task_upgrade
-    assert "upgrade_meina_reminders_v7.py" in launcher
+    assert "run_meina.py" in launcher
+    assert "pip install" not in launcher
+    assert "upgrade_meina_reminders_v7.py" not in launcher
     assert "MEINA_REMINDER_COMMANDS_V7" in (ROOT / "upgrade_meina_reminders_v7.py").read_text(encoding="utf-8")
 
     print("CI static self-test passed")
