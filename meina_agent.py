@@ -183,8 +183,11 @@ except Exception as e:
 # =========================================================
 
 engine = pyttsx3.init()
-engine.setProperty("rate", 165)
-engine.setProperty("volume", 1.0)
+# 落ち着いたAIアシスタント向けの音声設定
+MEINA_TTS_RATE = int(os.environ.get("MEINA_TTS_RATE", "158"))
+MEINA_TTS_VOLUME = float(os.environ.get("MEINA_TTS_VOLUME", "1.0"))
+engine.setProperty("rate", MEINA_TTS_RATE)
+engine.setProperty("volume", max(0.0, min(1.0, MEINA_TTS_VOLUME)))
 
 # めいなの声は環境変数で選択可能。
 # 例: MEINA_VOICE=Ayumi
@@ -230,31 +233,34 @@ except Exception as e:
     print("⚠️ 音声設定エラー:", e)
 
 
-def speak(text):
-    """
-    めいなの音声出力
-    """
-
+def _prepare_tts_text(text):
+    """AIの返答を読み上げ向けに軽く整える。"""
+    text = str(text or "").strip()
     if not text:
+        return ""
+    for src, dst in (
+        ("```", ""), ("**", ""), ("__", ""),
+        ("###", ""), ("##", ""), ("#", ""), ("・", "、"),
+    ):
+        text = text.replace(src, dst)
+    import re
+    text = re.sub(r"https?://\S+", "リンク", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def speak(text):
+    """めいなの自然な音声出力。"""
+    speech = _prepare_tts_text(text)
+    if not speech:
         return
-
-    print(
-        "🔊 めいな:",
-        text
-    )
-
+    print("🔊 めいな:", text)
     try:
-
         engine.stop()
-        engine.say(str(text))
+        engine.say(speech)
         engine.runAndWait()
-
     except Exception as e:
-
-        print(
-            "❌ TTS ERROR:",
-            e
-        )
+        print("❌ TTS ERROR:", e)
 
 
 # =========================================================
