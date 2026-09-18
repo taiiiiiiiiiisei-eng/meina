@@ -107,7 +107,7 @@ def main() -> int:
     assert "おすすめの見どころは2件です。" in fallback
     assert "評価95" in fallback
 
-    original_shortlist_path = module.SHORTLIST_PATH
+    original_shortlist_path = twitch_ai_clipper.SHORTLIST_PATH
     try:
         with tempfile.TemporaryDirectory() as tmp:
             shortlist_path = Path(tmp) / "shortlist.json"
@@ -119,12 +119,12 @@ def main() -> int:
                 }, ensure_ascii=False),
                 encoding="utf-8",
             )
-            module.SHORTLIST_PATH = shortlist_path
-            loaded = module._load_shortlist(Path(tmp) / "vod-999.mp4", {"stream_id": "stream-123"})
+            twitch_ai_clipper.SHORTLIST_PATH = shortlist_path
+            loaded = twitch_ai_clipper._load_shortlist(Path(tmp) / "vod-999.mp4", {"stream_id": "stream-123"})
             assert len(loaded) == 1
             assert loaded[0]["score"] == 95
     finally:
-        module.SHORTLIST_PATH = original_shortlist_path
+        twitch_ai_clipper.SHORTLIST_PATH = original_shortlist_path
 
     print("Twitch live highlight self-test: PASS")
     return 0
