@@ -28,6 +28,17 @@ def main() -> int:
     assert isinstance(item["hashtags"], list)
     assert "#Twitch" in item["hashtags"]
 
+    module.requests = None
+    apex = module.generate_publish_metadata([
+        {
+            "title": "Apexクラッチ",
+            "reason": "最後の部隊を倒した",
+            "transcript": "エーペックスでクラッチした",
+        }
+    ])
+    assert "#ApexLegends" in apex[0]["hashtags"]
+    assert "#VALORANT" not in apex[0]["hashtags"]
+
     print("Twitch publish metadata self-test: PASS")
     return 0
 
