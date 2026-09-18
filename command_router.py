@@ -152,6 +152,8 @@ def route_command(text, frame):
         return {"kind": "weekday", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("配信中の見どころ監視を停止", "ライブ中の見どころ監視を停止", "見どころ監視を停止", "ハイライト監視を停止", "配信中のハイライト監視を停止")):
         return {"kind": "twitch_live_highlight_stop", "target": "live", "query": str(text).strip(), "confidence": 1.0}
+    if text and any(p in compact for p in ("おすすめの見どころを切り抜", "おすすめハイライトを切り抜", "選んだ見どころを切り抜", "おすすめの切り抜きを作", "おすすめの切り抜き作")):
+        return {"kind": "twitch_shortlist_clip", "target": "latest", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("おすすめの見どころ", "おすすめハイライト", "一番面白い見どころ", "切り抜き候補を選んで", "見どころを選んで")):
         return {"kind": "twitch_live_highlight_shortlist", "target": "live", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("見どころを教えて", "見どころ一覧", "見どころ候補", "最新の見どころ", "ハイライトを教えて")):
