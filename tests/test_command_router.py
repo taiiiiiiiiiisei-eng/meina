@@ -76,6 +76,12 @@ def main():
         target="VALORANT",
     )
 
+    assert_route("今何時？", "time", target="local")
+    assert_route("今日は何日？", "date", target="local")
+    assert_route("今日は何曜日？", "weekday", target="local")
+    assert_route("PCの状態を教えて", "pc_status", target="pc")
+    assert_route("今日の配信の切り抜きを作って", "twitch_clip", target="latest")
+
     assert command_router.route_command(
         "こんにちは、元気？",
         {"confidence": 0.10},
