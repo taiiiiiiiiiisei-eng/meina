@@ -37,13 +37,13 @@ def main() -> int:
     missing = required - methods
     assert not missing, f"missing GUI methods: {sorted(missing)}"
 
-    assert "self.entry.bind("<Return>"" in source
+    assert 'self.entry.bind("<Return>"' in source
     assert "threading.Thread(target=self._process_text" in source
     assert "threading.Thread(target=self._process_voice" in source
     assert 'log_runtime_error("text", e)' in source
     assert 'log_runtime_error("voice", e)' in source
     assert "finally:" in source
-    assert "self.root.after(0, lambda: self.set_busy(False, "オンライン"))" in source
+    assert 'self.root.after(0, lambda: self.set_busy(False, "オンライン"))' in source
     assert 'root.protocol("WM_DELETE_WINDOW", root.destroy)' in source
     assert "meina_agent.process_command(text)" in source
     assert "meina_agent.listen(duration=5.0)" in source
