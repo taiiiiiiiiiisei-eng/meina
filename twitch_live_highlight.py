@@ -420,6 +420,21 @@ def shortlist_candidates(limit: int = 3) -> list[dict[str, Any]]:
     if not candidates:
         return []
 
+    active_stream_id = next(
+        (
+            str(item.get("stream_id", "")).strip()
+            for item in candidates
+            if str(item.get("stream_id", "")).strip()
+        ),
+        "",
+    )
+    if active_stream_id:
+        candidates = [
+            item
+            for item in candidates
+            if str(item.get("stream_id", "")).strip() == active_stream_id
+        ]
+
     pool = _deduplicate_candidates(candidates)[:15]
     selected: list[dict[str, Any]] = []
     used_ai_selection = False
