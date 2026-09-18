@@ -34,7 +34,22 @@ def main() -> int:
     calls = _call_names(node)
 
     # 実行前に必ず計画名を検証し、許可済みの計画だけ取得する。
-    assert calls.index("validate_task_plan") < calls.index("get_task_plan")
+    validation_lines = [
+        child.lineno
+        for child in ast.walk(node)
+        if isinstance(child, ast.Call)
+        and isinstance(child.func, ast.Name)
+        and child.func.id == "validate_task_plan"
+    ]
+    plan_lines = [
+        child.lineno
+        for child in ast.walk(node)
+        if isinstance(child, ast.Call)
+        and isinstance(child.func, ast.Name)
+        and child.func.id == "get_task_plan"
+    ]
+    assert validation_lines and plan_lines
+    assert min(validation_lines) < min(plan_lines)
 
     # 各ステップは安全な共通実行関数を通る。
     assert "_execute_routed_command_base" in calls
