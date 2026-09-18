@@ -1,0 +1,86 @@
+name: Meina Static Self Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  static-self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run dependency-free static test
+        run: python ci_self_test.py
+
+      - name: Run task plan self-test
+        run: python meina_task_plan_self_test.py
+
+      - name: Run task plan integration self-test
+        run: python meina_task_plan_integration_self_test.py
+
+
+      - name: Run PC status self-test
+        run: python meina_pc_status_self_test.py
+
+      - name: Run memory self-test
+        run: python meina_memory_self_test.py
+
+      - name: Run reminder self-test
+        run: python meina_reminders_self_test.py
+
+      - name: Run reminder AM PM self-test
+        run: python meina_reminder_ampm_self_test.py
+
+      - name: Run core lightweight self-test
+        run: python self_test.py
+
+      - name: Run voice intent self-test
+        run: python meina_voice_intent_self_test.py
+
+      - name: Run voice settings persistence self-test
+        run: python meina_voice_settings_self_test.py
+
+      - name: Run GUI static self-test
+        run: python meina_app_self_test.py
+
+      - name: Run core smoke test
+        run: python meina_smoke_test.py
+
+      - name: Run voice command pipeline self-test
+        run: python meina_voice_command_pipeline_self_test.py
+
+      - name: Run router edge-case self-test
+        run: python command_router_edge_self_test.py
+
+      - name: Run Twitch static self-test
+        run: python twitch_self_test.py
+
+      - name: Run Twitch command test
+        run: python twitch_command_test.py
+
+      - name: Run Twitch voice self-test
+        run: python twitch_voice_self_test.py
+
+
+      - name: Generate diagnostic report
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: python ci_diagnostics.py
+
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meina-static-diagnostic-${{ github.run_id }}
+          path: ci_diagnostic_report.md
+          if-no-files-found: warn
