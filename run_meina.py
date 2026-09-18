@@ -8,7 +8,16 @@ import site
 import sys
 
 
-def add_cuda_dll_dirs():
+def _environment_label() -> str:
+    normalized = os.path.normcase(os.path.normpath(sys.executable))
+    for label in (".venv_new", ".venv"):
+        marker = os.sep + label + os.sep
+        if marker in normalized:
+            return label
+    return "custom/system"
+
+
+def add_cuda_dll_dirs() -> list[str]:
     candidates = []
 
     try:
@@ -28,6 +37,7 @@ def add_cuda_dll_dirs():
         os.path.join(os.path.dirname(sys.executable), "Lib", "site-packages"),
     ])
 
+    loaded_dirs = []
     seen = set()
     for site_packages in candidates:
         if not site_packages or site_packages in seen:
