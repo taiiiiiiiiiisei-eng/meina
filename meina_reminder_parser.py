@@ -73,6 +73,22 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
     text_part = _extract_text(raw, clock.span())
     if text_part:
         return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
+    direct_label = _default_direct_notice_text(raw)
+    if direct_label:
+        return {"text": direct_label, "due_at": due.isoformat(timespec="seconds")}
+    return None
+
+
+def _default_direct_notice_text(raw: str) -> str | None:
+    compact = str(raw).replace(" ", "").replace("　", "")
+    if "起こして" in compact:
+        return "起床"
+    if "知らせて" in compact:
+        return "通知"
+    if "思い出させて" in compact:
+        return "リマインド"
+    if "教えて" in compact:
+        return "通知"
     return None
 
 
