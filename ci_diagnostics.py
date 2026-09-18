@@ -36,6 +36,7 @@ COMMANDS = [
     ("Voice command pipeline self-test", [sys.executable, "meina_voice_command_pipeline_self_test.py"]),
     ("Router edge-case self-test", [sys.executable, "command_router_edge_self_test.py"]),
     ("Execution path guard self-test", [sys.executable, "meina_execution_path_self_test.py"]),
+    ("Task plan execution guard self-test", [sys.executable, "meina_task_plan_execution_guard_self_test.py"]),
     ("Twitch static self-test", [sys.executable, "twitch_self_test.py"]),
     ("Twitch command test", [sys.executable, "twitch_command_test.py"]),
     ("Twitch voice self-test", [sys.executable, "twitch_voice_self_test.py"]),
