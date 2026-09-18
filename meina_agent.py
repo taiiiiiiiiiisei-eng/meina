@@ -270,6 +270,18 @@ def set_meina_voice(preset):
     return True
 
 
+def set_meina_volume(direction):
+    global MEINA_TTS_VOLUME
+    if direction == "up":
+        MEINA_TTS_VOLUME = min(1.0, MEINA_TTS_VOLUME + 0.1)
+    elif direction == "down":
+        MEINA_TTS_VOLUME = max(0.2, MEINA_TTS_VOLUME - 0.1)
+    else:
+        return False
+    engine.setProperty("volume", MEINA_TTS_VOLUME)
+    return True
+
+
 def set_meina_rate(preset):
     global MEINA_NEURAL_RATE
     rates = {"slow": "-18%", "normal": "-8%", "fast": "+8%"}
@@ -766,6 +778,10 @@ def execute_routed_command(route):
         if set_meina_rate(route.get("target")):
             labels = {"slow": "ゆっくり", "normal": "標準", "fast": "速め"}
             speak(f"話す速さを{labels.get(route.get('target'), '変更')}にしました")
+        return True
+    if route.get("kind") == "voice_volume":
+        if set_meina_volume(route.get("target")):
+            speak("声の音量を調整しました")
         return True
     return _execute_routed_command_base(route)
 
