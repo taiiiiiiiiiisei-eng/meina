@@ -5,7 +5,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-import requests
+try:
+    import requests
+except ImportError:  # 判定系テストでは外部通信ライブラリを必須にしない
+    requests = None
 
 from twitch_ai_clipper import create_ai_clips
 from twitch_clip_pipeline import download_vod, get_user_id, load_config, twitch_app_token
@@ -43,6 +46,8 @@ def _get_vods(config: dict[str, Any], day: str | None = None) -> list[dict[str, 
     elif day == "today":
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         params["started_at"] = start.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    if requests is None:
+        raise RuntimeError("Twitch APIを使うには requests が必要です")
     response = requests.get(
         "https://api.twitch.tv/helix/videos",
         headers={"Client-ID": config["client_id"], "Authorization": f"Bearer {token}"},
