@@ -15,6 +15,7 @@ REQUIRED_FILES = {
     "upgrade_meina_task_plan.py": ["main"],
     "meina2/tools.py": ["open_browser", "google_search", "youtube_search"],
     "meina_health.py": ["main", "_check_files", "_check_modules", "_check_executable"],
+    "meina_doctor.py": ["main", "check_module", "check_executable", "check_ollama", "check_microphone", "check_tts", "check_cuda", "check_whisper_cache"],
     "meina_brain/brain_core.py": ["extract_action_frame", "infer_intent"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
     "twitch_ai_clipper.py": ["create_ai_clips"],
@@ -50,6 +51,7 @@ def main() -> None:
     task_upgrade = (ROOT / "upgrade_meina_task_plan.py").read_text(encoding="utf-8")
     task_plan = (ROOT / "meina_task_plans.py").read_text(encoding="utf-8")
     launcher = (ROOT / "start_meina.bat").read_text(encoding="utf-8")
+    doctor_launcher = (ROOT / "start_meina_doctor.bat").read_text(encoding="utf-8")
 
     assert '"kind": "task_plan"' in router
     assert '"reminder_upcoming"' in router
@@ -65,6 +67,7 @@ def main() -> None:
     assert "run_meina.py" in launcher
     assert "pip install" not in launcher
     assert "upgrade_meina_reminders_v7.py" not in launcher
+    assert "meina_doctor.py" in doctor_launcher
     assert "MEINA_REMINDER_COMMANDS_V7" in (ROOT / "upgrade_meina_reminders_v7.py").read_text(encoding="utf-8")
 
     print("CI static self-test passed")
