@@ -46,6 +46,7 @@ def main() -> int:
         ("明日の予定を教えて", "reminder_tomorrow", "local"),
         ("今後の予定を教えて", "reminder_upcoming", "local"),
         ("今日の配信の切り抜きを作って", "twitch_clip", "latest"),
+        ("切り抜きの投稿準備して", "twitch_publish_prep", "latest"),
         ("何ができる？", "help", "meina"),
         ("めいなの状態を教えて", "self_status", "meina"),
     )
