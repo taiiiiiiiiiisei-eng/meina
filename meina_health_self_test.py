@@ -11,9 +11,14 @@ import meina_health
 ROOT = Path(__file__).resolve().parent
 
 
+class _Output:
+    def splitlines(self):
+        return ["NAME               ID", "meina:latest       abc"]
+
+
 class _Completed:
     returncode = 0
-    stdout = "NAME               ID\\nmeina:latest       abc\\n"
+    stdout = _Output()
     stderr = ""
 
 
