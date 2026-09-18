@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 
+import twitch_ai_clipper
 import twitch_live_highlight as module
 
 
@@ -49,6 +53,34 @@ def main() -> int:
     assert with_stream["stream_id"] == "stream-123"
     assert with_stream["stream_time_start"] == 301.0
     assert candidate["source"] == "ollama"
+
+    # VODファイル名と配信stream_idが違っていてもライブ候補を再利用できる。
+    original_markers_path = twitch_ai_clipper.LIVE_MARKERS_PATH
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            markers_path = Path(tmp) / "candidates.jsonl"
+            markers_path.write_text(
+                json.dumps(
+                    {
+                        "stream_id": "stream-123",
+                        "stream_time_start": 120.0,
+                        "stream_time_end": 130.0,
+                        "score": 90,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            twitch_ai_clipper.LIVE_MARKERS_PATH = markers_path
+            matches = twitch_ai_clipper._load_live_markers(
+                Path(tmp) / "vod-999.mp4",
+                {"stream_id": "stream-123"},
+            )
+            assert len(matches) == 1
+            assert matches[0]["stream_id"] == "stream-123"
+    finally:
+        twitch_ai_clipper.LIVE_MARKERS_PATH = original_markers_path
 
     print("Twitch live highlight self-test: PASS")
     return 0
