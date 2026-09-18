@@ -183,11 +183,8 @@ except Exception as e:
 # =========================================================
 
 engine = pyttsx3.init()
-
-engine.setProperty(
-    "rate",
-    170
-)
+engine.setProperty("rate", 170)
+engine.setProperty("volume", 1.0)
 
 
 try:
@@ -251,10 +248,8 @@ def speak(text):
 
     try:
 
-        engine.say(
-            text
-        )
-
+        engine.stop()
+        engine.say(str(text))
         engine.runAndWait()
 
     except Exception as e:
