@@ -11,4 +11,8 @@ def handle_voice_command(text: str) -> str | None:
     if not result.get("ok"):
         return "Twitchの切り抜き命令として処理できませんでした。"
     clips = result.get("clips", [])
-    return f"切り抜きを{len(clips)}本作りました。clipsフォルダに保存しました。"
+    queue = result.get("publish_queue")
+    message = f"切り抜きを{len(clips)}本作りました。clipsフォルダに保存しました。"
+    if queue:
+        message += "投稿用の準備も完了しました。"
+    return message
