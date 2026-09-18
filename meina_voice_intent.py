@@ -131,3 +131,20 @@ def is_invalid_command(text: str) -> bool:
             return False
 
     return True
+
+
+def listen_command_with_retry(listen_fn, attempts: int = 2, duration: float = 5.0) -> str:
+    """音声命令を最大attempts回聞き、最初の有効な認識結果を返す。"""
+    try:
+        max_attempts = max(1, int(attempts))
+    except (TypeError, ValueError):
+        max_attempts = 2
+
+    for _ in range(max_attempts):
+        try:
+            text = listen_fn(duration=duration)
+        except Exception:
+            text = ""
+        if text and not is_invalid_command(text):
+            return str(text).strip()
+    return ""
