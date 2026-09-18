@@ -422,9 +422,11 @@ def shortlist_candidates(limit: int = 3) -> list[dict[str, Any]]:
 
     pool = _deduplicate_candidates(candidates)[:15]
     selected: list[dict[str, Any]] = []
+    used_ai_selection = False
 
     try:
         selected_ids = _ai_select_shortlist(pool, limit)
+        used_ai_selection = True
         seen: set[int] = set()
         for candidate_id in selected_ids:
             if not 0 <= candidate_id < len(pool) or candidate_id in seen:
@@ -443,11 +445,11 @@ def shortlist_candidates(limit: int = 3) -> list[dict[str, Any]]:
         "created_at": datetime.now(timezone.utc).isoformat(),
         "source_count": len(candidates),
         "pool_count": len(pool),
-        "selection_source": "ollama" if selected_ids if False else "score_fallback",
+        "selection_source": "score_fallback",
         "shortlist": selected,
     }
-    if selected:
-        result["selection_source"] = "ollama" if "selected_ids" in locals() and selected_ids else "score_fallback"
+    if used_ai_selection:
+        result["selection_source"] = "ollama"
     try:
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         SHORTLIST_PATH.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
