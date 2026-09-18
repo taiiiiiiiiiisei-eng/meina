@@ -123,6 +123,12 @@ def route_command(text, frame):
     if text and any(p in compact for p in ("今後の予定", "予定表", "今週の予定", "これからの予定")):
         return {"kind": "reminder_upcoming", "target": "local", "query": None, "confidence": 1.0}
 
+    # めいなのヘルプ・自己診断は固定応答にして、AIのconfidenceに依存させない。
+    if text and any(p in compact for p in ("何ができる", "できること", "使えるコマンド", "コマンド一覧", "ヘルプ")):
+        return {"kind": "help", "target": "meina", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in ("めいなの状態", "めいな状態", "自己診断", "システムチェック", "動作確認")):
+        return {"kind": "self_status", "target": "meina", "query": None, "confidence": 1.0}
+
     # ローカルサービス: PC状態・日時・Twitch
     if text and any(p in compact for p in PC_STATUS_PHRASES):
         return {"kind": "pc_status", "target": "pc", "query": None, "confidence": 1.0}
