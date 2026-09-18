@@ -19,6 +19,7 @@ REQUIRED_FILES = {
     "meina_voice_intent.py": ["correct_recognition", "normalize_text", "contains_wake_word", "remove_wake_word", "is_invalid_command"],
     "meina_voice_settings_self_test.py": ["main"],
     "meina_app_self_test.py": ["main"],
+    "meina_smoke_test.py": ["main", "assert_route"],
     "meina_brain/brain_core.py": ["extract_action_frame", "infer_intent"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
     "twitch_ai_clipper.py": ["create_ai_clips"],
