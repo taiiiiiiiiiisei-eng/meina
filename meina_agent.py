@@ -767,7 +767,7 @@ def _execute_routed_command_base(route):
 
         print("🛡️ 許可済みPC操作:", route)
         speak(result)
-        return True
+        return result
 
     except Exception as e:
         print("❌ PC操作エラー:", e)
@@ -816,19 +816,26 @@ def execute_routed_command(route):
     if route.get("kind") == "voice_change":
         if set_meina_voice(route.get("target")):
             labels = {"nanami": "ナナミ", "keita": "ケイタ", "shiori": "シオリ"}
-            speak(f"{labels.get(route.get("target"), "この声")}に変更しました")
+            message = f"{labels.get(route.get('target'), "この声")}に変更しました"
         else:
-            speak("その声には変更できませんでした")
-        return True
+            message = "その声には変更できませんでした"
+        speak(message)
+        return message
     if route.get("kind") == "voice_rate":
         if set_meina_rate(route.get("target")):
             labels = {"slow": "ゆっくり", "normal": "標準", "fast": "速め"}
-            speak(f"話す速さを{labels.get(route.get('target'), '変更')}にしました")
-        return True
+            message = f"話す速さを{labels.get(route.get('target'), '変更')}にしました"
+        else:
+            message = "話す速さを変更できませんでした"
+        speak(message)
+        return message
     if route.get("kind") == "voice_volume":
         if set_meina_volume(route.get("target")):
-            speak("声の音量を調整しました")
-        return True
+            message = "声の音量を調整しました"
+        else:
+            message = "声の音量を調整できませんでした"
+        speak(message)
+        return message
     return _execute_routed_command_base(route)
 
 
@@ -1453,9 +1460,11 @@ def process_command(text):
 
     if route:
 
-        if execute_routed_command(route):
+        result = execute_routed_command(route)
 
-            return
+        if result:
+
+            return result
 
     # =====================================================
     # 普通の会話
