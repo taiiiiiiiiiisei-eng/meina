@@ -48,6 +48,8 @@ class MeinaApp:
         )
         self.entry.pack(side="left", fill="x", expand=True, ipady=8)
         self.entry.bind("<Return>", lambda event: self.send_text())
+        # 起動直後から文字入力できるよう、入力欄へフォーカスを設定
+        self.root.after(200, self._focus_entry)
 
         self.send_button = tk.Button(
             bottom,
@@ -69,6 +71,11 @@ class MeinaApp:
 
         self.add_message("めいな", "起動しています。少し待ってください。")
         threading.Thread(target=self._initialize, daemon=True).start()
+
+    def _focus_entry(self):
+        if not self.busy:
+            self.entry.configure(state="normal")
+            self.entry.focus_set()
 
     def add_message(self, speaker, text):
         self.chat.configure(state="normal")
