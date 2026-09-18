@@ -29,6 +29,11 @@ def main() -> int:
     assert "if route:" not in source
     assert "return execute_routed_command(route)" in source
 
+    # リマインダー完了・削除は複数一致時に先頭を勝手に選ばない。
+    assert 'elif kind in ("reminder_done", "reminder_delete"):' in source
+    assert "elif len(matches) > 1:" in source
+    assert '(完了|削除)(して|してください|お願い(?:します)?)?' in source
+
     # 天気は通常会話ではなく固定ルートになる。
     today = route_command("今日の天気を教えて", {"confidence": 1.0})
     assert today == {
