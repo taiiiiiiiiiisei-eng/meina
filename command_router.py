@@ -53,6 +53,20 @@ def route_command(text, frame):
         plan_name = detect_task_plan(text)
         if plan_name:
             return {"kind": "task_plan", "target": plan_name, "query": None, "confidence": 1.0}
+    # Neural TTSの話速・音量調整: 固定プリセットのみ許可
+    if text:
+        if any(p in compact for p in ("話す速度", "話速", "話し方")):
+            if any(p in compact for p in ("速く", "早く", "速め", "早め")):
+                return {"kind": "voice_rate", "target": "fast", "query": None, "confidence": 1.0}
+            if any(p in compact for p in ("遅く", "ゆっくり", "遅め")):
+                return {"kind": "voice_rate", "target": "slow", "query": None, "confidence": 1.0}
+            if any(p in compact for p in ("普通", "標準")):
+                return {"kind": "voice_rate", "target": "normal", "query": None, "confidence": 1.0}
+        if any(p in compact for p in ("声の音量", "音量", "声を")) and any(p in compact for p in ("大きく", "上げて", "大きめ")):
+            return {"kind": "voice_volume", "target": "up", "query": None, "confidence": 1.0}
+        if any(p in compact for p in ("声の音量", "音量", "声を")) and any(p in compact for p in ("小さく", "下げて", "小さめ")):
+            return {"kind": "voice_volume", "target": "down", "query": None, "confidence": 1.0}
+
     # Neural TTSの声変更: 「声をナナミにして」など
     if text:
         voice_aliases = {
