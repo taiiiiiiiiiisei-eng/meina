@@ -745,7 +745,22 @@ def _execute_routed_command_base(route):
     query = route.get("query")
 
     try:
-        if kind == "weather":
+        if kind == "help":
+            result = (
+                "めいなは、会話、天気、現在時刻、PC状態、リマインダー、"
+                "Google・YouTube検索、アプリ起動、配信準備、Twitch切り抜きに対応しています。"
+            )
+        elif kind == "self_status":
+            neural = "ON" if NEURAL_TTS_AVAILABLE else "OFF"
+            result = (
+                "めいなの自己診断です。"
+                f"Whisperは{'OK' if whisper_model else 'NG'}、"
+                f"brain_coreは{'OK' if brain_core else 'NG'}、"
+                f"Ollamaは{'OK' if ollama else 'NG'}、"
+                f"Neural TTSは{neural}、"
+                f"Windows TTSは{'OK' if engine else 'NG'}です。"
+            )
+        elif kind == "weather":
             result = tools.get_weather(
                 None if target == "current" else target,
                 mode=query or "today",
