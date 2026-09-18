@@ -150,6 +150,8 @@ def route_command(text, frame):
         return {"kind": "time", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("何曜日", "曜日を教えて", "今日は何曜")):
         return {"kind": "weekday", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in ("投稿準備", "投稿用に準備", "投稿文を作って", "投稿文を準備", "切り抜きを投稿用", "切り抜きの投稿準備")) and any(p in compact for p in ("切り抜き", "配信", "twitch", "動画")):
+        return {"kind": "twitch_publish_prep", "target": "latest", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("切り抜き", "ハイライト")) and any(p in compact for p in ("配信", "twitch", "昨日", "今日", "最近")):
         return {"kind": "twitch_clip", "target": "latest", "query": str(text).strip(), "confidence": 1.0}
 
