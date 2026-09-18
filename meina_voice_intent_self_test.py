@@ -13,6 +13,9 @@ def main() -> int:
     assert contains_wake_word("メイナー、ブラウザを開いて")
     assert contains_wake_word(correct_recognition("メインなぁ、メモ帳を開いて"))
     assert contains_wake_word(" メ イ ナ ")
+    assert contains_wake_word("メーな、メモ帳を開いて")
+    assert contains_wake_word("めーな、メモ帳を開いて")
+    assert contains_wake_word("メイな、メモ帳を開いて")
     assert not contains_wake_word("メモ帳を開いて")
 
     assert correct_recognition("メイナー、バロランを開いて") == "メイナ、バロラントを開いて"
@@ -22,6 +25,9 @@ def main() -> int:
 
     assert normalize_text(" めいな　メモ帳 ") == "めいなメモ帳"
     assert remove_wake_word("メイナー、メモ帳を開いて") == "メモ帳を開いて"
+    assert remove_wake_word("メイ ナ、メモ帳を開いて") == "メモ帳を開いて"
+    assert remove_wake_word("メーな、メモ帳を開いて") == "メモ帳を開いて"
+    assert remove_wake_word("めーな、メモ帳を開いて") == "メモ帳を開いて"
     assert remove_wake_word("めいなー") == ""
     assert is_invalid_command("ー")
     assert is_invalid_command("？")
