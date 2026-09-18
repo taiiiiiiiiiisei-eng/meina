@@ -60,6 +60,9 @@ def main() -> int:
     assert contains_wake_word("めーな、メモ帳を開いて")
     corrected = correct_recognition("メインなぁ、メモ帳を開いて")
     assert corrected == "メイナ、メモ帳を開いて", corrected
+    assert correct_recognition("メイナ、エーペクスを開いて") == "メイナ、Apexを開いて"
+    assert correct_recognition("メイナ、ディスコルドを開いて") == "メイナ、Discordを開いて"
+    assert correct_recognition("メイナ、ユーチュブを開いて") == "メイナ、YouTubeを開いて"
     assert remove_wake_word(corrected) == "メモ帳を開いて"
     assert remove_wake_word("メイ ナ、メモ帳を開いて") == "メモ帳を開いて"
     assert remove_wake_word("めーな、メモ帳を開いて") == "メモ帳を開いて"
