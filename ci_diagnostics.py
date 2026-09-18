@@ -19,9 +19,11 @@ COMMANDS = [
     ("Router regression tests", [sys.executable, "tests/test_command_router.py"]),
     ("Static self-test", [sys.executable, "ci_self_test.py"]),
     ("Task plan self-test", [sys.executable, "meina_task_plan_self_test.py"]),
+    ("Task plan integration self-test", [sys.executable, "meina_task_plan_integration_self_test.py"]),
     ("PC status self-test", [sys.executable, "meina_pc_status_self_test.py"]),
     ("Memory self-test", [sys.executable, "meina_memory_self_test.py"]),
     ("Reminder self-test", [sys.executable, "meina_reminders_self_test.py"]),
+    ("Reminder AM PM self-test", [sys.executable, "meina_reminder_ampm_self_test.py"]),
 ]
 
 def run_command(label: str, command: list[str]) -> tuple[int, str]:
