@@ -58,6 +58,9 @@ jobs:
       - name: Run voice command pipeline self-test
         run: python meina_voice_command_pipeline_self_test.py
 
+      - name: Run router edge-case self-test
+        run: python command_router_edge_self_test.py
+
       - name: Run Twitch static self-test
         run: python twitch_self_test.py
 
