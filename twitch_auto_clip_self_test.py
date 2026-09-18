@@ -34,7 +34,12 @@ def main() -> int:
     assert "last_vod_id" in v2
     assert "return None" in v2
 
-    print("Twitch auto-clip V2 wiring self-test: PASS")
+    live_monitor = (ROOT / "twitch_live_monitor.py").read_text(encoding="utf-8")
+    assert "run_live_monitor" in live_monitor
+    assert 'MODE = os.getenv("MEINA_TWITCH_MONITOR_MODE", "live").strip().lower()' in source
+    assert "run_live_monitor()" in source
+
+    print("Twitch auto-clip V2/live wiring self-test: PASS")
     return 0
 
 
