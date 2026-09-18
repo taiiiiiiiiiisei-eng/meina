@@ -109,6 +109,8 @@ def main():
     assert_route("今日は何曜日？", "weekday", target="local")
     assert_route("PCの状態を教えて", "pc_status", target="pc")
     assert_route("今日の配信の切り抜きを作って", "twitch_clip", target="latest")
+    assert_route("何ができる？", "help", target="meina")
+    assert_route("めいなの状態を教えて", "self_status", target="meina")
     assert_route("明日雨降る？", "weather", target="current", query="tomorrow_rain")
     assert_route("東京の明日雨降る？", "weather", target="東京", query="tomorrow_rain")
 
