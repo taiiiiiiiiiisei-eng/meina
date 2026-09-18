@@ -55,7 +55,9 @@ Ollamaでモデル `meina` を用意してから起動：
 python run_meina.py
 ```
 
-または `start_meina.bat` を実行。起動時に必要なアップグレードパッチを適用してから本体を起動します。
+または `start_meina.bat` を実行。安定版ランチャーとして現在の仮想環境から本体を起動します。
+
+GUIアプリとして使う場合は `start_meina_app.bat` を実行してください。
 
 ## 音声操作
 
@@ -69,7 +71,11 @@ python run_meina.py
 - YouTube検索
 - Webサイトを開く
 - 日本語音声で返答
-- Twitch配信の切り抜き処理
+- 今日/明日の天気・気温・降水確率
+- 現在時刻・日付・曜日
+- PC状態（GPU・メモリ・ディスク）の確認
+- リマインダー・予定の追加・確認・完了・削除
+- Twitch配信のAI切り抜き処理
 
 ## Twitch AI切り抜き
 
