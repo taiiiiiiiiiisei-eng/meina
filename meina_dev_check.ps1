@@ -38,17 +38,19 @@ foreach ($file in $files) {
 }
 Write-Report ""
 Write-Report "【ルーター確認】"
+$routerOk = $true
 $routerTests = @("今日の天気を教えて", "明日の天気を教えて", "今の気温は？", "今日雨降る？")
 foreach ($q in $routerTests) {
   $env:MEINA_TEST_TEXT = $q
   $code = 'import os, command_router; print(command_router.route_command(os.environ["MEINA_TEST_TEXT"], {"confidence": 1.0}))'
   $out = & $python -c $code 2>&1
-  if ($LASTEXITCODE -eq 0) { Write-Report "✅ $q"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } } else { Write-Report "❌ $q"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } }
+  if ($LASTEXITCODE -eq 0) { Write-Report "✅ $q"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } } else { $routerOk = $false; Write-Report "❌ $q"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } }
 }
 Remove-Item Env:MEINA_TEST_TEXT -ErrorAction SilentlyContinue
 Write-Report ""
 Write-Report "【総合】"
 if ($syntaxOk) { Write-Report "✅ 構文エラーなし" } else { Write-Report "❌ 構文エラーあり" }
+if ($routerOk) { Write-Report "✅ ルーター確認OK" } else { Write-Report "❌ ルーター確認でエラー" }
 Write-Report ("使用Python: " + $python)
 Write-Report ""
 Write-Report "このファイルをChatGPTに送れば、エラー解析に使えます。"
@@ -57,4 +59,4 @@ $lines | Set-Content -Path $report -Encoding UTF8
 Write-Host ""
 Write-Host "📄 レポート保存:"
 Write-Host $report
-Read-Host "Enterで終了"
+if ($syntaxOk -and $routerOk) { exit 0 } else { exit 1 }
