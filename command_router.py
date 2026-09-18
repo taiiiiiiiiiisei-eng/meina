@@ -80,7 +80,7 @@ def route_command(text, frame):
                     return {"kind": "voice_change", "target": preset, "query": None, "confidence": 1.0}
 
     # 天気・気温: 今日/明日、場所指定、「今何度？」など自然な聞き方に対応
-    if text and any(p in compact for p in ("天気", "気温", "気候", "何度")):
+    if text and any(p in compact for p in ("天気", "気温", "気候", "何度", "雨降る", "雨が降る", "雨降り", "降水確率", "傘いる", "傘必要", "傘は必要")):
         original = str(text).strip()
         mode = "today"
         if "明日" in compact:
