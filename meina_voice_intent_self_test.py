@@ -5,6 +5,7 @@ from meina_voice_intent import (
     is_invalid_command,
     normalize_text,
     remove_wake_word,
+    listen_command_with_retry,
 )
 
 
@@ -38,6 +39,20 @@ def main() -> int:
     assert is_invalid_command("")
     assert not is_invalid_command("メモ帳")
     assert not is_invalid_command("開いて")
+
+    calls = []
+    def fake_listen(*, duration):
+        calls.append(duration)
+        return "" if len(calls) == 1 else "メモ帳を開いて"
+    assert listen_command_with_retry(fake_listen) == "メモ帳を開いて"
+    assert calls == [5.0, 5.0]
+
+    calls = []
+    def fake_invalid_listen(*, duration):
+        calls.append(duration)
+        return "ー" if len(calls) == 1 else ""
+    assert listen_command_with_retry(fake_invalid_listen) == ""
+    assert calls == [5.0, 5.0]
 
     print("Voice intent self-test: PASS")
     return 0
