@@ -23,6 +23,7 @@ REQUIRED_FILES = {
     "meina_voice_command_pipeline_self_test.py": ["main", "run_voice_case"],
     "command_router_edge_self_test.py": ["main"],
     "meina_execution_path_self_test.py": ["main", "_function_node", "_called_names"],
+    "meina_task_plan_execution_guard_self_test.py": ["main", "_find_function", "_call_names"],
     "meina_brain/brain_core.py": ["extract_action_frame", "infer_intent"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
     "twitch_ai_clipper.py": ["create_ai_clips"],
