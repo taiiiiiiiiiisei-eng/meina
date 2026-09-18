@@ -1,12 +1,15 @@
 @echo off
 cd /d "%~dp0"
 
-set "MEINA_PYTHON=%~dp0.venv\Scripts\python.exe"
+set "MEINA_PYTHON="
 
-if not exist "%MEINA_PYTHON%" (
+if exist "%~dp0.venv_new\Scripts\python.exe" set "MEINA_PYTHON=%~dp0.venv_new\Scripts\python.exe"
+if not defined MEINA_PYTHON if exist "%~dp0.venv\Scripts\python.exe" set "MEINA_PYTHON=%~dp0.venv\Scripts\python.exe"
+
+if not defined MEINA_PYTHON (
     echo.
     echo めいなのPython環境が見つかりません。
-    echo 期待する場所: %MEINA_PYTHON%
+    echo 候補: %~dp0.venv_new\Scripts\python.exe / %~dp0.venv\Scripts\python.exe
     echo.
     pause
     exit /b 1
@@ -17,22 +20,22 @@ echo めいな 軽量フルセルフテスト
 echo ============================================================
 echo.
 
-echo [1/5] 基本静的セルフテスト
+echo [1/6] 基本静的セルフテスト
 "%MEINA_PYTHON%" ci_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
-echo [2/5] コア・スモークテスト
+echo [2/6] コア・スモークテスト
 "%MEINA_PYTHON%" meina_smoke_test.py
 if errorlevel 1 goto :failed
 
 echo.
-echo [3/5] 音声コマンド統合テスト
+echo [3/6] 音声コマンド統合テスト
 "%MEINA_PYTHON%" meina_voice_command_pipeline_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
-echo [4/5] ルーター境界値テスト
+echo [4/6] ルーター境界値テスト
 "%MEINA_PYTHON%" command_router_edge_self_test.py
 if errorlevel 1 goto :failed
 
