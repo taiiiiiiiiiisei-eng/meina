@@ -29,6 +29,7 @@ COMMANDS = [
     ("Reminder self-test", [sys.executable, "meina_reminders_self_test.py"]),
     ("Reminder AM PM self-test", [sys.executable, "meina_reminder_ampm_self_test.py"]),
     ("Core lightweight self-test", [sys.executable, "self_test.py"]),
+    ("Health core self-test", [sys.executable, "meina_health_self_test.py"]),
     ("Voice intent self-test", [sys.executable, "meina_voice_intent_self_test.py"]),
     ("Voice settings persistence self-test", [sys.executable, "meina_voice_settings_self_test.py"]),
     ("GUI static self-test", [sys.executable, "meina_app_self_test.py"]),
