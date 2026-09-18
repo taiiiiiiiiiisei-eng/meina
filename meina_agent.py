@@ -4,6 +4,8 @@ import time
 import asyncio
 import tempfile
 import sysconfig
+import shutil
+import subprocess
 
 import sounddevice as sd
 import pyttsx3
@@ -751,12 +753,34 @@ def _execute_routed_command_base(route):
                 "Google・YouTube検索、アプリ起動、配信準備、Twitch切り抜きに対応しています。"
             )
         elif kind == "self_status":
-            neural = "ON" if NEURAL_TTS_AVAILABLE else "OFF"
+            neural = "OK" if NEURAL_TTS_AVAILABLE else "OFF"
+            cuda = "OK" if os.path.isdir(CUBLAS_BIN) and os.path.isdir(CUDNN_BIN) else "WARN"
+            nvidia = "OK" if shutil.which("nvidia-smi") else "WARN"
+            ollama_status = "WARN"
+            ollama_model = "WARN"
+            try:
+                proc = subprocess.run(
+                    ["ollama", "list"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+                if proc.returncode == 0:
+                    ollama_status = "OK"
+                    ollama_model = "OK" if "meina" in (proc.stdout or "").lower() else "WARN"
+            except Exception:
+                pass
             result = (
                 "めいなの自己診断です。"
                 f"Whisperは{'OK' if whisper_model else 'NG'}、"
                 f"brain_coreは{'OK' if brain_core else 'NG'}、"
-                f"Ollamaは{'OK' if ollama else 'NG'}、"
+                f"Ollamaサービスは{ollama_status}、"
+                f"meinaモデルは{ollama_model}、"
+                f"CUDA DLLは{cuda}、"
+                f"NVIDIAドライバーは{nvidia}、"
                 f"Neural TTSは{neural}、"
                 f"Windows TTSは{'OK' if engine else 'NG'}です。"
             )
