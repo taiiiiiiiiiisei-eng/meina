@@ -200,6 +200,7 @@ if MEINA_VOICE_PRESET in MEINA_VOICE_PRESETS:
 print("🔊 めいな Neural Voice:", NEURAL_TTS_VOICE)
 MEINA_TTS_RATE = int(os.environ.get("MEINA_TTS_RATE", "158"))
 MEINA_TTS_VOLUME = float(os.environ.get("MEINA_TTS_VOLUME", "1.0"))
+MEINA_NEURAL_RATE = os.environ.get("MEINA_NEURAL_RATE", "-8%")
 
 try:
     import edge_tts
@@ -269,10 +270,19 @@ def set_meina_voice(preset):
     return True
 
 
+def set_meina_rate(preset):
+    global MEINA_NEURAL_RATE
+    rates = {"slow": "-18%", "normal": "-8%", "fast": "+8%"}
+    if preset not in rates:
+        return False
+    MEINA_NEURAL_RATE = rates[preset]
+    return True
+
+
 def _speak_neural(text):
     """Neural TTSで音声を生成して再生する。"""
     async def generate(path):
-        communicate = edge_tts.Communicate(text, NEURAL_TTS_VOICE, rate="-8%", volume="+0%", pitch="-2Hz")
+        communicate = edge_tts.Communicate(text, NEURAL_TTS_VOICE, rate=MEINA_NEURAL_RATE, volume="+0%", pitch="-2Hz")
         await communicate.save(path)
     fd, path = tempfile.mkstemp(suffix=".mp3", prefix="meina_tts_")
     os.close(fd)
