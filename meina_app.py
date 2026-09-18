@@ -176,7 +176,11 @@ class MeinaApp:
             if not command:
                 self.root.after(0, lambda: self.add_message("めいな", "はい、どうしました？"))
                 meina_agent.speak("はい、どうしました？")
-                command = meina_agent.listen(duration=5.0)
+                command = meina_agent.listen_command_with_retry(
+                    meina_agent.listen,
+                    attempts=2,
+                    duration=5.0,
+                )
                 if not command:
                     self.root.after(0, lambda: self.add_message("めいな", "うまく聞き取れませんでした。"))
                     return
