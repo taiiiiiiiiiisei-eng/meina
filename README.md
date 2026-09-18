@@ -60,7 +60,7 @@ python run_meina.py
 
 または `start_meina.bat` を実行。起動前に `meina_health.py` で必須環境をチェックしてから本体を起動します。
 
-GUIアプリとして使う場合は `start_meina_app.bat` を実行してください。こちらも起動前に同じヘルスチェックを行います。より詳しい実機診断は `start_meina_doctor.bat` または `python meina_doctor.py`、主要ロジックの一括確認は `start_meina_smoke_test.bat` を実行してください。
+GUIアプリとして使う場合は `start_meina_app.bat` を実行してください。こちらも起動前に同じヘルスチェックを行います。より詳しい実機診断は `start_meina_doctor.bat` または `python meina_doctor.py`、主要ロジックの一括確認は `start_meina_smoke_test.bat`、軽量セルフテストをまとめて実行する場合は `start_meina_full_self_test.bat` を実行してください。
 
 ## 音声操作
 
