@@ -47,6 +47,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 python self_test.py
 python ci_self_test.py
+python meina_health.py
 ```
 
 Ollamaでモデル `meina` を用意してから起動：
@@ -55,9 +56,9 @@ Ollamaでモデル `meina` を用意してから起動：
 python run_meina.py
 ```
 
-または `start_meina.bat` を実行。安定版ランチャーとして現在の仮想環境から本体を起動します。
+または `start_meina.bat` を実行。起動前に `meina_health.py` で必須環境をチェックしてから本体を起動します。
 
-GUIアプリとして使う場合は `start_meina_app.bat` を実行してください。
+GUIアプリとして使う場合は `start_meina_app.bat` を実行してください。こちらも起動前に同じヘルスチェックを行います。
 
 ## 音声操作
 
