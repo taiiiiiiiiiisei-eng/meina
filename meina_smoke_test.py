@@ -39,6 +39,7 @@ def main() -> int:
         ("今日は何曜日？", "weekday", "local"),
         ("PCの状態を教えて", "pc_status", "pc"),
         ("18時に起こして", "reminder", "local"),
+        ("明日18時に配信を予定に追加して", "reminder", "local"),
         ("30分後に知らせて", "reminder", "local"),
         ("あと30分で知らせて", "reminder", "local"),
         ("30分で知らせて", "reminder", "local"),
