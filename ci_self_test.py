@@ -18,6 +18,7 @@ REQUIRED_FILES = {
     "meina_doctor.py": ["main", "check_module", "check_executable", "check_ollama", "check_microphone", "check_tts", "check_cuda", "check_whisper_cache"],
     "meina_voice_intent.py": ["correct_recognition", "normalize_text", "contains_wake_word", "remove_wake_word", "is_invalid_command"],
     "meina_voice_settings_self_test.py": ["main"],
+    "meina_app_self_test.py": ["main"],
     "meina_brain/brain_core.py": ["extract_action_frame", "infer_intent"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
     "twitch_ai_clipper.py": ["create_ai_clips"],
