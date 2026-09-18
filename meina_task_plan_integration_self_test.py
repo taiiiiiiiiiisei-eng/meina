@@ -29,6 +29,26 @@ def main() -> int:
     check_plan("stream_prepare_valorant", "VALORANT")
     check_plan("stream_prepare_apex", "Apex")
     assert get_task_plan("stream_prepare") is None
+
+    # 不正な対象やkindは許可しない。
+    from meina_task_plans import TASK_PLANS
+    TASK_PLANS["__invalid_target__"] = (
+        {"kind": "app_open", "target": "powershell", "label": "不正な起動"},
+    )
+    TASK_PLANS["__invalid_kind__"] = (
+        {"kind": "shell", "target": "OBS", "label": "不正な処理"},
+    )
+    TASK_PLANS["__invalid_label__"] = (
+        {"kind": "app_open", "target": "OBS", "label": ""},
+    )
+    try:
+        assert not validate_task_plan("__invalid_target__")
+        assert not validate_task_plan("__invalid_kind__")
+        assert not validate_task_plan("__invalid_label__")
+    finally:
+        TASK_PLANS.pop("__invalid_target__", None)
+        TASK_PLANS.pop("__invalid_kind__", None)
+        TASK_PLANS.pop("__invalid_label__", None)
     print("Task plan integration self-test: PASS")
     return 0
 
