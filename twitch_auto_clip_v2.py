@@ -38,7 +38,7 @@ def process_new_vod() -> list[Path] | None:
     if vod_path is None:
         return None
 
-    clips = create_ai_clips(vod_path, max_clips=MAX_CLIPS)
+    clips = create_ai_clips(vod_path, max_clips=MAX_CLIPS, vod=vod)
     if vod_id:
         state["last_vod_id"] = vod_id
         save_state(state)
