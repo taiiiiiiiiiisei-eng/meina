@@ -63,6 +63,8 @@ def add_cuda_dll_dirs() -> list[str]:
 
 if __name__ == "__main__":
     add_cuda_dll_dirs()
+    import subprocess
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "upgrade_meina_reminder_worker.py")], check=False)
     runpy.run_path(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "meina_agent.py"),
         run_name="__main__",
