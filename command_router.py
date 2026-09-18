@@ -92,10 +92,10 @@ def route_command(text, frame):
 
         location = original
         location = re.sub(r"(?:今日|明日|現在|今)の?", "", location)
-        location = re.sub(r"(?:天気|気温|気候|何度).*$", "", location)
+        location = re.sub(r"(?:天気|気温|気候|何度|雨降る|雨が降る|雨降り|降水確率|傘いる|傘必要|傘は必要).*?$", "", location)
         location = re.sub(r"(?:について|を|が|は|教えて|教えてください|おしえて|おしえてください|知りたい|知ってる|知っています|ですか|です|？|\?)", "", location)
         location = location.strip("、。！？? 　")
-        location = re.sub(r"(?:の|な)\s*$", "", location).strip()
+        location = re.sub(r"(?:の|で|は|な)\s*$", "", location).strip()
         return {
             "kind": "weather",
             "target": location or "current",
