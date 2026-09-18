@@ -9,6 +9,7 @@ FILES = [
     "twitch_ai_clipper.py",
     "twitch_auto_clip.py",
     "twitch_auto_clip_v2.py",
+    "twitch_auto_clip_self_test.py",
     "twitch_ffmpeg_env.py",
     "twitch_video_editor.py",
     "meina_twitch.py",
