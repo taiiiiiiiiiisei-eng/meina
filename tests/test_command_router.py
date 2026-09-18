@@ -103,6 +103,18 @@ def main():
         "app_open",
         target="Chrome",
     )
+    assert_route(
+        "ユーチューブでUVERworldの曲を探して",
+        "web_search",
+        target="youtube",
+        query="uverworldの曲",
+    )
+    assert_route(
+        "グーグルで最新ニュースを調べて",
+        "web_search",
+        target="google",
+        query="最新ニュース",
+    )
 
     assert_route("今何時？", "time", target="local")
     assert_route("今日は何日？", "date", target="local")
@@ -115,6 +127,10 @@ def main():
     assert_route("めいなの状態を教えて", "self_status", target="meina")
     assert_route("明日雨降る？", "weather", target="current", query="tomorrow_rain")
     assert_route("東京の明日雨降る？", "weather", target="東京", query="tomorrow_rain")
+    assert_route("18時に起こして", "reminder", target="local", query="18時に起こして")
+    assert_route("30分後に知らせて", "reminder", target="local", query="30分後に知らせて")
+    assert_route("明日の予定を教えて", "reminder_tomorrow", target="local")
+    assert_route("今後の予定を教えて", "reminder_upcoming", target="local")
 
     assert command_router.route_command(
         "こんにちは、元気？",
