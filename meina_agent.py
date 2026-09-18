@@ -270,6 +270,9 @@ def speak(text):
 # =========================================================
 
 SAMPLE_RATE = 16000
+AUDIO_DTYPE = "float32"
+AUDIO_MIN_RMS = 0.008
+AUDIO_SILENCE_PAD = 0.18
 
 
 def record_audio(duration):
@@ -284,18 +287,15 @@ def record_audio(duration):
     try:
 
         audio = sd.rec(
-            int(
-                duration
-                * SAMPLE_RATE
-            ),
+            int(duration * SAMPLE_RATE),
             samplerate=SAMPLE_RATE,
             channels=1,
-            dtype="float32"
+            dtype=AUDIO_DTYPE,
         )
 
         sd.wait()
 
-        return audio.flatten()
+        return preprocess_audio(audio.flatten())
 
     except Exception as e:
 
@@ -305,6 +305,25 @@ def record_audio(duration):
         )
 
         return None
+
+
+def preprocess_audio(audio):
+    """Whisperへ渡す前に音量差と前後の無音を軽く整える。"""
+    if audio is None or len(audio) == 0:
+        return audio
+    audio = audio.astype("float32", copy=False)
+    audio = audio - float(audio.mean())
+    peak = float(abs(audio).max())
+    rms = float((audio * audio).mean() ** 0.5)
+    if peak > 0 and rms >= AUDIO_MIN_RMS:
+        audio = audio * min(0.95 / peak, 3.0)
+    threshold = max(AUDIO_MIN_RMS, float(abs(audio).max()) * 0.035)
+    active = abs(audio) >= threshold
+    if active.any():
+        indices = active.nonzero()[0]
+        pad = int(AUDIO_SILENCE_PAD * SAMPLE_RATE)
+        audio = audio[max(0, int(indices[0]) - pad):min(len(audio), int(indices[-1]) + pad + 1)]
+    return audio
 
 
 # =========================================================
@@ -325,7 +344,22 @@ def transcribe_audio(audio):
             audio,
             language="ja",
             beam_size=5,
-            vad_filter=True
+            best_of=5,
+            temperature=0.0,
+            vad_filter=True,
+            vad_parameters={
+                "min_silence_duration_ms": 350,
+                "speech_pad_ms": 250,
+            },
+            condition_on_previous_text=False,
+            initial_prompt=(
+                "日本語の音声アシスタント。めいな、VALORANT、バロラント、バロ、VALO、"
+                "Apex、エーペックス、エペ、Discord、OBS、Google、YouTube、Twitch、"
+                "UVERworldなどの固有名詞を正確に認識する。"
+            ),
+            no_speech_threshold=0.6,
+            log_prob_threshold=-1.0,
+            compression_ratio_threshold=2.4,
         )
 
         text = ""
