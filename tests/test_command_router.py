@@ -115,6 +115,18 @@ def main():
         target="google",
         query="最新ニュース",
     )
+    assert_route(
+        "最新のVALORANT情報を調べて",
+        "web_search",
+        target="google",
+        query="最新のvalorant情報",
+    )
+    assert_route(
+        "この言葉をググって",
+        "web_search",
+        target="google",
+        query="この言葉",
+    )
 
     assert_route("今何時？", "time", target="local")
     assert_route("今日は何日？", "date", target="local")
