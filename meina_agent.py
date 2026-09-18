@@ -1273,35 +1273,41 @@ def execute_action(frame):
 # Ollama会話
 # =========================================================
 
+MEINA_CHAT_HISTORY = []
+MEINA_CHAT_HISTORY_LIMIT = 8
+
+
 def chat_with_meina(text):
     """
-    普通の質問をOllamaのめいなへ送る
+    普通の質問をOllamaのめいなへ送る。
+    直近の会話だけを短く保持する。
     """
 
     if not text:
         return ""
 
     try:
+        MEINA_CHAT_HISTORY.append({
+            "role": "user",
+            "content": text,
+        })
+        messages = MEINA_CHAT_HISTORY[-MEINA_CHAT_HISTORY_LIMIT:]
 
         response = ollama.chat(
             model="meina",
-            messages=[
-                {
-                    "role": "user",
-                    "content": text
-                }
-            ]
+            messages=messages
         )
 
-        answer = response[
-            "message"
-        ][
-            "content"
-        ].strip()
+        answer = response["message"]["content"].strip()
 
         if not answer:
-
             answer = "すみません、うまく答えられませんでした。"
+
+        MEINA_CHAT_HISTORY.append({
+            "role": "assistant",
+            "content": answer,
+        })
+        del MEINA_CHAT_HISTORY[:-MEINA_CHAT_HISTORY_LIMIT]
 
         print(
             "🧠 めいな:",
@@ -1315,7 +1321,6 @@ def chat_with_meina(text):
         return answer
 
     except Exception as e:
-
         print(
             "❌ Ollamaエラー:",
             e
