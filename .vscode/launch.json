@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "めいな: GUIデバッグ",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}\\meina_app.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "C:\\Users\\taiii\\OneDrive\\Desktop\\meina\\.venv\\Scripts\\python.exe"
+    }
+  ]
+}
