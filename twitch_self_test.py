@@ -63,6 +63,10 @@ def main() -> int:
             print(f"FAIL syntax: {name}: {exc}")
             failed = True
 
+    meina_twitch_source = (ROOT / "meina_twitch.py").read_text(encoding="utf-8")
+    assert "prepare_publish_queue" in meina_twitch_source
+    assert "publish_queue" in meina_twitch_source
+
     print("Twitch self test: FAIL" if failed else "Twitch self test: PASS")
     return 1 if failed else 0
 
