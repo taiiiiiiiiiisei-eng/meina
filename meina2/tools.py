@@ -114,9 +114,15 @@ def get_weather(location=None):
         max_temp = today.get("maxtempC", "-")
         min_temp = today.get("mintempC", "-")
 
+        if target:
+            display_area = area_name or target
+            headline = f"{display_area}の今日の天気は{condition}です。"
+        else:
+            headline = f"今日の天気は{condition}です。"
+
         return (
-            f"{area_name}の今日の天気は{condition}です。"
-            f"現在{temp}℃、体感{feels}℃、最高{max_temp}℃、最低{min_temp}℃です。"
+            headline
+            + f"現在{temp}℃、体感{feels}℃、最高{max_temp}℃、最低{min_temp}℃です。"
         )
     except Exception as e:
         print("天気取得エラー:", e)
