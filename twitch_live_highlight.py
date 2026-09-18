@@ -151,7 +151,7 @@ def stop_monitor() -> bool:
 
     try:
         if os.name == "nt":
-            subprocess.run(
+            result = subprocess.run(
                 ["taskkill", "/PID", str(pid), "/T", "/F"],
                 capture_output=True,
                 text=True,
@@ -160,6 +160,9 @@ def stop_monitor() -> bool:
                 timeout=15,
                 check=False,
             )
+            if result.returncode != 0:
+                print(f"❌ taskkill失敗: {result.stderr.strip() or result.stdout.strip()}")
+                return False
         else:
             os.kill(pid, 15)
         _release_monitor_lock()
