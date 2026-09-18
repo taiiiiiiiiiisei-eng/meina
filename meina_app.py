@@ -1,7 +1,30 @@
 import threading
 import tkinter as tk
 from tkinter import messagebox
+from datetime import datetime
+import traceback
+import os
 import meina_agent
+
+
+RUNTIME_LOG_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "meina_runtime_error.log",
+)
+
+
+def log_runtime_error(context, error):
+    """GUI実行時エラーをファイルへ保存する。"""
+    try:
+        with open(RUNTIME_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write("\n" + "=" * 72 + "\n")
+            f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+            f.write("context: " + str(context) + "\n")
+            f.write("error: " + repr(error) + "\n")
+            f.write(traceback.format_exc())
+            f.write("\n")
+    except Exception as log_error:
+        print("ログ保存エラー:", log_error)
 
 
 class MeinaApp:
@@ -121,7 +144,15 @@ class MeinaApp:
             self.root.after(0, lambda r=result: self.add_message("めいな", r))
         except Exception as e:
             print("GUI処理エラー:", e)
-            self.root.after(0, lambda: self.add_message("めいな", "すみません、処理中にエラーが発生しました。"))
+            log_runtime_error("text", e)
+            self.root.after(
+                0,
+                lambda: self.add_message(
+                    "めいな",
+                    "すみません、処理中にエラーが発生しました。"
+                    " 詳細はmeina_runtime_error.logに保存しました。",
+                ),
+            )
         finally:
             self.root.after(0, lambda: self.set_busy(False, "オンライン"))
 
@@ -152,7 +183,15 @@ class MeinaApp:
             self.root.after(0, lambda r=result: self.add_message("めいな", r))
         except Exception as e:
             print("GUI音声エラー:", e)
-            self.root.after(0, lambda: self.add_message("めいな", "音声処理中にエラーが発生しました。"))
+            log_runtime_error("voice", e)
+            self.root.after(
+                0,
+                lambda: self.add_message(
+                    "めいな",
+                    "音声処理中にエラーが発生しました。"
+                    " 詳細はmeina_runtime_error.logに保存しました。",
+                ),
+            )
         finally:
             self.root.after(0, lambda: self.set_busy(False, "オンライン"))
 
