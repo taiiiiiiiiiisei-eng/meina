@@ -12,8 +12,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import requests
-
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "twitch_live_highlights"
@@ -44,6 +42,8 @@ def heuristic_score(text: str) -> int:
     return max(0, min(100, score))
 
 def score_transcript(text: str) -> dict[str, Any]:
+    import requests
+
     fallback = {
         "score": heuristic_score(text),
         "title": "配信ハイライト候補",
@@ -145,6 +145,8 @@ def append_candidate(candidate: dict[str, Any]) -> bool:
     return True
 
 def _get_live_stream(config: dict[str, Any], token: str, user_id: str) -> dict[str, Any] | None:
+    import requests
+
     response = requests.get(
         "https://api.twitch.tv/helix/streams",
         headers={"Client-ID": config["client_id"], "Authorization": f"Bearer {token}"},
