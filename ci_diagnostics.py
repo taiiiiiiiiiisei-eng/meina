@@ -24,6 +24,8 @@ COMMANDS = [
     ("Memory self-test", [sys.executable, "meina_memory_self_test.py"]),
     ("Reminder self-test", [sys.executable, "meina_reminders_self_test.py"]),
     ("Reminder AM PM self-test", [sys.executable, "meina_reminder_ampm_self_test.py"]),
+    ("Core lightweight self-test", [sys.executable, "self_test.py"]),
+    ("Twitch static self-test", [sys.executable, "twitch_self_test.py"]),
 ]
 
 def run_command(label: str, command: list[str]) -> tuple[int, str]:
