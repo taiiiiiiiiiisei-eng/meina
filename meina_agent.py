@@ -200,6 +200,42 @@ if MEINA_VOICE_PRESET in MEINA_VOICE_PRESETS:
 print("🔊 めいな Neural Voice:", NEURAL_TTS_VOICE)
 MEINA_TTS_RATE = int(os.environ.get("MEINA_TTS_RATE", "158"))
 MEINA_TTS_VOLUME = float(os.environ.get("MEINA_TTS_VOLUME", "1.0"))
+MEINA_VOICE_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "meina_voice_settings.json")
+
+def load_meina_voice_settings():
+    global NEURAL_TTS_VOICE, MEINA_NEURAL_RATE, MEINA_TTS_VOLUME
+    try:
+        import json
+        if not os.path.exists(MEINA_VOICE_SETTINGS_FILE):
+            return
+        with open(MEINA_VOICE_SETTINGS_FILE, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+        voice = settings.get("voice")
+        rate = settings.get("rate")
+        volume = settings.get("volume")
+        if voice in MEINA_VOICE_PRESETS.values():
+            NEURAL_TTS_VOICE = voice
+        if isinstance(rate, str):
+            MEINA_NEURAL_RATE = rate
+        if isinstance(volume, (int, float)):
+            MEINA_TTS_VOLUME = max(0.2, min(1.0, float(volume)))
+    except Exception as e:
+        print("⚠️ 音声設定の読み込みをスキップ:", e)
+
+def save_meina_voice_settings():
+    try:
+        import json
+        settings = {
+            "voice": NEURAL_TTS_VOICE,
+            "rate": MEINA_NEURAL_RATE,
+            "volume": MEINA_TTS_VOLUME,
+        }
+        with open(MEINA_VOICE_SETTINGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(settings, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("⚠️ 音声設定の保存をスキップ:", e)
+
+
 MEINA_NEURAL_RATE = os.environ.get("MEINA_NEURAL_RATE", "-8%")
 
 try:
@@ -266,6 +302,7 @@ def set_meina_voice(preset):
     if key not in MEINA_VOICE_PRESETS:
         return False
     NEURAL_TTS_VOICE = MEINA_VOICE_PRESETS[key]
+    save_meina_voice_settings()
     print("🔊 めいなの声を変更:", NEURAL_TTS_VOICE)
     return True
 
@@ -279,6 +316,7 @@ def set_meina_volume(direction):
     else:
         return False
     engine.setProperty("volume", MEINA_TTS_VOLUME)
+    save_meina_voice_settings()
     return True
 
 
@@ -288,6 +326,7 @@ def set_meina_rate(preset):
     if preset not in rates:
         return False
     MEINA_NEURAL_RATE = rates[preset]
+    save_meina_voice_settings()
     return True
 
 
