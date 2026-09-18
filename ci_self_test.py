@@ -29,6 +29,8 @@ REQUIRED_FILES = {
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
     "twitch_ai_clipper.py": ["create_ai_clips"],
     "twitch_video_editor.py": ["edit_generated_clip"],
+    "twitch_publish_metadata.py": ["generate_publish_metadata"],
+    "twitch_publish_metadata_self_test.py": ["main"],
     "meina_twitch.py": ["run_twitch_clip_command"],
     "meina_twitch_intent.py": ["is_twitch_clip_request", "requested_day"],
     "meina_twitch_voice.py": ["handle_voice_command"],
