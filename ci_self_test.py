@@ -49,12 +49,12 @@ def main() -> None:
     task_plan = (ROOT / "meina_task_plans.py").read_text(encoding="utf-8")
     launcher = (ROOT / "start_meina.bat").read_text(encoding="utf-8")
 
-    assert "MEINA_TASK_PLAN_ROUTER_LOCAL_V1" in router
+    assert '"kind": "task_plan"' in router
     assert '"配信準備"' in router
-    assert '"stream_prepare"' in router
-    assert "MEINA_SCHEDULE_ROUTER_V1" in router
     assert '"reminder_upcoming"' in router
     assert '"予定を追加"' in router
+    assert '"kind": "weather"' in router
+    assert '"query": mode' in router
     assert "stream_prepare" in task_plan
     assert '"app_open"' in task_plan
     assert '"web_open"' in task_plan
