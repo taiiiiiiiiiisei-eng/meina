@@ -13,9 +13,7 @@ ROOT = Path(__file__).resolve().parent
 
 class _Completed:
     returncode = 0
-    stdout = "NAME               ID
-meina:latest       abc
-"
+    stdout = "NAME               ID\\nmeina:latest       abc\\n"
     stderr = ""
 
 
