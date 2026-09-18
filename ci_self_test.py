@@ -58,6 +58,7 @@ def main() -> None:
     task_plan = (ROOT / "meina_task_plans.py").read_text(encoding="utf-8")
     launcher = (ROOT / "start_meina.bat").read_text(encoding="utf-8")
     doctor_launcher = (ROOT / "start_meina_doctor.bat").read_text(encoding="utf-8")
+    full_self_test_launcher = (ROOT / "start_meina_full_self_test.bat").read_text(encoding="utf-8")
 
     assert '"kind": "task_plan"' in router
     assert '"reminder_upcoming"' in router
@@ -74,6 +75,11 @@ def main() -> None:
     assert "pip install" not in launcher
     assert "upgrade_meina_reminders_v7.py" not in launcher
     assert "meina_doctor.py" in doctor_launcher
+    assert "ci_self_test.py" in full_self_test_launcher
+    assert "meina_smoke_test.py" in full_self_test_launcher
+    assert "meina_voice_command_pipeline_self_test.py" in full_self_test_launcher
+    assert "command_router_edge_self_test.py" in full_self_test_launcher
+    assert "meina_voice_intent_self_test.py" in full_self_test_launcher
     assert "MEINA_REMINDER_COMMANDS_V7" in (ROOT / "upgrade_meina_reminders_v7.py").read_text(encoding="utf-8")
 
     print("CI static self-test passed")
