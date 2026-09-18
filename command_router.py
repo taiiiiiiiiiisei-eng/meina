@@ -79,6 +79,14 @@ def route_command(text, frame):
                 if any(alias in compact for alias in aliases):
                     return {"kind": "voice_change", "target": preset, "query": None, "confidence": 1.0}
 
+    # 天気: 「今日の天気」「東京の天気を教えて」など
+    if text and any(p in compact for p in ("天気", "気温", "気候")):
+        location = str(text).strip()
+        location = re.sub(r"^(?:今日|明日|現在)の?", "", location)
+        location = re.sub(r"(?:天気|気温|気候).*$", "", location)
+        location = re.sub(r"(?:について|を|が|教えて|教えてください|おしえて|おしえてください|知りたい|知ってる|知っています)", "", location)
+        location = location.strip("、。！？? 　") or None
+        return {"kind": "weather", "target": location or "current", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
