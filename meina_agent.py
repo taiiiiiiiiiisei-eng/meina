@@ -762,6 +762,11 @@ def execute_routed_command(route):
         else:
             speak("その声には変更できませんでした")
         return True
+    if route.get("kind") == "voice_rate":
+        if set_meina_rate(route.get("target")):
+            labels = {"slow": "ゆっくり", "normal": "標準", "fast": "速め"}
+            speak(f"話す速さを{labels.get(route.get('target'), '変更')}にしました")
+        return True
     return _execute_routed_command_base(route)
 
 
