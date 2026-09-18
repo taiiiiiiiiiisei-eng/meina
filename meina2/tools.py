@@ -85,6 +85,45 @@ def youtube_search(query):
 
 
 # ==========================================
+# 天気
+# ==========================================
+
+def get_weather(location=None):
+    """wttr.inから現在地または指定地点の今日の天気を取得する。APIキー不要。"""
+    import requests
+
+    target = str(location or "").strip()
+    url = "https://wttr.in/" + (quote(target) if target else "") + "?format=j1&lang=ja"
+
+    try:
+        response = requests.get(
+            url,
+            timeout=10,
+            headers={"User-Agent": "Meina/1.0"},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        current = data["current_condition"][0]
+        today = data["weather"][0]
+        area = data.get("nearest_area", [{}])[0]
+        area_name = area.get("areaName", [{}])[0].get("value", "現在地")
+        condition = current.get("lang_ja", [{}])[0].get("value") or current.get("weatherDesc", [{}])[0].get("value", "")
+        temp = current.get("temp_C", "-")
+        feels = current.get("FeelsLikeC", "-")
+        max_temp = today.get("maxtempC", "-")
+        min_temp = today.get("mintempC", "-")
+
+        return (
+            f"{area_name}の今日の天気は{condition}です。"
+            f"現在{temp}℃、体感{feels}℃、最高{max_temp}℃、最低{min_temp}℃です。"
+        )
+    except Exception as e:
+        print("天気取得エラー:", e)
+        return "天気情報を取得できませんでした。インターネット接続を確認してください。"
+
+
+# ==========================================
 # アプリ検索
 # ==========================================
 
