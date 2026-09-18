@@ -30,7 +30,7 @@ REQUIRED_FILES = {
     "twitch_ai_clipper.py": ["create_ai_clips", "_load_live_markers"],
     "twitch_live_monitor.py": ["get_current_stream", "stream_transition", "run_live_monitor"],
     "twitch_live_monitor_self_test.py": ["main"],
-    "twitch_live_highlight.py": ["heuristic_score", "score_transcript", "build_candidate", "append_candidate", "start_monitor", "is_monitor_running", "stop_monitor"],
+    "twitch_live_highlight.py": ["heuristic_score", "score_transcript", "build_candidate", "append_candidate", "load_candidates", "format_candidates", "start_monitor", "is_monitor_running", "stop_monitor"],
     "twitch_live_highlight_self_test.py": ["main"],
     "twitch_video_editor.py": ["edit_generated_clip"],
     "twitch_publish_metadata.py": ["generate_publish_metadata"],
