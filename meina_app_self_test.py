@@ -40,8 +40,8 @@ def main() -> int:
     assert "self.entry.bind("<Return>"" in source
     assert "threading.Thread(target=self._process_text" in source
     assert "threading.Thread(target=self._process_voice" in source
-    assert "log_runtime_error("text", e)" in source
-    assert "log_runtime_error("voice", e)" in source
+    assert 'log_runtime_error("text", e)' in source
+    assert 'log_runtime_error("voice", e)' in source
     assert "finally:" in source
     assert "self.root.after(0, lambda: self.set_busy(False, "オンライン"))" in source
     assert 'root.protocol("WM_DELETE_WINDOW", root.destroy)' in source
