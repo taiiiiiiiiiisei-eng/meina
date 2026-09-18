@@ -19,6 +19,8 @@ def main() -> int:
 
     assert '"rate": MEINA_NEURAL_RATE' in source
     assert "set_meina_rate" in source
+    assert '_ENGINE_RATE_PRESETS = {"-18%": 140, "-8%": 158, "+8%": 176}' in source
+    assert 'engine.setProperty("rate", _ENGINE_RATE_PRESETS.get(MEINA_NEURAL_RATE, MEINA_TTS_RATE))' in source
     print("Voice settings persistence self-test: PASS")
     return 0
 
