@@ -426,7 +426,6 @@ def shortlist_candidates(limit: int = 3) -> list[dict[str, Any]]:
 
     try:
         selected_ids = _ai_select_shortlist(pool, limit)
-        used_ai_selection = True
         seen: set[int] = set()
         for candidate_id in selected_ids:
             if not 0 <= candidate_id < len(pool) or candidate_id in seen:
@@ -435,6 +434,7 @@ def shortlist_candidates(limit: int = 3) -> list[dict[str, Any]]:
             selected.append(pool[candidate_id])
             if len(selected) >= limit:
                 break
+        used_ai_selection = bool(selected)
     except Exception as exc:
         print(f"⚠️ 見どころ再選定をスコア順へフォールバックします: {exc}")
 
