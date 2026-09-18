@@ -7,3 +7,5 @@ requests
 nvidia-cublas-cu12
 nvidia-cudnn-cu12
 yt-dlp
+edge-tts
+pygame
