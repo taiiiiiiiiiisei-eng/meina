@@ -80,6 +80,7 @@ GUIアプリとして使う場合は `start_meina_app.bat` を実行してくだ
 - PC状態（GPU・メモリ・ディスク）の確認
 - リマインダー・予定の追加・確認・完了・削除（「18時に起こして」「30分後に知らせて」など自然な言い方にも対応）
 - Twitch配信のAI切り抜き処理
+- Twitch切り抜きの投稿準備（タイトル・説明・キャプション・ハッシュタグ・動画ファイルをキュー化）
 
 ## Twitch AI切り抜き
 
@@ -100,6 +101,7 @@ Twitchの設定は `twitch_config.example.json` を `twitch_config.json` にコ�
 ```powershell
 copy twitch_config.example.json twitch_config.json
 python twitch_clip_runner.py "昨日の配信切り抜いて"
+python twitch_publish_queue.py
 ```
 
 新しいVODを自動監視する場合：
