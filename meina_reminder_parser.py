@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 _RELATIVE = re.compile(r"(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*後")
 _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
 _COMMAND_WORDS = re.compile(
-    r"(?:リマインド|リマインダー|予定|スケジュール)"
+    r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて)"
     r"(?:を)?(?:追加|登録|設定|リマインド)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?"
 )
@@ -22,7 +22,10 @@ _TRAILING_COMMAND = re.compile(
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
     """相対時間または今日/明日/明後日の時刻から予定・リマインダーを解析する。"""
     raw = str(text or "").strip()
-    if not raw or not _COMMAND_WORDS.search(raw):
+    if not raw:
+        return None
+    direct_notice = bool(re.search(r"(?:起こして|知らせて|思い出させて|教えて)", raw))
+    if not _COMMAND_WORDS.search(raw) and not direct_notice:
         return None
 
     current = now or datetime.now().astimezone()
