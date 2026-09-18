@@ -54,8 +54,8 @@ def main() -> int:
             queue.QUEUE_DIR = queue_dir
 
             bundle = queue.prepare_publish_queue()
-            assert bundle["ready"] is True
-            assert bundle["ready_count"] == 1
+            assert bundle["bundle"]["ready"] is True
+            assert bundle["bundle"]["ready_count"] == 1
             assert Path(bundle["json_path"]).exists()
             assert Path(bundle["markdown_path"]).exists()
 
