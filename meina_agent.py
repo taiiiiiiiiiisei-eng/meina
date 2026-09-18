@@ -183,54 +183,51 @@ except Exception as e:
 # =========================================================
 
 engine = pyttsx3.init()
-engine.setProperty("rate", 170)
+engine.setProperty("rate", 165)
 engine.setProperty("volume", 1.0)
 
+# めいなの声は環境変数で選択可能。
+# 例: MEINA_VOICE=Ayumi
+MEINA_VOICE = os.environ.get("MEINA_VOICE", "Ayumi").strip().lower()
 
 try:
-
-    voices = engine.getProperty(
-        "voices"
-    )
-
-    japanese_voice_found = False
+    voices = engine.getProperty("voices")
+    selected_voice = None
+    japanese_voices = []
 
     for voice in voices:
-
-        voice_name = voice.name.lower()
+        name = str(voice.name)
+        name_lower = name.lower()
+        languages = str(getattr(voice, "languages", "")).lower()
 
         if (
-            "haruka" in voice_name
-            or "japanese" in voice_name
-            or "日本語" in voice.name
+            "japanese" in name_lower
+            or "日本語" in name
+            or "haruka" in name_lower
+            or "ayumi" in name_lower
+            or "ichiro" in name_lower
+            or "ja-jp" in languages
         ):
+            japanese_voices.append(voice)
 
-            engine.setProperty(
-                "voice",
-                voice.id
-            )
+        if MEINA_VOICE and MEINA_VOICE in name_lower:
+            selected_voice = voice
 
-            print(
-                "🔊 音声:",
-                voice.name
-            )
-
-            japanese_voice_found = True
-
-            break
-
-    if not japanese_voice_found:
-
-        print(
-            "⚠️ 日本語音声が見つかりませんでした"
+    if selected_voice is None and japanese_voices:
+        # 指定音声が無ければ、従来通り日本語音声を自動選択
+        selected_voice = next(
+            (v for v in japanese_voices if "haruka" in str(v.name).lower()),
+            japanese_voices[0],
         )
 
-except Exception as e:
+    if selected_voice is not None:
+        engine.setProperty("voice", selected_voice.id)
+        print("🔊 めいなの声:", selected_voice.name)
+    else:
+        print("⚠️ 日本語音声が見つかりませんでした")
 
-    print(
-        "⚠️ 音声設定エラー:",
-        e
-    )
+except Exception as e:
+    print("⚠️ 音声設定エラー:", e)
 
 
 def speak(text):
