@@ -1,5 +1,7 @@
 import os
 import time
+import asyncio
+import tempfile
 
 import sounddevice as sd
 import pyttsx3
@@ -182,27 +184,35 @@ except Exception as e:
 # TTS
 # =========================================================
 
-engine = pyttsx3.init()
-# 落ち着いたAIアシスタント向けの音声設定
+# Neural TTSを優先し、利用できない場合はWindows TTSへ自動フォールバック。
+NEURAL_TTS_VOICE = os.environ.get("MEINA_NEURAL_VOICE", "ja-JP-NanamiNeural")
 MEINA_TTS_RATE = int(os.environ.get("MEINA_TTS_RATE", "158"))
 MEINA_TTS_VOLUME = float(os.environ.get("MEINA_TTS_VOLUME", "1.0"))
+
+try:
+    import edge_tts
+    import pygame
+    NEURAL_TTS_AVAILABLE = True
+    print("🔊 Neural TTS: ON")
+    print("🔊 Neural Voice:", NEURAL_TTS_VOICE)
+except Exception:
+    NEURAL_TTS_AVAILABLE = False
+    print("🔊 Neural TTS: OFF（Windows TTSを使用）")
+
+engine = pyttsx3.init()
 engine.setProperty("rate", MEINA_TTS_RATE)
 engine.setProperty("volume", max(0.0, min(1.0, MEINA_TTS_VOLUME)))
 
-# めいなの声は環境変数で選択可能。
-# 例: MEINA_VOICE=Ayumi
 MEINA_VOICE = os.environ.get("MEINA_VOICE", "Ayumi").strip().lower()
 
 try:
     voices = engine.getProperty("voices")
     selected_voice = None
     japanese_voices = []
-
     for voice in voices:
         name = str(voice.name)
         name_lower = name.lower()
         languages = str(getattr(voice, "languages", "")).lower()
-
         if (
             "japanese" in name_lower
             or "日本語" in name
@@ -212,57 +222,70 @@ try:
             or "ja-jp" in languages
         ):
             japanese_voices.append(voice)
-
         if MEINA_VOICE and MEINA_VOICE in name_lower:
             selected_voice = voice
-
     if selected_voice is None and japanese_voices:
-        # 指定音声が無ければ、従来通り日本語音声を自動選択
-        selected_voice = next(
-            (v for v in japanese_voices if "haruka" in str(v.name).lower()),
-            japanese_voices[0],
-        )
-
+        selected_voice = next((v for v in japanese_voices if "haruka" in str(v.name).lower()), japanese_voices[0])
     if selected_voice is not None:
         engine.setProperty("voice", selected_voice.id)
-        print("🔊 めいなの声:", selected_voice.name)
+        print("🔊 Windows TTS:", selected_voice.name)
     else:
         print("⚠️ 日本語音声が見つかりませんでした")
-
 except Exception as e:
     print("⚠️ 音声設定エラー:", e)
-
 
 def _prepare_tts_text(text):
     """AIの返答を読み上げ向けに軽く整える。"""
     text = str(text or "").strip()
     if not text:
         return ""
-    for src, dst in (
-        ("```", ""), ("**", ""), ("__", ""),
-        ("###", ""), ("##", ""), ("#", ""), ("・", "、"),
-    ):
+    for src, dst in (("```", ""), ("**", ""), ("__", ""), ("###", ""), ("##", ""), ("#", ""), ("・", "、")):
         text = text.replace(src, dst)
     import re
     text = re.sub(r"https?://\S+", "リンク", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
+def _speak_neural(text):
+    """Neural TTSで音声を生成して再生する。"""
+    async def generate(path):
+        communicate = edge_tts.Communicate(text, NEURAL_TTS_VOICE, rate="-8%", volume="+0%", pitch="-2Hz")
+        await communicate.save(path)
+    fd, path = tempfile.mkstemp(suffix=".mp3", prefix="meina_tts_")
+    os.close(fd)
+    try:
+        asyncio.run(generate(path))
+        pygame.mixer.init()
+        pygame.mixer.music.load(path)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.03)
+        pygame.mixer.music.stop()
+        pygame.mixer.quit()
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 def speak(text):
-    """めいなの自然な音声出力。"""
+    """めいなの自然な音声出力。Neural TTS優先、失敗時はWindows TTS。"""
     speech = _prepare_tts_text(text)
     if not speech:
         return
     print("🔊 めいな:", text)
+    if NEURAL_TTS_AVAILABLE:
+        try:
+            _speak_neural(speech)
+            return
+        except Exception as e:
+            print("⚠️ Neural TTSエラー。Windows TTSへ切り替えます:", e)
     try:
         engine.stop()
         engine.say(speech)
         engine.runAndWait()
     except Exception as e:
         print("❌ TTS ERROR:", e)
-
-
 # =========================================================
 # 音声録音
 # =========================================================
