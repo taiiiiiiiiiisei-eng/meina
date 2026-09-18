@@ -656,7 +656,11 @@ def execute_task_plan(route):
             return True
 
     print("✅ 配信準備完了")
-    speak("配信準備が完了しました")
+    completion_messages = {
+        "stream_prepare_valorant": "VALORANTの配信準備が完了しました",
+        "stream_prepare_apex": "Apex Legendsの配信準備が完了しました",
+    }
+    speak(completion_messages.get(plan_name, "配信準備が完了しました"))
     return True
 
 
