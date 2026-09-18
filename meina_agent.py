@@ -649,6 +649,10 @@ def _execute_routed_command_base(route):
                     ok = complete_reminder(item["id"]) if kind == "reminder_done" else delete_reminder(item["id"])
                     action = "完了" if kind == "reminder_done" else "削除"
                     result = f"「{item['text']}」を{action}しました。" if ok else f"「{item['text']}」を{action}できませんでした。"
+        elif kind == "twitch_publish_prep":
+            from twitch_publish_queue import prepare_publish_queue
+            queue_result = prepare_publish_queue()
+            result = queue_result.get("message", "Twitchの投稿準備を作成できませんでした。")
         elif kind == "twitch_clip":
             from meina_twitch import run_twitch_clip_command
             clip_result = run_twitch_clip_command(query or "")
