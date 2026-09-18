@@ -9,7 +9,7 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "python": "C:\\Users\\taiii\\OneDrive\\Desktop\\meina\\.venv\\Scripts\\python.exe",
-      "preLaunchTask": "めいな: 開発チェック"
+      "preLaunchTask": "めいな: 同期してチェック"
     }
   ]
 }
