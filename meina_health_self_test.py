@@ -31,6 +31,8 @@ def main() -> int:
     assert "nvidia-smi" in source
     assert ".venv_new" in source
     assert ".venv" in source
+    assert "WHISPER_CACHE_DIR_NAME" in source
+    assert "def _check_whisper_cache" in source
 
     original_which = meina_health.shutil.which
     original_run = meina_health.subprocess.run
@@ -63,6 +65,21 @@ def main() -> int:
     finally:
         meina_health.shutil.which = original_which
         meina_health.subprocess.run = original_run
+
+    original_home = meina_health.Path.home
+    original_env = meina_health.os.environ.get("HF_HOME")
+    try:
+        meina_health.Path.home = classmethod(lambda cls: Path("/nonexistent/meina-test-home"))
+        meina_health.os.environ["HF_HOME"] = "/nonexistent/meina-hf"
+        status, detail = meina_health._check_whisper_cache()
+        assert status == "WARN"
+        assert "first startup may download" in detail
+    finally:
+        meina_health.Path.home = original_home
+        if original_env is None:
+            meina_health.os.environ.pop("HF_HOME", None)
+        else:
+            meina_health.os.environ["HF_HOME"] = original_env
 
     print("Health core self-test: PASS")
     return 0
