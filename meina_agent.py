@@ -1319,6 +1319,25 @@ def chat_with_meina(text):
         })
         messages = MEINA_CHAT_HISTORY[-MEINA_CHAT_HISTORY_LIMIT:]
 
+        if MEINA_MEMORY:
+            memory_text = "\n".join(
+                "- " + str(item.get("content", "")).strip()
+                for item in MEINA_MEMORY
+                if str(item.get("content", "")).strip()
+            )
+            if memory_text:
+                messages = [
+                    {
+                        "role": "system",
+                        "content": (
+                            "以下はユーザーが明示的に覚えてほしいと指定した情報です。"
+                            "回答に関係する場合だけ参考にしてください。"
+                            "記憶にない情報を推測して補わないでください。\n"
+                            + memory_text
+                        ),
+                    }
+                ] + messages
+
         response = ollama.chat(
             model="meina",
             messages=messages
