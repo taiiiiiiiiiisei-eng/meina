@@ -810,12 +810,14 @@ def _execute_routed_command_base(route):
             web_functions = {
                 "google": tools.open_google,
                 "youtube": tools.open_youtube,
+                "browser": tools.open_browser,
             }
             result = web_functions[target]()
         elif kind == "web_search":
             search_functions = {
                 "google": tools.google_search,
                 "youtube": tools.youtube_search,
+                "browser": tools.google_search,
             }
             result = search_functions[target](query)
         else:
