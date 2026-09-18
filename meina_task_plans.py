@@ -4,18 +4,29 @@ from __future__ import annotations
 
 
 TASK_PLANS = {
-    "stream_prepare": (
+    "stream_prepare_valorant": (
         {"kind": "app_open", "target": "OBS", "label": "OBSを起動"},
         {"kind": "app_open", "target": "Discord", "label": "Discordを起動"},
-        {"kind": "web_open", "target": "youtube", "label": "YouTubeを開く"},
+        {"kind": "app_open", "target": "VALORANT", "label": "VALORANTを起動"},
+    ),
+    "stream_prepare_apex": (
+        {"kind": "app_open", "target": "OBS", "label": "OBSを起動"},
+        {"kind": "app_open", "target": "Discord", "label": "Discordを起動"},
+        {"kind": "app_open", "target": "Apex", "label": "Apex Legendsを起動"},
     ),
 }
 
 
 def detect_task_plan(text: str) -> str | None:
     command = str(text or "").lower().replace(" ", "").replace("　", "")
+    if "valorant" in command or "バロラント" in command or "ヴァロラント" in command:
+        if "配信" in command:
+            return "stream_prepare_valorant"
+    if "apex" in command or "エーペックス" in command or "エペ" in command:
+        if "配信" in command:
+            return "stream_prepare_apex"
     if "配信準備" in command:
-        return "stream_prepare"
+        return "stream_prepare_valorant"
     return None
 
 
