@@ -13,7 +13,7 @@ APP_ALIASES = {
     "VALORANT": ("valorant", "valo", "バロ", "バロラント", "ヴァロ", "ヴァロラント"),
     "Apex": ("apex", "エーペックス", "エペ", "apexlegends"),
 }
-WEB_ALIASES = {"google": ("google", "グーグル"), "youtube": ("youtube", "ユーチューブ")}
+WEB_ALIASES = {\n    "google": ("google", "グーグル"),\n    "youtube": ("youtube", "ユーチューブ"),\n    "browser": ("ブラウザ", "ウェブブラウザ", "webブラウザ"),\n}
 PC_STATUS_PHRASES = (
     "pcの状態", "pc状態", "パソコンの状態", "パソコン状態", "pcのスペック",
     "パソコンのスペック", "pc情報", "パソコン情報", "メモリ使用量", "メモリの状態",
@@ -40,7 +40,7 @@ def _extract_search_query(text, aliases):
     query = text
     for alias in aliases: query = query.replace(alias, "", 1)
     query = re.sub(r"^(?:で|に|を|から)", "", query)
-    query = re.sub(r"(?:について|に関して)?(?:を)?(?:検索|調べ|探)(?:する|して|して下さい|してください|て|て下さい|てください|す)?$", "", query)
+    query = re.sub(r"(?:について|に関して)?(?:を)?(?:検索|調べ|探|ググ)(?:する|して|して下さい|してください|って|る|て|て下さい|てください|す)?$", "", query)
     return query.strip("、。！？? ") or None
 
 
@@ -133,8 +133,8 @@ def route_command(text, frame):
 
     if not text or _confidence(frame) < MIN_CONFIDENCE: return None
     command = compact
-    is_search = any(w in command for w in ("検索", "調べ", "探して", "探す"))
-    is_open = any(w in command for w in ("開く", "開いて", "起動", "立ち上げ"))
+    is_search = any(w in command for w in ("検索", "調べ", "探して", "探す", "ググって", "ググる"))
+    is_open = any(w in command for w in ("開く", "開いて", "起動", "立ち上げ", "立ち上げて", "つけて", "つける", "付けて"))
     is_play = any(w in command for w in ("やる", "プレイ", "遊ぶ", "ゲームする", "始める"))
     # 自然なゲーム起動: 「VALOやる」「エペをプレイ」「Apexを始める」など
     game_target = _find_alias(command, APP_ALIASES)
