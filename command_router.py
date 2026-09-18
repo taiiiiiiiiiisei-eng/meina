@@ -9,7 +9,9 @@ APP_ALIASES = {
     "explorer": ("エクスプローラー", "ファイルエクスプローラー", "explorer"),
     "Discord": ("discord", "ディスコード"), "Steam": ("steam", "スチーム"),
     "Chrome": ("chrome", "クローム"), "Edge": ("edge", "エッジ"),
-    "OBS": ("obs", "オービーエス"), "VALORANT": ("valorant", "バロラント"),
+    "OBS": ("obs", "オービーエス"),
+    "VALORANT": ("valorant", "バロラント", "ヴァロラント"),
+    "Apex": ("apex", "エーペックス", "エペ", "apexlegends"),
 }
 WEB_ALIASES = {"google": ("google", "グーグル"), "youtube": ("youtube", "ユーチューブ")}
 PC_STATUS_PHRASES = (
@@ -45,8 +47,13 @@ def _extract_search_query(text, aliases):
 def route_command(text, frame):
     """安全に実行できる命令だけを固定形式で返し、それ以外はNone。"""
     compact = _compact(text)
-    if text and "配信準備" in compact:
-        return {"kind": "task_plan", "target": "stream_prepare", "query": None, "confidence": 1.0}
+    if text:
+        if ("valorant" in compact or "バロラント" in compact or "ヴァロラント" in compact) and "配信" in compact:
+            return {"kind": "task_plan", "target": "stream_prepare_valorant", "query": None, "confidence": 1.0}
+        if ("apex" in compact or "エーペックス" in compact or "エペ" in compact) and "配信" in compact:
+            return {"kind": "task_plan", "target": "stream_prepare_apex", "query": None, "confidence": 1.0}
+        if "配信準備" in compact:
+            return {"kind": "task_plan", "target": "stream_prepare_valorant", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
