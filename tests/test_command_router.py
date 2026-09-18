@@ -15,6 +15,17 @@ def assert_weather(text, expected_mode):
     assert route["query"] == expected_mode, route
 
 
+def assert_route(text, kind, target=None, query=None, confidence=1.0):
+    route = command_router.route_command(text, {"confidence": confidence})
+    assert route is not None, f"route is None: {text}"
+    assert route["kind"] == kind, route
+    if target is not None:
+        assert route["target"] == target, route
+    if query is not None:
+        assert route["query"] == query, route
+    return route
+
+
 def main():
     assert_weather("今日の天気を教えて", "today")
     assert_weather("明日の天気を教えて", "tomorrow")
@@ -29,6 +40,46 @@ def main():
     assert location_route["kind"] == "weather", location_route
     assert location_route["target"] == "東京", location_route
     assert location_route["query"] == "tomorrow", location_route
+
+    assert_route(
+        "東京の今の気温は？",
+        "weather",
+        target="東京",
+        query="current_temp",
+    )
+    assert_route(
+        "東京の雨降る？",
+        "weather",
+        target="東京",
+        query="rain",
+    )
+
+    assert_route(
+        "GoogleでVALORANTを検索して",
+        "web_search",
+        target="google",
+        query="valorant",
+    )
+    assert_route(
+        "YouTubeを開いて",
+        "web_open",
+        target="youtube",
+    )
+    assert_route(
+        "メモ帳を開いて",
+        "app_open",
+        target="notepad",
+    )
+    assert_route(
+        "VALOやる",
+        "app_open",
+        target="VALORANT",
+    )
+
+    assert command_router.route_command(
+        "こんにちは、元気？",
+        {"confidence": 0.10},
+    ) is None
 
     print("ALL ROUTER TESTS PASSED")
 
