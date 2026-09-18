@@ -14,6 +14,7 @@ REQUIRED_FILES = {
     "meina_task_plans.py": ["detect_task_plan", "get_task_plan", "validate_task_plan"],
     "upgrade_meina_task_plan.py": ["main"],
     "meina2/tools.py": ["open_browser", "google_search", "youtube_search"],
+    "meina_health.py": ["main", "_check_files", "_check_modules", "_check_executable"],
     "meina_brain/brain_core.py": ["extract_action_frame", "infer_intent"],
     "twitch_clip_pipeline.py": ["process_latest_vod", "transcribe_vod"],
     "twitch_ai_clipper.py": ["create_ai_clips"],
