@@ -7,12 +7,12 @@ from command_router import route_command
 
 
 def main() -> int:
-    assert detect_task_plan("配信準備して") == "stream_prepare"
+    assert detect_task_plan("配信準備して") == "stream_prepare_valorant"
     assert detect_task_plan("メモ帳を開いて") is None
 
-    plan = get_task_plan("stream_prepare")
+    plan = get_task_plan("stream_prepare_valorant")
     assert plan and len(plan) == 3
-    assert validate_task_plan("stream_prepare")
+    assert validate_task_plan("stream_prepare_valorant")
     assert not validate_task_plan("unknown")
 
     route = route_command(
@@ -21,7 +21,7 @@ def main() -> int:
     )
     assert route == {
         "kind": "task_plan",
-        "target": "stream_prepare",
+        "target": "stream_prepare_valorant",
         "query": None,
         "confidence": 1.0,
     }
