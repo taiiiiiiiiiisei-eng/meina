@@ -2,11 +2,24 @@ $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
+$knownPython = "C:\Users\taiii\OneDrive\Desktop\meina\.venv\Scripts\python.exe"
 $python = $env:MEINA_PYTHON
-if (-not $python -or -not (Test-Path $python)) {
-    $cmd = Get-Command python -ErrorAction SilentlyContinue
-    if ($cmd) { $python = $cmd.Source }
+
+if ($python -and -not (Test-Path $python)) {
+    $python = $null
 }
+
+if (-not $python -and (Test-Path $knownPython)) {
+    $python = $knownPython
+}
+
+if (-not $python) {
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -notmatch "WindowsApps") {
+        $python = $cmd.Source
+    }
+}
+
 if (-not $python -or -not (Test-Path $python)) {
     Write-Host "ERROR: Python was not found."
     exit 1
