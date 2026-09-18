@@ -53,6 +53,18 @@ def route_command(text, frame):
         plan_name = detect_task_plan(text)
         if plan_name:
             return {"kind": "task_plan", "target": plan_name, "query": None, "confidence": 1.0}
+    # Neural TTSの声変更: 「声をナナミにして」など
+    if text:
+        voice_aliases = {
+            "nanami": ("ナナミ", "ななみ", "nanami"),
+            "keita": ("ケイタ", "けいた", "keita"),
+            "shiori": ("シオリ", "しおり", "shiori"),
+        }
+        if any(p in compact for p in ("声を", "ボイスを", "音声を")) and any(p in compact for p in ("変えて", "変更して", "切り替えて", "にして")):
+            for preset, aliases in voice_aliases.items():
+                if any(alias in compact for alias in aliases):
+                    return {"kind": "voice_change", "target": preset, "query": None, "confidence": 1.0}
+
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
