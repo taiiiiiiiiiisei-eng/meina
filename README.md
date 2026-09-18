@@ -26,6 +26,7 @@
 - `twitch_publish_metadata.py` — 切り抜き投稿用のAIタイトル・説明・キャプション・ハッシュタグ生成
 - `twitch_publish_queue.py` — 投稿前の動画・文章・ハッシュタグをローカルキューへまとめる
 - `twitch_live_monitor.py` — 配信中/終了を監視し、終了後にV2自動切り抜きを起動
+- `twitch_live_highlight.py` — 配信中の短い音声チャンクをWhisper + Ollamaで評価し、見どころ候補を保存
 - `meina_twitch.py` / `meina_twitch_voice.py` — めいなからTwitch切り抜きを呼び出す処理
 - `twitch_auto_clip.py` — 配信監視を標準にした自動切り抜き入口（従来VOD監視も互換維持）
 
@@ -83,6 +84,7 @@ GUIアプリとして使う場合は `start_meina_app.bat` を実行してくだ
 - リマインダー・予定の追加・確認・完了・削除（「18時に起こして」「30分後に知らせて」など自然な言い方にも対応）
 - Twitch配信のAI切り抜き処理
 - Twitch切り抜きの投稿準備（タイトル・説明・キャプション・ハッシュタグ・動画ファイルをキュー化）
+- 配信中の見どころ監視（短い音声チャンクをAI評価して候補時刻を保存）
 
 ## Twitch AI切り抜き
 
@@ -130,3 +132,16 @@ python twitch_auto_clip.py
 ## 注意
 
 `.venv`、`__pycache__`、学習済みキャッシュ、Twitchの認証情報、VOD、切り抜き動画などの実行データはGitHubに含めず、各PCで構築してください。
+
+### 配信中の見どころ監視
+
+「配信中の見どころを監視して」と話しかけると、別ウィンドウで短い音声チャンクを取得し、Whisperで文字起こししてOllamaの `meina` が候補を評価します。
+候補は `twitch_live_highlights/candidates.jsonl` に保存され、外部SNSへ自動投稿はしません。
+
+CLIで直接起動する場合：
+
+```powershell
+python twitch_live_highlight.py
+```
+
+既存のVOD自動切り抜きと独立して動作するため、必要なときだけ監視を開始できます。
