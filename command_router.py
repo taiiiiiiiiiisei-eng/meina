@@ -48,12 +48,11 @@ def route_command(text, frame):
     """安全に実行できる命令だけを固定形式で返し、それ以外はNone。"""
     compact = _compact(text)
     if text:
-        if ("valorant" in compact or "バロラント" in compact or "ヴァロラント" in compact) and "配信" in compact:
-            return {"kind": "task_plan", "target": "stream_prepare_valorant", "query": None, "confidence": 1.0}
-        if ("apex" in compact or "エーペックス" in compact or "エペ" in compact) and "配信" in compact:
-            return {"kind": "task_plan", "target": "stream_prepare_apex", "query": None, "confidence": 1.0}
-        if "配信準備" in compact:
-            return {"kind": "task_plan", "target": "stream_prepare_valorant", "query": None, "confidence": 1.0}
+        # 固定タスク計画の判定は meina_task_plans に集約
+        from meina_task_plans import detect_task_plan
+        plan_name = detect_task_plan(text)
+        if plan_name:
+            return {"kind": "task_plan", "target": plan_name, "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
