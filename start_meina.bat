@@ -12,6 +12,17 @@ if not exist "%MEINA_PYTHON%" (
     exit /b 1
 )
 
-REM 安定版ランチャー: 起動時にpipや旧アップグレードスクリプトを自動実行しない。
+echo.
+echo [1/2] めいな環境チェック
+"%MEINA_PYTHON%" meina_health.py
+if errorlevel 1 (
+    echo.
+    echo 必須環境に問題があります。起動を停止しました。
+    pause
+    exit /b 1
+)
+
+echo.
+echo [2/2] めいな起動
 "%MEINA_PYTHON%" run_meina.py
 pause
