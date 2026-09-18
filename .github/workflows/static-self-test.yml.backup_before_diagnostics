@@ -1,0 +1,34 @@
+name: Meina Static Self Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  static-self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run dependency-free static test
+        run: python ci_self_test.py
+
+      - name: Run task plan self-test
+        run: python meina_task_plan_self_test.py
+
+      - name: Run PC status self-test
+        run: python meina_pc_status_self_test.py
+
+      - name: Run memory self-test
+        run: python meina_memory_self_test.py
+
+      - name: Run reminder self-test
+        run: python meina_reminders_self_test.py
