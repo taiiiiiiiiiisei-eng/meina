@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from meina_twitch import _requested_day, is_twitch_clip_request
+from meina_twitch_intent import is_twitch_clip_request, requested_day
 
 
 def main() -> int:
@@ -11,7 +11,7 @@ def main() -> int:
     }
     failed = False
     for text, expected in cases.items():
-        actual = _requested_day(text)
+        actual = requested_day(text)
         print(("OK" if actual == expected else "FAIL"), "day:", text, "->", actual)
         failed |= actual != expected
 
