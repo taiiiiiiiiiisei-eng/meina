@@ -50,12 +50,12 @@ def main() -> None:
     launcher = (ROOT / "start_meina.bat").read_text(encoding="utf-8")
 
     assert '"kind": "task_plan"' in router
-    assert '"配信準備"' in router
     assert '"reminder_upcoming"' in router
     assert '"予定を追加"' in router
     assert '"kind": "weather"' in router
     assert '"query": mode' in router
     assert "stream_prepare" in task_plan
+    assert "配信準備" in task_plan
     assert '"app_open"' in task_plan
     assert '"web_open"' in task_plan
     assert "MEINA_UPGRADE_TASK_PLAN_V1" in task_upgrade
