@@ -79,8 +79,9 @@ def main() -> None:
     for launcher_text in (launcher, app_launcher, doctor_launcher, smoke_launcher, full_self_test_launcher):
         assert ".venv_new\\Scripts\\python.exe" in launcher_text
         assert ".venv\\Scripts\\python.exe" in launcher_text
-        assert "if not defined MEINA_PYTHON" in launcher_text
+        assert 'call "%~dp0meina_env.bat"' in launcher_text
     assert "run_meina.py" in launcher
+    assert (ROOT / "meina_env.bat").exists()
     assert "pip install" not in launcher
     assert "upgrade_meina_reminders_v7.py" not in launcher
     assert "meina_doctor.py" in doctor_launcher
