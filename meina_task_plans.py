@@ -19,11 +19,11 @@ TASK_PLANS = {
 
 def detect_task_plan(text: str) -> str | None:
     command = str(text or "").lower().replace(" ", "").replace("　", "")
-    if "valorant" in command or "バロラント" in command or "ヴァロラント" in command:
-        if "配信" in command:
+    if any(alias in command for alias in ("valorant", "valo", "バロ", "バロラント", "ヴァロ", "ヴァロラント")):
+        if "配信" in command or "twitch" in command:
             return "stream_prepare_valorant"
-    if "apex" in command or "エーペックス" in command or "エペ" in command:
-        if "配信" in command:
+    if any(alias in command for alias in ("apex", "エーペックス", "エペ", "apexlegends")):
+        if "配信" in command or "twitch" in command:
             return "stream_prepare_apex"
     if "配信準備" in command:
         return "stream_prepare_valorant"
