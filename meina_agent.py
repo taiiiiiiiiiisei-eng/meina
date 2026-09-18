@@ -251,6 +251,8 @@ except Exception:
 engine = pyttsx3.init()
 engine.setProperty("rate", MEINA_TTS_RATE)
 engine.setProperty("volume", max(0.0, min(1.0, MEINA_TTS_VOLUME)))
+load_meina_voice_settings()
+engine.setProperty("volume", MEINA_TTS_VOLUME)
 
 MEINA_VOICE = os.environ.get("MEINA_VOICE", "Ayumi").strip().lower()
 
@@ -333,7 +335,8 @@ def set_meina_rate(preset):
 def _speak_neural(text):
     """Neural TTSで音声を生成して再生する。"""
     async def generate(path):
-        communicate = edge_tts.Communicate(text, NEURAL_TTS_VOICE, rate=MEINA_NEURAL_RATE, volume="+0%", pitch="-2Hz")
+        neural_volume = f"{round((MEINA_TTS_VOLUME - 1.0) * 100):+d}%"
+        communicate = edge_tts.Communicate(text, NEURAL_TTS_VOICE, rate=MEINA_NEURAL_RATE, volume=neural_volume, pitch="-2Hz")
         await communicate.save(path)
     fd, path = tempfile.mkstemp(suffix=".mp3", prefix="meina_tts_")
     os.close(fd)
