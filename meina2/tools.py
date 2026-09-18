@@ -137,6 +137,18 @@ APP_ALIASES = {
 
     "バロラント": [
         "VALORANT-Win64-Shipping.exe"
+    ],
+
+    "apex": [
+        "r5apex.exe"
+    ],
+
+    "エーペックス": [
+        "r5apex.exe"
+    ],
+
+    "エペ": [
+        "r5apex.exe"
     ]
 }
 
