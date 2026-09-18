@@ -85,6 +85,9 @@ jobs:
       - name: Run Twitch auto-clip wiring self-test
         run: python twitch_auto_clip_self_test.py
 
+      - name: Run Twitch live monitor self-test
+        run: python twitch_live_monitor_self_test.py
+
       - name: Run Twitch publish metadata self-test
         run: python twitch_publish_metadata_self_test.py
 
