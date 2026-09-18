@@ -52,8 +52,13 @@ echo [8/9] 音声認識補正テスト
 if errorlevel 1 goto :failed
 
 echo.
-echo [9/9] Twitch自動切り抜きV2配線テスト
+echo [9/10] Twitch自動切り抜きV2配線テスト
 "%MEINA_PYTHON%" twitch_auto_clip_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [10/10] Twitch投稿メタデータテスト
+"%MEINA_PYTHON%" twitch_publish_metadata_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
