@@ -58,7 +58,7 @@ def main() -> None:
     assert "配信準備" in task_plan
     assert '"app_open"' in task_plan
     assert '"web_open"' in task_plan
-    assert "MEINA_UPGRADE_TASK_PLAN_V1" in task_upgrade
+    assert "MEINA_UPGRADE_TASK_PLAN_LOCAL_V1" in task_upgrade
     assert "execute_task_plan" in task_upgrade
     assert "upgrade_meina_reminders_v7.py" in launcher
     assert "MEINA_REMINDER_COMMANDS_V7" in (ROOT / "upgrade_meina_reminders_v7.py").read_text(encoding="utf-8")
