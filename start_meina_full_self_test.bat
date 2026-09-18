@@ -27,12 +27,27 @@ echo [3/6] 音声コマンド統合テスト
 if errorlevel 1 goto :failed
 
 echo.
-echo [4/6] ルーター境界値テスト
+echo [4/8] ルーター境界値テスト
 "%MEINA_PYTHON%" command_router_edge_self_test.py
 if errorlevel 1 goto :failed
 
 echo.
-echo [5/6] 音声認識補正テスト
+echo [5/8] コマンド実行経路・フォールバックテスト
+"%MEINA_PYTHON%" meina_command_dispatch_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [6/8] リマインダー秘書テスト
+"%MEINA_PYTHON%" meina_reminders_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [7/8] リマインダー秘書安全配線テスト
+"%MEINA_PYTHON%" meina_reminder_secretary_v8_self_test.py
+if errorlevel 1 goto :failed
+
+echo.
+echo [8/8] 音声認識補正テスト
 "%MEINA_PYTHON%" meina_voice_intent_self_test.py
 if errorlevel 1 goto :failed
 
