@@ -12,7 +12,7 @@ try:
 except ImportError:  # 判定系テストでは外部通信ライブラリを必須にしない
     requests = None
 
-from twitch_ai_clipper import create_ai_clips
+from twitch_ai_clipper import create_ai_clips, create_shortlist_clips
 from twitch_clip_pipeline import download_vod, get_user_id, load_config, twitch_app_token
 
 JST = timezone(timedelta(hours=9))
@@ -70,6 +70,41 @@ def clip_twitch_stream(text: str, max_clips: int = 3) -> list[Path]:
 
 def clip_latest_twitch_stream(max_clips: int = 3) -> list[Path]:
     return clip_twitch_stream("最近の配信を切り抜いて", max_clips=max_clips)
+
+
+def clip_shortlist_twitch_stream(max_clips: int = 3) -> list[Path]:
+    """最新VODへ、配信中にAI選定したショートリストだけを適用する。"""
+    config = load_config()
+    vods = _get_vods(config)
+    if not vods:
+        raise RuntimeError("Twitchの最新VODが見つかりませんでした")
+    vod = vods[0]
+    print(f"AIおすすめ切り抜き対象: {vod['id']} / {vod.get('title', '')}")
+    vod_path = download_vod(vod)
+    return create_shortlist_clips(vod_path, max_clips=max_clips, vod=vod)
+
+
+def run_shortlist_twitch_command(max_clips: int = 3) -> dict[str, Any]:
+    clips = clip_shortlist_twitch_stream(max_clips=max_clips)
+    queue_path = None
+    try:
+        from twitch_publish_queue import prepare_publish_queue
+        queue_result = prepare_publish_queue(
+            Path(clips[0]).parent.parent / "twitch_clip_results" / f"{Path(clips[0]).stem.rsplit('_', 1)[0]}_shortlist.json"
+        )
+        queue_path = queue_result.get("markdown_path")
+    except Exception as exc:
+        print(f"⚠️ おすすめ切り抜きの投稿準備キュー生成をスキップしました: {exc}")
+
+    message = f"AIおすすめ候補から{len(clips)}本の切り抜きを作りました。"
+    if queue_path:
+        message += "投稿用の準備も完了しました。"
+    return {
+        "ok": True,
+        "message": message,
+        "clips": [str(p) for p in clips],
+        "publish_queue": queue_path,
+    }
 
 
 def run_twitch_clip_command(text: str, max_clips: int = 3) -> dict[str, Any]:
