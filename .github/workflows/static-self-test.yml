@@ -49,6 +49,9 @@ jobs:
       - name: Run voice settings persistence self-test
         run: python meina_voice_settings_self_test.py
 
+      - name: Run GUI static self-test
+        run: python meina_app_self_test.py
+
       - name: Run Twitch static self-test
         run: python twitch_self_test.py
 
