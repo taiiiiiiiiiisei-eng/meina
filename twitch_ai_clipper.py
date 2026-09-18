@@ -13,6 +13,7 @@ except ImportError:  # 判定系テストでは外部通信ライブラリを必
 
 from twitch_clip_pipeline import make_clip, transcribe_vod, _duration_seconds
 from twitch_video_editor import edit_generated_clip
+from twitch_publish_metadata import generate_publish_metadata
 
 ROOT = Path(__file__).resolve().parent
 CLIPS_DIR = ROOT / "clips"
@@ -230,7 +231,14 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
             "vertical": vertical,
         })
 
-    (RESULT_DIR / f"{vod_path.stem}.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    publish_metadata = generate_publish_metadata(results)
+    for item, metadata in zip(results, publish_metadata):
+        item["publish"] = metadata
+
+    (RESULT_DIR / f"{vod_path.stem}.json").write_text(
+        json.dumps(results, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
     return outputs
 
 
