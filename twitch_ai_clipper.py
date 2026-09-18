@@ -18,6 +18,7 @@ OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
 MIN_CLIP_GAP_SECONDS = 5.0
 LIVE_MARKERS_PATH = ROOT / "twitch_live_highlights" / "candidates.jsonl"
+SHORTLIST_PATH = ROOT / "twitch_live_highlights" / "shortlist.json"
 
 
 def _load_live_markers(
@@ -246,6 +247,108 @@ def _select_non_overlapping(selected: list[dict[str, Any]], candidates: list[dic
             })
     return result
 
+
+
+def _load_shortlist(vod_path: Path, vod: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    if not SHORTLIST_PATH.exists():
+        return []
+
+    expected_stream_id = ""
+    if isinstance(vod, dict):
+        expected_stream_id = str(vod.get("stream_id", "")).strip()
+    accepted_stream_ids = {value for value in (expected_stream_id, vod_path.stem) if value}
+
+    try:
+        data = json.loads(SHORTLIST_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    items = data.get("shortlist", []) if isinstance(data, dict) else []
+    if not isinstance(items, list):
+        return []
+
+    filtered: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        stream_id = str(item.get("stream_id", "")).strip()
+        if stream_id and accepted_stream_ids and stream_id not in accepted_stream_ids:
+            continue
+        filtered.append(item)
+    return filtered
+
+
+def create_shortlist_clips(
+    vod_path: Path,
+    max_clips: int = 3,
+    vod: dict[str, Any] | None = None,
+) -> list[Path]:
+    """ライブ中にAIが選んだショートリストだけをVODから切り抜く。"""
+    from twitch_clip_pipeline import _duration_seconds, make_clip, transcribe_vod
+    from twitch_publish_metadata import generate_publish_metadata
+    from twitch_video_editor import edit_generated_clip
+
+    shortlist = _load_shortlist(vod_path, vod)
+    if not shortlist:
+        raise RuntimeError("このVODに対応するAIおすすめ候補がありません")
+
+    limit = max(1, min(5, int(max_clips)))
+    segments = transcribe_vod(vod_path)
+    duration = _duration_seconds(vod_path)
+    vertical = os.getenv("MEINA_VERTICAL_SHORTS", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+    results: list[dict[str, Any]] = []
+    outputs: list[Path] = []
+    selected_ranges: list[tuple[float, float]] = []
+
+    for index, item in enumerate(shortlist[:limit], 1):
+        try:
+            marker_start = max(0.0, float(item.get("stream_time_start", 0.0)) - 8.0)
+            marker_end = max(marker_start + 8.0, float(item.get("stream_time_end", marker_start + 8.0)) + 10.0)
+        except (TypeError, ValueError):
+            continue
+
+        start = max(0.0, min(marker_start, max(0.0, duration - 1.0)))
+        end = max(start + 8.0, min(marker_end, duration))
+        if _overlaps(start, end, selected_ranges):
+            continue
+        selected_ranges.append((start, end))
+
+        title = str(item.get("title") or f"おすすめ切り抜き{index}").strip()
+        raw_path = make_clip(vod_path, start, end, title, index)
+        path = raw_path
+        try:
+            path = edit_generated_clip(raw_path, segments, start, end, vertical=vertical)
+            print(f"🎬 おすすめ候補から編集完了: {path}")
+        except Exception as exc:
+            print(f"⚠️ 自動編集をスキップしました: {exc}")
+
+        outputs.append(path)
+        results.append({
+            "file": str(path),
+            "raw_file": str(raw_path),
+            "start": start,
+            "end": end,
+            "title": title,
+            "reason": str(item.get("reason", "")),
+            "score": int(item.get("score", 0)),
+            "transcript": str(item.get("text", "")),
+            "edited": path != raw_path,
+            "vertical": vertical,
+            "source": "live_shortlist",
+            "stream_id": str(item.get("stream_id", "")),
+        })
+
+    if not results:
+        raise RuntimeError("AIおすすめ候補から切り抜きを1本も作成できませんでした")
+
+    publish_metadata = generate_publish_metadata(results)
+    for item, metadata in zip(results, publish_metadata):
+        item["publish"] = metadata
+
+    RESULT_DIR.mkdir(exist_ok=True)
+    output_path = RESULT_DIR / f"{vod_path.stem}_shortlist.json"
+    output_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    return outputs
 
 def create_ai_clips(
     vod_path: Path,
