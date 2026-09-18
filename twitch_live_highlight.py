@@ -21,6 +21,7 @@ CHUNK_SECONDS = max(10, int(os.getenv("MEINA_LIVE_HIGHLIGHT_CHUNK", "20")))
 MIN_SCORE = max(0, min(100, int(os.getenv("MEINA_LIVE_HIGHLIGHT_MIN_SCORE", "65"))))
 REFRESH_URL_SECONDS = max(60, int(os.getenv("MEINA_LIVE_HIGHLIGHT_URL_REFRESH", "300")))
 LOCK_PATH = OUTPUT_DIR / "monitor.lock.json"
+SHORTLIST_PATH = OUTPUT_DIR / "shortlist.json"
 OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
 
@@ -335,6 +336,140 @@ def format_candidates(candidates: list[dict[str, Any]], limit: int = 5) -> str:
         seconds = int(start % 60)
         lines.append(f"{index}番、{minutes}分{seconds}秒、評価{score}、{title}。{text_value}")
     return "\n".join(lines)
+
+def _deduplicate_candidates(candidates: list[dict[str, Any]], gap_seconds: float = 20.0) -> list[dict[str, Any]]:
+    """近すぎる候補をまとめ、同じ場面の重複選出を防ぐ。"""
+    ranked = sorted(
+        candidates,
+        key=lambda item: (
+            int(item.get("score", 0)),
+            float(item.get("stream_time_start", 0.0)),
+        ),
+        reverse=True,
+    )
+    selected: list[dict[str, Any]] = []
+    for item in ranked:
+        try:
+            start = float(item.get("stream_time_start", 0.0))
+        except (TypeError, ValueError):
+            continue
+        if any(abs(start - float(other.get("stream_time_start", -9999.0))) < gap_seconds for other in selected):
+            continue
+        selected.append(item)
+    return selected
+
+
+def _ai_select_shortlist(candidates: list[dict[str, Any]], limit: int) -> list[int]:
+    import requests
+
+    compact = [
+        {
+            "id": index,
+            "time": round(float(item.get("stream_time_start", 0.0)), 1),
+            "score": int(item.get("score", 0)),
+            "title": str(item.get("title", ""))[:100],
+            "reason": str(item.get("reason", ""))[:200],
+            "text": str(item.get("text", ""))[:700],
+        }
+        for index, item in enumerate(candidates)
+    ]
+    schema = {
+        "type": "object",
+        "properties": {
+            "selected_ids": {
+                "type": "array",
+                "items": {"type": "integer"},
+                "maxItems": limit,
+            },
+            "reason": {"type": "string"},
+        },
+        "required": ["selected_ids", "reason"],
+    }
+    prompt = (
+        "あなたは日本語ゲーム配信の切り抜き担当AIです。候補一覧から、実際に短尺動画にした価値が高い場面を"
+        f"{limit}件まで選んでください。既存scoreだけでなく、面白さ、驚き、上手さ、感情、話としての分かりやすさを重視します。"
+        "同じ出来事や近い時間の候補は複数選ばず、別の場面を優先してください。"
+        "文字起こしにない出来事は想像しないでください。JSONだけを返してください。\n"
+        + json.dumps(compact, ensure_ascii=False)
+    )
+    response = requests.post(
+        f"{OLLAMA_URL}/api/chat",
+        json={
+            "model": OLLAMA_MODEL,
+            "stream": False,
+            "format": schema,
+            "messages": [{"role": "user", "content": prompt}],
+            "options": {"temperature": 0.1},
+        },
+        timeout=45,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    content = payload.get("message", {}).get("content", "{}")
+    data = json.loads(content)
+    ids = data.get("selected_ids", [])
+    if not isinstance(ids, list):
+        raise ValueError("Ollamaの選定結果が不正です")
+    return [int(item) for item in ids if isinstance(item, int)]
+
+
+def shortlist_candidates(limit: int = 3) -> list[dict[str, Any]]:
+    """保存済み候補から、AIで切り抜き価値の高い場面を再選定する。"""
+    limit = max(1, min(5, int(limit)))
+    candidates = load_candidates(limit=50)
+    if not candidates:
+        return []
+
+    pool = _deduplicate_candidates(candidates)[:15]
+    selected: list[dict[str, Any]] = []
+
+    try:
+        selected_ids = _ai_select_shortlist(pool, limit)
+        seen: set[int] = set()
+        for candidate_id in selected_ids:
+            if not 0 <= candidate_id < len(pool) or candidate_id in seen:
+                continue
+            seen.add(candidate_id)
+            selected.append(pool[candidate_id])
+            if len(selected) >= limit:
+                break
+    except Exception as exc:
+        print(f"⚠️ 見どころ再選定をスコア順へフォールバックします: {exc}")
+
+    if not selected:
+        selected = pool[:limit]
+
+    result = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "source_count": len(candidates),
+        "pool_count": len(pool),
+        "selection_source": "ollama" if selected_ids if False else "score_fallback",
+        "shortlist": selected,
+    }
+    if selected:
+        result["selection_source"] = "ollama" if "selected_ids" in locals() and selected_ids else "score_fallback"
+    try:
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        SHORTLIST_PATH.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        pass
+    return selected
+
+
+def format_shortlist(candidates: list[dict[str, Any]]) -> str:
+    """AIが選んだ見どころを音声向けに整形する。"""
+    if not candidates:
+        return "おすすめできる見どころ候補はまだありません。"
+    lines = [f"おすすめの見どころは{len(candidates)}件です。"]
+    for index, item in enumerate(candidates, 1):
+        score = int(item.get("score", 0))
+        start = float(item.get("stream_time_start", 0.0))
+        title = str(item.get("title") or "配信ハイライト候補").strip()
+        minutes = int(start // 60)
+        seconds = int(start % 60)
+        lines.append(f"{index}番、{minutes}分{seconds}秒、評価{score}、{title}。")
+    return "\n".join(lines)
+
 
 def _get_live_stream(config: dict[str, Any], token: str, user_id: str) -> dict[str, Any] | None:
     import requests
