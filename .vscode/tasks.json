@@ -5,21 +5,40 @@
       "label": "めいな: GitHubから最新取得",
       "type": "shell",
       "command": "git",
-      "args": ["pull", "--ff-only"],
-      "options": {"cwd": "${workspaceFolder}"},
+      "args": [
+        "pull",
+        "--ff-only"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": []
     },
     {
       "label": "めいな: 開発チェック",
       "type": "shell",
       "command": "powershell",
-      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}\\meina_dev_check.ps1"],
-      "options": {"cwd": "${workspaceFolder}", "env": {"MEINA_PYTHON": "C:\\Users\\taiii\\OneDrive\\Desktop\\meina\\.venv\\Scripts\\python.exe"}},
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\meina_dev_check.ps1"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "MEINA_PYTHON": "C:\\Users\\taiii\\OneDrive\\Desktop\\meina\\.venv\\Scripts\\python.exe"
+        }
+      },
       "problemMatcher": []
     },
     {
       "label": "めいな: 同期してチェック",
-      "dependsOn": ["めいな: GitHubから最新取得", "めいな: 開発チェック"],
+      "dependsOn": [
+        "めいな: GitHubから最新取得",
+        "めいな: 開発チェック"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
@@ -27,8 +46,21 @@
       "label": "めいな: アプリ起動",
       "type": "shell",
       "command": "C:\\Users\\taiii\\OneDrive\\Desktop\\meina\\.venv\\Scripts\\python.exe",
-      "args": ["meina_app.py"],
-      "options": {"cwd": "${workspaceFolder}"},
+      "args": [
+        "meina_app.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "めいな: 開発サイクル",
+      "dependsOn": [
+        "めいな: 同期してチェック",
+        "めいな: アプリ起動"
+      ],
+      "dependsOrder": "sequence",
       "problemMatcher": []
     }
   ]
