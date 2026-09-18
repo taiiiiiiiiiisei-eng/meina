@@ -21,9 +21,33 @@ RESULT_DIR = ROOT / "twitch_clip_results"
 OLLAMA_URL = os.getenv("MEINA_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("MEINA_OLLAMA_MODEL", "meina")
 MIN_CLIP_GAP_SECONDS = 5.0
+LIVE_MARKERS_PATH = ROOT / "twitch_live_highlights" / "candidates.jsonl"
 
 
-def _candidate_windows(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _load_live_markers(vod_path: Path) -> list[dict[str, Any]]:
+    if not LIVE_MARKERS_PATH.exists():
+        return []
+    markers: list[dict[str, Any]] = []
+    try:
+        for line in LIVE_MARKERS_PATH.read_text(encoding="utf-8").splitlines():
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(item, dict):
+                continue
+            stream_id = str(item.get("stream_id", ""))
+            if stream_id and stream_id == vod_path.stem:
+                markers.append(item)
+    except OSError:
+        return []
+    return markers
+
+
+def _candidate_windows(
+    segments: list[dict[str, Any]],
+    live_markers: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     windows: list[dict[str, Any]] = []
     for i, seg in enumerate(segments):
         start = max(0.0, float(seg["start"]) - 8.0)
@@ -42,7 +66,33 @@ def _candidate_windows(segments: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if word in text:
                 score += 1
         windows.append({"start": start, "end": min(start + 55.0, end), "text": text, "heuristic": score})
-    windows.sort(key=lambda x: x["heuristic"], reverse=True)
+
+    for marker in live_markers or []:
+        try:
+            marker_start = max(0.0, float(marker.get("stream_time_start", 0.0)))
+            marker_end = max(marker_start + 8.0, float(marker.get("stream_time_end", marker_start + 8.0)))
+            marker_start = max(0.0, marker_start - 8.0)
+            marker_end = marker_end + 10.0
+            texts = [
+                str(seg.get("text", "")).strip()
+                for seg in segments
+                if float(seg.get("end", 0.0)) >= marker_start
+                and float(seg.get("start", 0.0)) <= marker_end
+            ]
+            text = " ".join(part for part in texts if part).strip()
+            if not text:
+                continue
+            windows.append({
+                "start": marker_start,
+                "end": min(marker_start + 55.0, marker_end),
+                "text": text,
+                "heuristic": max(8, min(12, int(marker.get("score", 65)) // 8)),
+                "live_marker": True,
+            })
+        except (TypeError, ValueError):
+            continue
+
+    windows.sort(key=lambda x: (bool(x.get("live_marker")), x["heuristic"]), reverse=True)
     unique: list[dict[str, Any]] = []
     for item in windows:
         if any(abs(item["start"] - x["start"]) < 20 for x in unique):
@@ -192,7 +242,8 @@ def create_ai_clips(vod_path: Path, max_clips: int = 3) -> list[Path]:
     segments = transcribe_vod(vod_path)
     if not segments:
         raise RuntimeError("音声から字幕を取得できませんでした")
-    candidates = _candidate_windows(segments)
+    live_markers = _load_live_markers(vod_path)
+    candidates = _candidate_windows(segments, live_markers)
     if not candidates:
         raise RuntimeError("切り抜き候補を作れませんでした")
     selected = _ask_ollama(candidates, max_clips)
