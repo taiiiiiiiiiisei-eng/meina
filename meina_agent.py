@@ -745,6 +745,13 @@ def execute_task_plan(route):
 def execute_routed_command(route):
     if route.get("kind") == "task_plan":
         return execute_task_plan(route)
+    if route.get("kind") == "voice_change":
+        if set_meina_voice(route.get("target")):
+            labels = {"nanami": "ナナミ", "keita": "ケイタ", "shiori": "シオリ"}
+            speak(f"{labels.get(route.get("target"), "この声")}に変更しました")
+        else:
+            speak("その声には変更できませんでした")
+        return True
     return _execute_routed_command_base(route)
 
 
