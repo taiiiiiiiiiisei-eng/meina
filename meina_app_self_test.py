@@ -46,7 +46,9 @@ def main() -> int:
     assert 'self.root.after(0, lambda: self.set_busy(False, "オンライン"))' in source
     assert 'root.protocol("WM_DELETE_WINDOW", root.destroy)' in source
     assert "meina_agent.process_command(text)" in source
-    assert "meina_agent.listen(duration=5.0)" in source
+    assert "meina_agent.listen_command_with_retry(" in source
+    assert "attempts=2" in source
+    assert "duration=5.0" in source
     assert "はい、どうしました？" in source
 
     print("GUI static self-test: PASS")
