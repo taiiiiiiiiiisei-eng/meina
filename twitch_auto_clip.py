@@ -4,12 +4,14 @@ import os
 import time
 
 from twitch_auto_clip_v2 import process_new_vod
+from twitch_live_monitor import run_live_monitor
 
-INTERVAL = int(os.getenv("MEINA_TWITCH_INTERVAL", "300"))
+INTERVAL = max(10, int(os.getenv("MEINA_TWITCH_INTERVAL", "300")))
+MODE = os.getenv("MEINA_TWITCH_MONITOR_MODE", "live").strip().lower()
 
 
-def main() -> None:
-    """新しいVODだけを監視し、成功したVODを再処理しない。"""
+def run_vod_monitor() -> None:
+    """従来の新規VOD監視を互換用として残す。"""
     print("🤖 めいな Twitch自動切り抜き V2を開始")
     print(f"⏱️ {INTERVAL}秒ごとに新規VODを確認します")
 
@@ -30,6 +32,13 @@ def main() -> None:
             print(f"⚠️ Twitch自動切り抜きエラー: {exc}")
 
         time.sleep(INTERVAL)
+
+
+def main() -> None:
+    if MODE == "vod":
+        run_vod_monitor()
+        return
+    run_live_monitor()
 
 
 if __name__ == "__main__":
