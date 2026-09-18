@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -103,6 +104,7 @@ def build_candidate(
     chunk_started_at: datetime,
     stream_started_at: datetime | None,
     segment_start: float,
+    stream_id: str = "",
     segment_end: float,
     text: str,
     decision: dict[str, Any],
@@ -115,6 +117,7 @@ def build_candidate(
         absolute_end = segment_end
     return {
         "detected_at": datetime.now(timezone.utc).isoformat(),
+        "stream_id": str(stream_id),
         "stream_time_start": round(absolute_start, 2),
         "stream_time_end": round(absolute_end, 2),
         "text": str(text).strip(),
@@ -252,6 +255,7 @@ def monitor_live_highlights() -> None:
                     segment["start"],
                     segment["end"],
                     segment["text"],
+                    stream_id,
                     decision,
                 )
                 if append_candidate(candidate):
@@ -267,7 +271,7 @@ def monitor_live_highlights() -> None:
 def start_monitor() -> bool:
     """固定スクリプトとしてライブ見どころ監視を起動する。"""
     env = os.environ.copy()
-    command = [os.sys.executable, str(Path(__file__).resolve())]
+    command = [sys.executable, str(Path(__file__).resolve())]
     creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) if os.name == "nt" else 0
     try:
         subprocess.Popen(command, cwd=str(ROOT), env=env, creationflags=creationflags)
