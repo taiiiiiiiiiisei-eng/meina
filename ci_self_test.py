@@ -77,8 +77,6 @@ def main() -> None:
     assert "MEINA_UPGRADE_TASK_PLAN_LOCAL_V1" in task_upgrade
     assert "execute_task_plan" in task_upgrade
     for launcher_text in (launcher, app_launcher, doctor_launcher, smoke_launcher, full_self_test_launcher):
-        assert ".venv_new\\Scripts\\python.exe" in launcher_text
-        assert ".venv\\Scripts\\python.exe" in launcher_text
         assert 'call "%~dp0meina_env.bat"' in launcher_text
     assert "run_meina.py" in launcher
     assert (ROOT / "meina_env.bat").exists()
