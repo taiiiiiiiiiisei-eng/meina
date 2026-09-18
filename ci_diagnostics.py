@@ -31,6 +31,7 @@ COMMANDS = [
     ("Core lightweight self-test", [sys.executable, "self_test.py"]),
     ("Voice intent self-test", [sys.executable, "meina_voice_intent_self_test.py"]),
     ("Voice settings persistence self-test", [sys.executable, "meina_voice_settings_self_test.py"]),
+    ("GUI static self-test", [sys.executable, "meina_app_self_test.py"]),
     ("Twitch static self-test", [sys.executable, "twitch_self_test.py"]),
     ("Twitch command test", [sys.executable, "twitch_command_test.py"]),
     ("Twitch voice self-test", [sys.executable, "twitch_voice_self_test.py"]),
