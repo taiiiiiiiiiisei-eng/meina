@@ -38,11 +38,22 @@ def validate_task_plan(name: str) -> bool:
     plan = get_task_plan(name)
     if not plan:
         return False
-    allowed_kinds = {"app_open", "web_open"}
-    return all(
-        isinstance(step, dict)
-        and step.get("kind") in allowed_kinds
-        and isinstance(step.get("target"), str)
-        and isinstance(step.get("label"), str)
-        for step in plan
-    )
+    allowed_targets = {
+        "app_open": {"OBS", "Discord", "VALORANT", "Apex", "notepad", "calculator", "explorer"},
+        "web_open": {"google", "youtube", "browser"},
+    }
+    for step in plan:
+        if not isinstance(step, dict):
+            return False
+        kind = step.get("kind")
+        target = step.get("target")
+        label = step.get("label")
+        if kind not in allowed_targets:
+            return False
+        if target not in allowed_targets[kind]:
+            return False
+        if not isinstance(target, str) or not target.strip():
+            return False
+        if not isinstance(label, str) or not label.strip():
+            return False
+    return True
