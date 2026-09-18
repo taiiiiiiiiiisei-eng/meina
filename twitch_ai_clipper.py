@@ -11,10 +11,6 @@ try:
 except ImportError:  # 判定系テストでは外部通信ライブラリを必須にしない
     requests = None
 
-from twitch_clip_pipeline import make_clip, transcribe_vod, _duration_seconds
-from twitch_video_editor import edit_generated_clip
-from twitch_publish_metadata import generate_publish_metadata
-
 ROOT = Path(__file__).resolve().parent
 CLIPS_DIR = ROOT / "clips"
 RESULT_DIR = ROOT / "twitch_clip_results"
@@ -256,6 +252,10 @@ def create_ai_clips(
     max_clips: int = 3,
     vod: dict[str, Any] | None = None,
 ) -> list[Path]:
+    from twitch_clip_pipeline import _duration_seconds, make_clip, transcribe_vod
+    from twitch_publish_metadata import generate_publish_metadata
+    from twitch_video_editor import edit_generated_clip
+
     segments = transcribe_vod(vod_path)
     if not segments:
         raise RuntimeError("音声から字幕を取得できませんでした")
