@@ -6,7 +6,10 @@ import re
 from pathlib import Path
 from typing import Any
 
-import requests
+try:
+    import requests
+except ImportError:  # 判定系テストでは外部通信ライブラリを必須にしない
+    requests = None
 
 from twitch_clip_pipeline import make_clip, transcribe_vod, _duration_seconds
 from twitch_video_editor import edit_generated_clip
