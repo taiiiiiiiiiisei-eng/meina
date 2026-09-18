@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parent
 FILES = [
     "twitch_clip_pipeline.py",
     "twitch_ai_clipper.py",
+    "twitch_publish_metadata.py",
+    "twitch_publish_metadata_self_test.py",
     "twitch_auto_clip.py",
     "twitch_auto_clip_v2.py",
     "twitch_auto_clip_self_test.py",
@@ -27,6 +29,7 @@ REQUIRED_NAMES = {
     "twitch_auto_clip_v2.py": {"process_new_vod", "main"},
     "twitch_ffmpeg_env.py": {"find_executable"},
     "twitch_ai_clipper.py": {"create_ai_clips", "_select_non_overlapping"},
+    "twitch_publish_metadata.py": {"generate_publish_metadata"},
     "twitch_video_editor.py": {"edit_clip", "edit_generated_clip"},
     "meina_twitch.py": {"_requested_day", "clip_latest_twitch_stream", "run_twitch_clip_command"},
     "meina_twitch_intent.py": {"is_twitch_clip_request", "requested_day"},
