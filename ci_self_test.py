@@ -59,7 +59,9 @@ def main() -> None:
     task_upgrade = (ROOT / "upgrade_meina_task_plan.py").read_text(encoding="utf-8")
     task_plan = (ROOT / "meina_task_plans.py").read_text(encoding="utf-8")
     launcher = (ROOT / "start_meina.bat").read_text(encoding="utf-8")
+    app_launcher = (ROOT / "start_meina_app.bat").read_text(encoding="utf-8")
     doctor_launcher = (ROOT / "start_meina_doctor.bat").read_text(encoding="utf-8")
+    smoke_launcher = (ROOT / "start_meina_smoke_test.bat").read_text(encoding="utf-8")
     full_self_test_launcher = (ROOT / "start_meina_full_self_test.bat").read_text(encoding="utf-8")
 
     assert '"kind": "task_plan"' in router
@@ -73,6 +75,10 @@ def main() -> None:
     assert '"web_open"' in task_plan
     assert "MEINA_UPGRADE_TASK_PLAN_LOCAL_V1" in task_upgrade
     assert "execute_task_plan" in task_upgrade
+    for launcher_text in (launcher, app_launcher, doctor_launcher, smoke_launcher, full_self_test_launcher):
+        assert ".venv_new\\Scripts\\python.exe" in launcher_text
+        assert ".venv\\Scripts\\python.exe" in launcher_text
+        assert "if not defined MEINA_PYTHON" in launcher_text
     assert "run_meina.py" in launcher
     assert "pip install" not in launcher
     assert "upgrade_meina_reminders_v7.py" not in launcher
