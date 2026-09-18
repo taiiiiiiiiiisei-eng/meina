@@ -9,10 +9,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import requests
-
-from twitch_auto_clip_v2 import process_new_vod
-from twitch_clip_pipeline import get_user_id, load_config, twitch_app_token
 
 ROOT = Path(__file__).resolve().parent
 STATE_PATH = ROOT / "twitch_live_state.json"
@@ -33,6 +29,8 @@ def save_live_state(state: dict[str, Any]) -> None:
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def get_current_stream(config: dict[str, Any], token: str, user_id: str) -> dict[str, Any] | None:
+    import requests
+
     response = requests.get(
         "https://api.twitch.tv/helix/streams",
         headers={"Client-ID": config["client_id"], "Authorization": f"Bearer {token}"},
@@ -54,6 +52,9 @@ def stream_transition(was_live: bool, current_stream: dict[str, Any] | None) -> 
     return "offline"
 
 def run_live_monitor() -> None:
+    from twitch_auto_clip_v2 import process_new_vod
+    from twitch_clip_pipeline import get_user_id, load_config, twitch_app_token
+
     config = load_config()
     token = twitch_app_token(config)
     user_id = get_user_id(config, token)
