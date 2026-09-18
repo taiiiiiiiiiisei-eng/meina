@@ -118,7 +118,17 @@ def route_command(text, frame):
         return {"kind": "reminder_done", "target": "local", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("リマインダーを削除", "リマインドを削除", "リマインダー削除")):
         return {"kind": "reminder_delete", "target": "local", "query": str(text).strip(), "confidence": 1.0}
-    if text and any(p in compact for p in ("予定を追加", "予定を登録", "予定を入れて", "スケジュールを追加", "スケジュールを登録")):
+    if text and any(p in compact for p in (
+        "予定を追加",
+        "予定に追加",
+        "予定として追加",
+        "予定を登録",
+        "予定に登録",
+        "予定を入れて",
+        "スケジュールを追加",
+        "スケジュールに追加",
+        "スケジュールを登録",
+    )):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("リマインド", "リマインダー")):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
