@@ -631,15 +631,24 @@ def _execute_routed_command_base(route):
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
         elif kind in ("reminder_done", "reminder_delete"):
             from meina_reminders import complete_reminder, delete_reminder, find_reminders
-            query_text = re.sub(r"(リマインダー|リマインド)(を)?(完了|削除)", "", query or "").strip(" 、。！？?")
-            matches = find_reminders(query_text)
-            if not matches:
-                result = "対象のリマインダーが見つかりませんでした。"
+            query_text = re.sub(
+                r"(リマインダー|リマインド)(を)?(完了|削除)(して|してください|お願い(?:します)?)?",
+                "",
+                query or "",
+            ).strip(" 、。！？?")
+            if not query_text:
+                result = "対象のリマインダー名を指定してください。"
             else:
-                item = matches[0]
-                ok = complete_reminder(item["id"]) if kind == "reminder_done" else delete_reminder(item["id"])
-                action = "完了" if kind == "reminder_done" else "削除"
-                result = f"「{item['text']}」を{action}しました。" if ok else f"「{item['text']}」を{action}できませんでした。"
+                matches = find_reminders(query_text)
+                if not matches:
+                    result = "対象のリマインダーが見つかりませんでした。"
+                elif len(matches) > 1:
+                    result = f"「{query_text}」に一致するリマインダーが{len(matches)}件あります。もう少し具体的に指定してください。"
+                else:
+                    item = matches[0]
+                    ok = complete_reminder(item["id"]) if kind == "reminder_done" else delete_reminder(item["id"])
+                    action = "完了" if kind == "reminder_done" else "削除"
+                    result = f"「{item['text']}」を{action}しました。" if ok else f"「{item['text']}」を{action}できませんでした。"
         elif kind == "twitch_clip":
             from meina_twitch import run_twitch_clip_command
             clip_result = run_twitch_clip_command(query or "")
