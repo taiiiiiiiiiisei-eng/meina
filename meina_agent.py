@@ -185,7 +185,19 @@ except Exception as e:
 # =========================================================
 
 # Neural TTSを優先し、利用できない場合はWindows TTSへ自動フォールバック。
+# 声は環境変数で切り替え可能。起動時に現在の声を表示する。
 NEURAL_TTS_VOICE = os.environ.get("MEINA_NEURAL_VOICE", "ja-JP-NanamiNeural")
+MEINA_VOICE_PRESETS = {
+    "nanami": "ja-JP-NanamiNeural",
+    "nanami_neural": "ja-JP-NanamiNeural",
+    "nanami": "ja-JP-NanamiNeural",
+    "keita": "ja-JP-KeitaNeural",
+    "shiori": "ja-JP-ShioriNeural",
+}
+MEINA_VOICE_PRESET = os.environ.get("MEINA_VOICE_PRESET", "").strip().lower()
+if MEINA_VOICE_PRESET in MEINA_VOICE_PRESETS:
+    NEURAL_TTS_VOICE = MEINA_VOICE_PRESETS[MEINA_VOICE_PRESET]
+print("🔊 めいな Neural Voice:", NEURAL_TTS_VOICE)
 MEINA_TTS_RATE = int(os.environ.get("MEINA_TTS_RATE", "158"))
 MEINA_TTS_VOLUME = float(os.environ.get("MEINA_TTS_VOLUME", "1.0"))
 
@@ -245,6 +257,17 @@ def _prepare_tts_text(text):
     text = re.sub(r"https?://\S+", "リンク", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+def set_meina_voice(preset):
+    """Neural Voiceのプリセットを変更する。"""
+    global NEURAL_TTS_VOICE
+    key = str(preset or "").strip().lower()
+    if key not in MEINA_VOICE_PRESETS:
+        return False
+    NEURAL_TTS_VOICE = MEINA_VOICE_PRESETS[key]
+    print("🔊 めいなの声を変更:", NEURAL_TTS_VOICE)
+    return True
+
 
 def _speak_neural(text):
     """Neural TTSで音声を生成して再生する。"""
