@@ -32,6 +32,7 @@ def main() -> int:
         ("めーな、エーペクスを始める", "app_open", "Apex"),
         ("メイナー、最新のVALORANT情報を調べて", "web_search", "google"),
         ("メイナ、18時に起こして", "reminder", "local"),
+        ("メイナ、配信中の見どころを監視して", "twitch_live_highlight", "live"),
     )
 
     for raw_text, expected_kind, expected_target in cases:
