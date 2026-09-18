@@ -39,17 +39,18 @@ class MeinaApp:
         )
         self.chat.pack(fill="both", expand=True, padx=18, pady=8)
 
-        bottom = tk.Frame(root)
+        # 入力エリア
+        bottom = tk.Frame(root, height=58)
         bottom.pack(fill="x", padx=18, pady=(4, 18))
+        bottom.pack_propagate(False)
 
         self.entry = tk.Entry(
             bottom,
             font=("Yu Gothic UI", 13),
+            relief="solid",
+            bd=1,
         )
-        self.entry.pack(side="left", fill="x", expand=True, ipady=8)
-        self.entry.bind("<Return>", lambda event: self.send_text())
-        # 起動直後から文字入力できるよう、入力欄へフォーカスを設定
-        self.root.after(200, self._focus_entry)
+        self.entry.pack(side="left", fill="both", expand=True, ipady=8)
 
         self.send_button = tk.Button(
             bottom,
@@ -58,7 +59,7 @@ class MeinaApp:
             command=self.send_text,
             padx=16,
         )
-        self.send_button.pack(side="left", padx=(8, 4))
+        self.send_button.pack(side="left", fill="y", padx=(8, 4))
 
         self.mic_button = tk.Button(
             bottom,
@@ -67,7 +68,10 @@ class MeinaApp:
             command=self.start_voice,
             padx=12,
         )
-        self.mic_button.pack(side="left", padx=(4, 0))
+        self.mic_button.pack(side="left", fill="y", padx=(4, 0))
+
+        self.entry.bind("<Return>", lambda event: self.send_text())
+        self.root.after(300, self._focus_entry)
 
         self.add_message("めいな", "起動しています。少し待ってください。")
         threading.Thread(target=self._initialize, daemon=True).start()
