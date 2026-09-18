@@ -29,7 +29,25 @@ def main() -> int:
     )
     assert candidate["stream_time_start"] == 302.5
     assert candidate["stream_time_end"] == 308.0
+    assert candidate["stream_id"] == ""
     assert candidate["score"] == 88
+
+    with_stream = module.build_candidate(
+        chunk,
+        started,
+        1.0,
+        4.0,
+        "クラッチ！",
+        {
+            "score": 90,
+            "title": "クラッチ",
+            "reason": "高評価候補",
+            "source": "ollama",
+        },
+        "stream-123",
+    )
+    assert with_stream["stream_id"] == "stream-123"
+    assert with_stream["stream_time_start"] == 301.0
     assert candidate["source"] == "ollama"
 
     print("Twitch live highlight self-test: PASS")
