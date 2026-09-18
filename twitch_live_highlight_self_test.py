@@ -95,6 +95,18 @@ def main() -> int:
     assert "評価92" in formatted
     assert "クラッチ成功" in formatted
 
+
+    unique = module._deduplicate_candidates([
+        {"score": 80, "stream_time_start": 100.0},
+        {"score": 95, "stream_time_start": 108.0},
+        {"score": 85, "stream_time_start": 140.0},
+    ])
+    assert [item["stream_time_start"] for item in unique] == [108.0, 140.0]
+
+    fallback = module.format_shortlist(unique[:2])
+    assert "おすすめの見どころは2件です。" in fallback
+    assert "評価95" in fallback
+
     print("Twitch live highlight self-test: PASS")
     return 0
 
