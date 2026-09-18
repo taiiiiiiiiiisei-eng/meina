@@ -291,6 +291,51 @@ def append_candidate(candidate: dict[str, Any]) -> bool:
         handle.write(json.dumps(candidate, ensure_ascii=False) + "\n")
     return True
 
+def load_candidates(limit: int = 5, stream_id: str | None = None) -> list[dict[str, Any]]:
+    """保存済みの見どころ候補を新しい順に返す。"""
+    limit = max(1, min(20, int(limit)))
+    if not MARKERS_PATH.exists():
+        return []
+    candidates: list[dict[str, Any]] = []
+    try:
+        lines = MARKERS_PATH.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+
+    for line in reversed(lines):
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(item, dict):
+            continue
+        if stream_id and str(item.get("stream_id", "")) != str(stream_id):
+            continue
+        candidates.append(item)
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def format_candidates(candidates: list[dict[str, Any]], limit: int = 5) -> str:
+    """音声応答しやすい見どころ一覧に整形する。"""
+    items = candidates[: max(1, min(20, int(limit)))]
+    if not items:
+        return "保存されている見どころ候補はありません。"
+
+    lines = [f"見どころ候補は{len(items)}件あります。"]
+    for index, item in enumerate(items, 1):
+        score = int(item.get("score", 0))
+        start = float(item.get("stream_time_start", 0.0))
+        title = str(item.get("title") or "配信ハイライト候補").strip()
+        text_value = str(item.get("text") or "").strip().replace("\n", " ")
+        if len(text_value) > 45:
+            text_value = text_value[:45] + "…"
+        minutes = int(start // 60)
+        seconds = int(start % 60)
+        lines.append(f"{index}番、{minutes}分{seconds}秒、評価{score}、{title}。{text_value}")
+    return "\n".join(lines)
+
 def _get_live_stream(config: dict[str, Any], token: str, user_id: str) -> dict[str, Any] | None:
     import requests
 
