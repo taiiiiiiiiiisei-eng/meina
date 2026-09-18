@@ -816,7 +816,7 @@ def execute_routed_command(route):
     if route.get("kind") == "voice_change":
         if set_meina_voice(route.get("target")):
             labels = {"nanami": "ナナミ", "keita": "ケイタ", "shiori": "シオリ"}
-            message = f"{labels.get(route.get('target'), "この声")}に変更しました"
+            message = f"{labels.get(route.get('target'), 'この声')}に変更しました"
         else:
             message = "その声には変更できませんでした"
         speak(message)
