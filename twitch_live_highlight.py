@@ -14,7 +14,6 @@ from typing import Any
 
 import requests
 
-from twitch_clip_pipeline import get_user_id, load_config, twitch_app_token
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "twitch_live_highlights"
@@ -199,6 +198,8 @@ def _transcribe_chunk(audio_path: Path) -> list[dict[str, Any]]:
     ]
 
 def monitor_live_highlights() -> None:
+    from twitch_clip_pipeline import get_user_id, load_config, twitch_app_token
+
     config = load_config()
     channel_login = str(config["channel_login"]).strip()
     if not channel_login:
