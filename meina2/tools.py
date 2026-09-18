@@ -117,8 +117,8 @@ def get_weather(location=None, mode="today"):
         if mode == "current_temp":
             return f"現在の気温は{temp}℃です。体感温度は{feels}℃です。"
 
-        if mode == "rain":
-            rain_target = tomorrow if ("明日" in target or "あす" in target) and tomorrow else today
+        if mode in ("rain", "tomorrow_rain"):
+            rain_target = tomorrow if mode == "tomorrow_rain" and tomorrow else today
             hours = rain_target.get("hourly", [])
             probabilities = []
             for hour in hours:
@@ -138,7 +138,8 @@ def get_weather(location=None, mode="today"):
                 advice = "雨に備えて、傘があると安心です。"
             else:
                 advice = "雨の可能性は低めです。"
-            return headline + f"降水確率は最大{max_rain}%です。" + advice
+            day_label = "明日の" if mode == "tomorrow_rain" else ""
+            return headline + f"{day_label}降水確率は最大{max_rain}%です。" + advice
 
         if mode == "tomorrow" and tomorrow:
             condition = (
