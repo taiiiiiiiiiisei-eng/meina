@@ -13,7 +13,11 @@ APP_ALIASES = {
     "VALORANT": ("valorant", "valo", "バロ", "バロラント", "ヴァロ", "ヴァロラント"),
     "Apex": ("apex", "エーペックス", "エペ", "apexlegends"),
 }
-WEB_ALIASES = {\n    "google": ("google", "グーグル"),\n    "youtube": ("youtube", "ユーチューブ"),\n    "browser": ("ブラウザ", "ウェブブラウザ", "webブラウザ"),\n}
+WEB_ALIASES = {
+    "google": ("google", "グーグル"),
+    "youtube": ("youtube", "ユーチューブ"),
+    "browser": ("ブラウザ", "ウェブブラウザ", "webブラウザ"),
+}
 PC_STATUS_PHRASES = (
     "pcの状態", "pc状態", "パソコンの状態", "パソコン状態", "pcのスペック",
     "パソコンのスペック", "pc情報", "パソコン情報", "メモリ使用量", "メモリの状態",
