@@ -15,7 +15,7 @@ def main() -> int:
 
     parsed = meina_reminder_parser.parse_reminder_command("10分後に宿題をリマインドして", now)
     assert parsed is not None
-    assert parsed["text"] == "宿題を"
+    assert parsed["text"] == "宿題"
     assert parsed["due_at"].startswith("2026-09-12T10:10:00")
 
     parsed_clock = meina_reminder_parser.parse_reminder_command("18時に配信をリマインドして", now)
