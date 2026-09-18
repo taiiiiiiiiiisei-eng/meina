@@ -528,6 +528,7 @@ from meina_voice_intent import (
     is_invalid_command,
     normalize_text,
     remove_wake_word,
+    listen_command_with_retry,
 )
 
 
@@ -1448,8 +1449,10 @@ def handle_voice_input(text):
             "🎤 命令を待っています..."
         )
 
-        command = listen(
-            duration=5.0
+        command = listen_command_with_retry(
+            listen,
+            attempts=2,
+            duration=5.0,
         )
 
         if not command:
