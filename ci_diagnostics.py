@@ -33,6 +33,7 @@ COMMANDS = [
     ("Voice settings persistence self-test", [sys.executable, "meina_voice_settings_self_test.py"]),
     ("GUI static self-test", [sys.executable, "meina_app_self_test.py"]),
     ("Core smoke test", [sys.executable, "meina_smoke_test.py"]),
+    ("Voice command pipeline self-test", [sys.executable, "meina_voice_command_pipeline_self_test.py"]),
     ("Twitch static self-test", [sys.executable, "twitch_self_test.py"]),
     ("Twitch command test", [sys.executable, "twitch_command_test.py"]),
     ("Twitch voice self-test", [sys.executable, "twitch_voice_self_test.py"]),
