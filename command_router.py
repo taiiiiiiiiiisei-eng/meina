@@ -119,6 +119,18 @@ def route_command(text, frame):
     if text and any(p in compact for p in ("今後の予定", "予定表", "今週の予定", "これからの予定")):
         return {"kind": "reminder_upcoming", "target": "local", "query": None, "confidence": 1.0}
 
+    # ローカルサービス: PC状態・日時・Twitch
+    if text and any(p in compact for p in PC_STATUS_PHRASES):
+        return {"kind": "pc_status", "target": "pc", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in ("何日", "何月何日", "今日はいつ", "今日の日付", "日付を教えて")):
+        return {"kind": "date", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in ("今何時", "現在時刻", "今の時間", "時間を教えて", "何時ですか", "何時？", "何時?")):
+        return {"kind": "time", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in ("何曜日", "曜日を教えて", "今日は何曜")):
+        return {"kind": "weekday", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in ("切り抜き", "ハイライト")) and any(p in compact for p in ("配信", "twitch", "昨日", "今日", "最近")):
+        return {"kind": "twitch_clip", "target": "latest", "query": str(text).strip(), "confidence": 1.0}
+
     if not text or _confidence(frame) < MIN_CONFIDENCE: return None
     command = compact
     is_search = any(w in command for w in ("検索", "調べ", "探して", "探す"))
