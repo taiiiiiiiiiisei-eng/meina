@@ -75,6 +75,11 @@ def route_command(text, frame):
     command = compact
     is_search = any(w in command for w in ("検索", "調べ", "探して", "探す"))
     is_open = any(w in command for w in ("開く", "開いて", "起動", "立ち上げ"))
+    is_play = any(w in command for w in ("やる", "プレイ", "遊ぶ", "ゲームする", "始める"))
+    # 自然なゲーム起動: 「VALOやる」「エペをプレイ」「Apexを始める」など
+    game_target = _find_alias(command, APP_ALIASES)
+    if game_target in ("VALORANT", "Apex") and (is_open or is_play):
+        return {"kind": "app_open", "target": game_target, "query": None, "confidence": _confidence(frame)}
     if any(p in command for p in PC_STATUS_PHRASES):
         return {"kind": "pc_status", "target": "pc", "query": None, "confidence": _confidence(frame)}
     web_target = _find_alias(command, WEB_ALIASES)
