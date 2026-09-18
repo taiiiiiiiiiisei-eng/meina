@@ -67,6 +67,23 @@ def main():
         target="youtube",
     )
     assert_route(
+        "ブラウザを開いて",
+        "web_open",
+        target="browser",
+    )
+    assert_route(
+        "ブラウザでVALORANTを検索して",
+        "web_search",
+        target="browser",
+        query="valorant",
+    )
+    assert_route(
+        "Googleで最新のVALORANT情報をググって",
+        "web_search",
+        target="google",
+        query="最新のvalorant情報",
+    )
+    assert_route(
         "メモ帳を開いて",
         "app_open",
         target="notepad",
@@ -75,6 +92,16 @@ def main():
         "VALOやる",
         "app_open",
         target="VALORANT",
+    )
+    assert_route(
+        "Discordつけて",
+        "app_open",
+        target="Discord",
+    )
+    assert_route(
+        "Chrome立ち上げて",
+        "app_open",
+        target="Chrome",
     )
 
     assert_route("今何時？", "time", target="local")
