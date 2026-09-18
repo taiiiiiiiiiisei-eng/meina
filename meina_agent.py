@@ -741,7 +741,8 @@ def _execute_routed_command_base(route):
     try:
         if kind == "weather":
             result = tools.get_weather(
-                None if target == "current" else target
+                None if target == "current" else target,
+                mode=route.get("query") or "today",
             )
         elif kind == "app_open":
             app_functions = {
