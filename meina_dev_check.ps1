@@ -2,61 +2,74 @@ $ErrorActionPreference = "Continue"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
-$python = $null
-if ($env:MEINA_PYTHON -and (Test-Path $env:MEINA_PYTHON)) {
-  $python = $env:MEINA_PYTHON
-} elseif (Get-Command python -ErrorAction SilentlyContinue) {
-  $python = (Get-Command python).Source
-} else {
-  Write-Host "❌ Pythonが見つかりません。"
-  exit 1
+$python = $env:MEINA_PYTHON
+if (-not $python -or -not (Test-Path $python)) {
+    $cmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($cmd) { $python = $cmd.Source }
 }
+if (-not $python -or -not (Test-Path $python)) {
+    Write-Host "ERROR: Python was not found."
+    exit 1
+}
+
 $report = Join-Path $root "meina_error_report.txt"
 $lines = New-Object System.Collections.Generic.List[string]
-function Write-Report([string]$text) { $lines.Add($text); Write-Host $text }
-Write-Report "============================================================"
-Write-Report "🤖 めいな 開発チェック"
-Write-Report "============================================================"
-Write-Report ("日時: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
-Write-Report ("フォルダ: " + (Get-Location).Path)
-Write-Report ""
-Write-Report "【Git状態】"
-$gitStatus = git status --short 2>&1
-if ($LASTEXITCODE -eq 0) { if ($gitStatus) { $gitStatus | ForEach-Object { Write-Report ([string]$_) } } else { Write-Report "変更なし" } } else { Write-Report "Git状態を取得できませんでした。" }
-Write-Report ""
-Write-Report "【Python】"
-$pythonVersion = & $python --version 2>&1
-Write-Report ([string]$pythonVersion)
-Write-Report ""
-$files = @("meina_agent.py", "command_router.py", "meina2\tools.py", "meina_app.py")
-Write-Report "【構文チェック】"
+function Add-Report([string]$text) {
+    $lines.Add($text)
+    Write-Host $text
+}
+
+Add-Report "MEINA DEVELOPMENT CHECK"
+Add-Report "======================="
+Add-Report ("Time: " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss"))
+Add-Report ("Folder: " + (Get-Location).Path)
+Add-Report ("Python: " + $python)
+Add-Report ""
+
 $syntaxOk = $true
+$files = @("meina_agent.py", "command_router.py", "meina2\tools.py", "meina_app.py")
+Add-Report "[PYTHON SYNTAX]"
 foreach ($file in $files) {
-  if (-not (Test-Path $file)) { Write-Report "❌ $file が見つかりません"; $syntaxOk = $false; continue }
-  $out = & $python -m py_compile $file 2>&1
-  if ($LASTEXITCODE -eq 0) { Write-Report "✅ $file" } else { $syntaxOk = $false; Write-Report "❌ $file"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } }
+    if (-not (Test-Path $file)) {
+        Add-Report ("MISSING: " + $file)
+        $syntaxOk = $false
+        continue
+    }
+    $out = & $python -m py_compile $file 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Add-Report ("OK: " + $file)
+    } else {
+        $syntaxOk = $false
+        Add-Report ("FAIL: " + $file)
+        foreach ($item in $out) { Add-Report ("  " + [string]$item) }
+    }
 }
-Write-Report ""
-Write-Report "【ルーター確認】"
+
+Add-Report "[ROUTER]"
 $routerOk = $true
-$routerTests = @("今日の天気を教えて", "明日の天気を教えて", "今の気温は？", "今日雨降る？")
-foreach ($q in $routerTests) {
-  $env:MEINA_TEST_TEXT = $q
-  $code = 'import os, command_router; print(command_router.route_command(os.environ["MEINA_TEST_TEXT"], {"confidence": 1.0}))'
-  $out = & $python -c $code 2>&1
-  if ($LASTEXITCODE -eq 0) { Write-Report "✅ $q"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } } else { $routerOk = $false; Write-Report "❌ $q"; $out | ForEach-Object { Write-Report ("    " + [string]$_) } }
+$tests = @(
+    "import command_router; print(command_router.route_command("今日の天気を教えて", {"confidence": 1.0}))",
+    "import command_router; print(command_router.route_command("明日の天気を教えて", {"confidence": 1.0}))",
+    "import command_router; print(command_router.route_command("今の気温は？", {"confidence": 1.0}))",
+    "import command_router; print(command_router.route_command("今日雨降る？", {"confidence": 1.0}))"
+)
+foreach ($code in $tests) {
+    $out = & $python -c $code 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Add-Report "ROUTER OK"
+        foreach ($item in $out) { Add-Report ("  " + [string]$item) }
+    } else {
+        $routerOk = $false
+        Add-Report "ROUTER FAIL"
+        foreach ($item in $out) { Add-Report ("  " + [string]$item) }
+    }
 }
-Remove-Item Env:MEINA_TEST_TEXT -ErrorAction SilentlyContinue
-Write-Report ""
-Write-Report "【総合】"
-if ($syntaxOk) { Write-Report "✅ 構文エラーなし" } else { Write-Report "❌ 構文エラーあり" }
-if ($routerOk) { Write-Report "✅ ルーター確認OK" } else { Write-Report "❌ ルーター確認でエラー" }
-Write-Report ("使用Python: " + $python)
-Write-Report ""
-Write-Report "このファイルをChatGPTに送れば、エラー解析に使えます。"
-Write-Report "============================================================"
+
+Add-Report "[RESULT]"
+if ($syntaxOk) { Add-Report "Syntax PASS" } else { Add-Report "Syntax FAIL" }
+if ($routerOk) { Add-Report "Router PASS" } else { Add-Report "Router FAIL" }
 $lines | Set-Content -Path $report -Encoding UTF8
-Write-Host ""
-Write-Host "📄 レポート保存:"
-Write-Host $report
-if ($syntaxOk -and $routerOk) { exit 0 } else { exit 1 }
+Add-Report ("Report: " + $report)
+
+if ($syntaxOk -and $routerOk) { exit 0 }
+exit 1
