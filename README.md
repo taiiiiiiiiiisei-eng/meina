@@ -23,6 +23,7 @@
 - `twitch_clip_pipeline.py` — Twitch VOD取得・音声抽出・Whisper文字起こし・FFmpeg切り抜き
 - `twitch_ai_clipper.py` — Whisper候補をOllamaで評価して自動切り抜き
 - `twitch_video_editor.py` — 字幕・映像効果・動画編集
+- `twitch_publish_metadata.py` — 切り抜き投稿用のAIタイトル・説明・キャプション・ハッシュタグ生成
 - `meina_twitch.py` / `meina_twitch_voice.py` — めいなからTwitch切り抜きを呼び出す処理
 - `twitch_auto_clip.py` — 新しいVODを定期監視して自動切り抜き
 
@@ -91,7 +92,8 @@ GUIアプリとして使う場合は `start_meina_app.bat` を実行してくだ
 5. 候補場面を抽出
 6. Ollamaの `meina` が面白さ・驚き・上手さなどを評価
 7. FFmpegでMP4切り抜きを作成
-8. `clips/` に保存し、選定理由をJSONへ保存
+8. ローカルAIで投稿用タイトル・説明・キャプション・ハッシュタグを生成
+9. `clips/` に保存し、選定理由と投稿用メタデータをJSONへ保存
 
 Twitchの設定は `twitch_config.example.json` を `twitch_config.json` にコピーして、自分のチャンネルログイン名・Developer ApplicationのClient ID・Client Secretを設定してください。
 
