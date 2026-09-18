@@ -196,6 +196,7 @@ if MEINA_VOICE_PRESET in MEINA_VOICE_PRESETS:
 print("🔊 めいな Neural Voice:", NEURAL_TTS_VOICE)
 MEINA_TTS_RATE = int(os.environ.get("MEINA_TTS_RATE", "158"))
 MEINA_TTS_VOLUME = float(os.environ.get("MEINA_TTS_VOLUME", "1.0"))
+MEINA_NEURAL_RATE = os.environ.get("MEINA_NEURAL_RATE", "-8%")
 MEINA_VOICE_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "meina_voice_settings.json")
 
 def load_meina_voice_settings():
@@ -232,8 +233,6 @@ def save_meina_voice_settings():
         print("⚠️ 音声設定の保存をスキップ:", e)
 
 
-MEINA_NEURAL_RATE = os.environ.get("MEINA_NEURAL_RATE", "-8%")
-
 try:
     import edge_tts
     import pygame
@@ -248,6 +247,7 @@ engine = pyttsx3.init()
 engine.setProperty("rate", MEINA_TTS_RATE)
 engine.setProperty("volume", max(0.0, min(1.0, MEINA_TTS_VOLUME)))
 load_meina_voice_settings()
+engine.setProperty("rate", MEINA_TTS_RATE)
 engine.setProperty("volume", MEINA_TTS_VOLUME)
 
 MEINA_VOICE = os.environ.get("MEINA_VOICE", "Ayumi").strip().lower()
