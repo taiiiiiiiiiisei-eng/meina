@@ -31,7 +31,7 @@ def main():
     assert_weather("明日の天気を教えて", "tomorrow")
     assert_weather("今の気温は？", "current_temp")
     assert_weather("今日雨降る？", "rain")
-    assert_weather("明日の雨降る？", "rain")
+    assert_weather("明日の雨降る？", "tomorrow_rain")
 
     location_route = command_router.route_command(
         "東京の明日の天気を教えて",
@@ -109,7 +109,8 @@ def main():
     assert_route("今日は何曜日？", "weekday", target="local")
     assert_route("PCの状態を教えて", "pc_status", target="pc")
     assert_route("今日の配信の切り抜きを作って", "twitch_clip", target="latest")
-    assert_route("明日雨降る？", "weather", target="current", query="rain")
+    assert_route("明日雨降る？", "weather", target="current", query="tomorrow_rain")
+    assert_route("東京の明日雨降る？", "weather", target="東京", query="tomorrow_rain")
 
     assert command_router.route_command(
         "こんにちは、元気？",
