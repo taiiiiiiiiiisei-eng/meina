@@ -56,9 +56,13 @@ def main() -> int:
     assert_route("話す速度を速くして", "voice_rate", "fast")
 
     assert contains_wake_word("メイナー、メモ帳を開いて")
+    assert contains_wake_word("メイ ナ、メモ帳を開いて")
+    assert contains_wake_word("めーな、メモ帳を開いて")
     corrected = correct_recognition("メインなぁ、メモ帳を開いて")
     assert corrected == "メイナ、メモ帳を開いて", corrected
     assert remove_wake_word(corrected) == "メモ帳を開いて"
+    assert remove_wake_word("メイ ナ、メモ帳を開いて") == "メモ帳を開いて"
+    assert remove_wake_word("めーな、メモ帳を開いて") == "メモ帳を開いて"
     assert is_invalid_command("ー")
     assert not is_invalid_command("メモ帳")
 
