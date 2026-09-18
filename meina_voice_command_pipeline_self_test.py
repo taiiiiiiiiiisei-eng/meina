@@ -34,6 +34,7 @@ def main() -> int:
         ("メイナ、18時に起こして", "reminder", "local"),
         ("メイナ、配信中の見どころを監視して", "twitch_live_highlight", "live"),
         ("メイナ、配信中の見どころ監視を停止して", "twitch_live_highlight_stop", "live"),
+        ("メイナ、最新の見どころを教えて", "twitch_live_highlight_list", "live"),
     )
 
     for raw_text, expected_kind, expected_target in cases:
