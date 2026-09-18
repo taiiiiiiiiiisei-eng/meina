@@ -42,9 +42,9 @@ def main() -> int:
     rows.append("# Meina CI Diagnostic Report")
     rows.append("")
     rows.append(f"- Time (UTC): {dt.datetime.now(dt.timezone.utc).isoformat()}")
-    rows.append(f"- Commit: {os.environ.get("GITHUB_SHA", "local")}")
-    rows.append(f"- Workflow: {os.environ.get("GITHUB_WORKFLOW", "local")}")
-    rows.append(f"- Job status: {os.environ.get("JOB_STATUS", "unknown")}")
+    rows.append(f"- Commit: {os.environ.get('GITHUB_SHA', 'local')}")
+    rows.append(f"- Workflow: {os.environ.get('GITHUB_WORKFLOW', 'local')}")
+    rows.append(f"- Job status: {os.environ.get('JOB_STATUS', 'unknown')}")
     rows.append("")
 
     overall_ok = True
