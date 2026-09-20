@@ -44,16 +44,22 @@ def add_cuda_dll_dirs() -> list[str]:
     return loaded_dirs
 
 
-def run_upgrade(script_name: str) -> None:
+def run_upgrade(script_name: str) -> int:
     script = os.path.join(ROOT, script_name)
-    if os.path.isfile(script):
-        subprocess.run([sys.executable, script], check=False)
+    if not os.path.isfile(script):
+        print(f"⚠️ 起動チェック対象が見つかりません: {script_name}")
+        return 0
+    result = subprocess.run([sys.executable, script], check=False)
+    return result.returncode
 
 
 if __name__ == "__main__":
     add_cuda_dll_dirs()
-    # 既存のリマインダー監視を先に適用し、その後秘書コマンドを順番に適用する。
-    run_upgrade("upgrade_meina_reminder_worker.py")
-    run_upgrade("upgrade_meina_reminders_v3.py")
-    run_upgrade("upgrade_meina_reminders_v7.py")
+
+    # リマインダー秘書の最終版は「検査のみ」。
+    # 旧アップグレーダーで execute_routed_command を再置換しない。
+    if run_upgrade("upgrade_meina_reminder_secretary_final.py") != 0:
+        print("❌ リマインダー秘書の安全チェックに失敗したため起動を停止します。")
+        raise SystemExit(1)
+
     runpy.run_path(os.path.join(ROOT, "meina_agent.py"), run_name="__main__")
