@@ -52,7 +52,8 @@ def run_upgrade(script_name: str) -> None:
 
 if __name__ == "__main__":
     add_cuda_dll_dirs()
-    # 既存のリマインダー監視を先に適用し、その後V3の秘書コマンドを適用する。
+    # 既存のリマインダー監視を先に適用し、その後秘書コマンドを順番に適用する。
     run_upgrade("upgrade_meina_reminder_worker.py")
     run_upgrade("upgrade_meina_reminders_v3.py")
+    run_upgrade("upgrade_meina_reminders_v7.py")
     runpy.run_path(os.path.join(ROOT, "meina_agent.py"), run_name="__main__")
