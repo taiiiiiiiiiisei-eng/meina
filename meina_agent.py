@@ -548,7 +548,12 @@ def _format_reminders(items):
     for item in items:
         due = format_reminder_due(item.get("due_at", ""))
         repeat = format_reminder_repeat(item)
-        status = "完了" if item.get("done") else "未完了"
+        if item.get("done"):
+            status = "完了"
+        elif item.get("paused"):
+            status = "一時停止中"
+        else:
+            status = "未完了"
         repeat_text = f"、{repeat}" if repeat else ""
         lines.append(
             f"・{item.get('text', '')}、{due}{repeat_text}、{status}"
@@ -663,6 +668,80 @@ def _execute_routed_command_base(route):
             from meina_reminders import list_reminders
             items = list_reminders()
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
+        elif kind in ("reminder_pause", "reminder_resume"):
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                pause_reminder,
+                resume_reminder,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = (
+                    "一時停止する予定名を指定してください。"
+                    if kind == "reminder_pause"
+                    else "再開する予定名を指定してください。"
+                )
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    action_text = "一時停止" if kind == "reminder_pause" else "再開"
+                    result = (
+                        f"指定した日時の{action_text}対象が見つかりませんでした。"
+                        if has_due_filter
+                        else f"{action_text}する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    if kind == "reminder_pause":
+                        if item.get("paused"):
+                            result = f"「{item['text']}」はすでに一時停止中です。"
+                        else:
+                            changed = pause_reminder(item["id"])
+                            result = (
+                                f"「{changed['text']}」の通知を一時停止しました。"
+                                if changed
+                                else f"「{query_text}」を一時停止できませんでした。"
+                            )
+                    else:
+                        if not item.get("paused"):
+                            result = f"「{item['text']}」は一時停止されていません。"
+                        else:
+                            changed = resume_reminder(item["id"])
+                            result = (
+                                f"「{changed['text']}」の通知を再開しました。"
+                                f"次回は{format_reminder_due(changed['due_at'])}です。"
+                                if changed
+                                else f"「{query_text}」を再開できませんでした。"
+                            )
         elif kind == "reminder_repeat_set":
             from meina_reminders import (
                 filter_reminders_by_due,
