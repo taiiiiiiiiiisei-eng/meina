@@ -550,6 +550,23 @@ def main() -> int:
     assert next_route["confidence"] == 1.0
     assert next_route["query"] is None
 
+    soon_route = route_command(
+        "30分以内の予定ある？",
+        {"confidence": 0.10},
+    )
+    assert soon_route is not None
+    assert soon_route["kind"] == "reminder_soon"
+    assert soon_route["confidence"] == 1.0
+    assert soon_route["query"] == 30
+
+    soon_default_route = route_command(
+        "もうすぐの予定は？",
+        {"confidence": 0.10},
+    )
+    assert soon_default_route is not None
+    assert soon_default_route["kind"] == "reminder_soon"
+    assert soon_default_route["query"] == 30
+
     reschedule_route = route_command(
         "宿題の予定を明日20時に変更して",
         {"confidence": 0.10},
@@ -1091,6 +1108,35 @@ def main() -> int:
             )
             assert next_including_paused is not None
             assert next_including_paused["id"] == paused_next["id"]
+
+            soon_15 = meina_reminders.add_reminder(
+                "15分後",
+                "2040-01-03T09:15:00+09:00",
+            )
+            soon_45 = meina_reminders.add_reminder(
+                "45分後",
+                "2040-01-03T09:45:00+09:00",
+            )
+            paused_10 = meina_reminders.add_reminder(
+                "停止中10分後",
+                "2040-01-03T09:10:00+09:00",
+            )
+            assert meina_reminders.pause_reminder(paused_10["id"]) is not None
+
+            within_30 = meina_reminders.reminders_within(
+                30,
+                datetime.fromisoformat("2040-01-03T09:00:00+09:00"),
+            )
+            assert [item["id"] for item in within_30] == [soon_15["id"]]
+
+            within_60 = meina_reminders.reminders_within(
+                60,
+                datetime.fromisoformat("2040-01-03T09:00:00+09:00"),
+            )
+            assert [item["id"] for item in within_60] == [
+                soon_15["id"],
+                soon_45["id"],
+            ]
     finally:
         meina_reminders.REMINDER_PATH = original
 
