@@ -22,6 +22,8 @@ REQUIRED_KINDS = (
     "reminder_today",
     "reminder_tomorrow",
     "reminder_upcoming",
+    "reminder_brief",
+    "reminder_next",
     "reminder_list",
     "reminder_pause",
     "reminder_resume",
@@ -98,6 +100,12 @@ def main() -> int:
         return 1
     if "_SPEAK_LOCK" not in agent_text or "with _SPEAK_LOCK:" not in agent_text:
         print("FAILED: TTSのスレッド競合防止ロックがありません")
+        return 1
+    if "find_duplicate_reminder" not in agent_text:
+        print("FAILED: 音声経由の重複予定防止がありません")
+        return 1
+    if "next_reminder" not in agent_text:
+        print("FAILED: 次の予定案内がありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
