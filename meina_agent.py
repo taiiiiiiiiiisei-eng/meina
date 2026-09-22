@@ -542,12 +542,17 @@ from meina_voice_intent import (
 def _format_reminders(items):
     if not items:
         return "予定はありません。"
-    from meina_reminders import format_reminder_due, format_reminder_repeat
+    from meina_reminders import (
+        format_reminder_due,
+        format_reminder_duration,
+        format_reminder_repeat,
+    )
 
     lines = []
     for item in items:
         due = format_reminder_due(item.get("due_at", ""))
         repeat = format_reminder_repeat(item)
+        duration = format_reminder_duration(item)
         if item.get("done"):
             status = "完了"
         elif item.get("paused"):
@@ -555,13 +560,14 @@ def _format_reminders(items):
         else:
             status = "未完了"
         repeat_text = f"、{repeat}" if repeat else ""
+        duration_text = f"、所要{duration}" if duration else ""
         try:
             pre_minutes = int(item.get("notify_before_minutes") or 0)
         except (TypeError, ValueError):
             pre_minutes = 0
         pre_text = f"、{pre_minutes}分前通知" if pre_minutes > 0 else ""
         lines.append(
-            f"・{item.get('text', '')}、{due}{repeat_text}{pre_text}、{status}"
+            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{pre_text}、{status}"
         )
     return "\n".join(lines)
 
@@ -636,6 +642,7 @@ def _execute_routed_command_base(route):
                 add_reminder,
                 find_duplicate_reminder,
                 format_reminder_due,
+                format_reminder_duration,
                 format_reminder_repeat,
             )
             parsed = parse_reminder_command(query or "")
@@ -651,13 +658,17 @@ def _execute_routed_command_base(route):
                     parsed["due_at"],
                     repeat_rule=parsed.get("repeat_rule"),
                     repeat_day=parsed.get("repeat_day"),
+                    duration_minutes=parsed.get("duration_minutes"),
                 )
                 if duplicate:
                     repeat = format_reminder_repeat(duplicate)
+                    duration = format_reminder_duration(duplicate)
                     repeat_text = f"、{repeat}" if repeat else ""
+                    duration_text = f"、所要{duration}" if duration else ""
                     result = (
                         f"同じ予定がすでにあります。「{duplicate['text']}」は"
-                        f"{format_reminder_due(duplicate['due_at'])}{repeat_text}です。"
+                        f"{format_reminder_due(duplicate['due_at'])}"
+                        f"{duration_text}{repeat_text}です。"
                     )
                 else:
                     item = add_reminder(
@@ -665,13 +676,93 @@ def _execute_routed_command_base(route):
                         parsed["due_at"],
                         repeat_rule=parsed.get("repeat_rule"),
                         repeat_day=parsed.get("repeat_day"),
+                        duration_minutes=parsed.get("duration_minutes"),
                     )
                     repeat = format_reminder_repeat(item)
+                    duration = format_reminder_duration(item)
                     repeat_text = f"、{repeat}" if repeat else ""
+                    duration_text = f"、所要{duration}" if duration else ""
                     result = (
                         f"予定を追加しました。「{item['text']}」は"
-                        f"{format_reminder_due(item['due_at'])}{repeat_text}です。"
+                        f"{format_reminder_due(item['due_at'])}"
+                        f"{duration_text}{repeat_text}です。"
                     )
+        elif kind == "reminder_conflicts":
+            from meina_reminders import (
+                find_schedule_conflicts,
+                format_reminder_due,
+                format_reminder_duration,
+            )
+
+            try:
+                days = max(1, min(int(query or 7), 31))
+            except (TypeError, ValueError):
+                days = 7
+            conflicts = find_schedule_conflicts(days=days)
+            if not conflicts:
+                result = f"今後{days}日以内に重なっている予定はありません。"
+            else:
+                lines = []
+                for first, second in conflicts[:5]:
+                    first_duration = format_reminder_duration(first) or "時刻のみ"
+                    second_duration = format_reminder_duration(second) or "時刻のみ"
+                    lines.append(
+                        f"・「{first['text']}」"
+                        f"（{format_reminder_due(first['due_at'])}、{first_duration}）と"
+                        f"「{second['text']}」"
+                        f"（{format_reminder_due(second['due_at'])}、{second_duration}）"
+                    )
+                result = (
+                    f"重なっている予定が{len(conflicts)}組あります。\n"
+                    + "\n".join(lines)
+                )
+        elif kind == "reminder_free_time":
+            from datetime import datetime, timedelta
+            from meina_reminders import find_free_time_slots
+
+            request = query if isinstance(query, dict) else {}
+            current = datetime.now().astimezone()
+            day_offset = 1 if request.get("day") == "明日" else 0
+            target_date = (current + timedelta(days=day_offset)).date()
+            try:
+                start_at = current.replace(
+                    year=target_date.year,
+                    month=target_date.month,
+                    day=target_date.day,
+                    hour=int(request.get("start_hour", 0)),
+                    minute=int(request.get("start_minute", 0)),
+                    second=0,
+                    microsecond=0,
+                )
+                end_at = current.replace(
+                    year=target_date.year,
+                    month=target_date.month,
+                    day=target_date.day,
+                    hour=int(request.get("end_hour", 0)),
+                    minute=int(request.get("end_minute", 0)),
+                    second=0,
+                    microsecond=0,
+                )
+            except (TypeError, ValueError):
+                result = "空き時間の範囲を読み取れませんでした。"
+            else:
+                slots = find_free_time_slots(start_at, end_at, minimum_minutes=15)
+
+                def _clock_text(value):
+                    return (
+                        f"{value.hour}時{value.minute}分"
+                        if value.minute
+                        else f"{value.hour}時"
+                    )
+
+                if not slots:
+                    result = "指定した時間帯に15分以上の空き時間はありません。"
+                else:
+                    slot_text = "、".join(
+                        f"{_clock_text(start)}から{_clock_text(end)}"
+                        for start, end in slots
+                    )
+                    result = f"空き時間は、{slot_text}です。"
         elif kind == "reminder_brief":
             from meina_reminders import (
                 format_reminder_due,
