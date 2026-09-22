@@ -1,6 +1,7 @@
 """めいなのローカル・リマインダー管理。外部サービスを使わずJSONへ保存する。"""
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from datetime import datetime, timedelta
@@ -55,7 +56,7 @@ def format_reminder_due(due_at: str, now: datetime | None = None) -> str:
 
 
 _WEEKDAYS_JA = ("月", "火", "水", "木", "金", "土", "日")
-_VALID_REPEAT_RULES = {None, "daily", "weekly"}
+_VALID_REPEAT_RULES = {None, "daily", "weekdays", "weekly", "monthly"}
 
 
 def format_reminder_repeat(item: dict[str, Any]) -> str:
@@ -63,12 +64,25 @@ def format_reminder_repeat(item: dict[str, Any]) -> str:
     rule = item.get("repeat_rule")
     if rule == "daily":
         return "毎日"
+    if rule == "weekdays":
+        return "平日"
     if rule == "weekly":
         try:
             due = datetime.fromisoformat(str(item.get("due_at", "")))
             return f"毎週{_WEEKDAYS_JA[due.weekday()]}曜"
         except (TypeError, ValueError):
             return "毎週"
+    if rule == "monthly":
+        try:
+            day = int(item.get("repeat_day") or 0)
+        except (TypeError, ValueError):
+            day = 0
+        if not 1 <= day <= 31:
+            try:
+                day = datetime.fromisoformat(str(item.get("due_at", ""))).day
+            except (TypeError, ValueError):
+                return "毎月"
+        return f"毎月{day}日"
     return ""
 
 
@@ -83,9 +97,15 @@ def add_reminder(
     text: str,
     due_at: str,
     repeat_rule: str | None = None,
+    repeat_day: int | None = None,
 ) -> dict[str, Any]:
     due = datetime.fromisoformat(due_at)
     repeat = _normalize_repeat_rule(repeat_rule)
+    monthly_day = None
+    if repeat == "monthly":
+        monthly_day = int(repeat_day or due.day)
+        if not 1 <= monthly_day <= 31:
+            raise ValueError("repeat_day must be between 1 and 31")
     item = {
         "id": f"r-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         "text": str(text).strip(),
@@ -94,6 +114,8 @@ def add_reminder(
     }
     if repeat:
         item["repeat_rule"] = repeat
+    if monthly_day is not None:
+        item["repeat_day"] = monthly_day
     items = _load()
     items.append(item)
     _save(items)
@@ -233,6 +255,8 @@ def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
         if item.get("id") != reminder_id or item.get("done"):
             continue
         item["due_at"] = due.isoformat(timespec="seconds")
+        if item.get("repeat_rule") == "monthly":
+            item["repeat_day"] = due.day
         _save(items)
         return item
     return None
@@ -267,7 +291,7 @@ def advance_recurring_reminder(
             continue
 
         rule = item.get("repeat_rule")
-        if rule not in ("daily", "weekly"):
+        if rule not in ("daily", "weekdays", "weekly", "monthly"):
             return None
 
         try:
@@ -280,10 +304,41 @@ def advance_recurring_reminder(
         elif due.tzinfo is not None and current.tzinfo is not None:
             due = due.astimezone(current.tzinfo)
 
-        step = timedelta(days=1 if rule == "daily" else 7)
-        due += step
-        while due <= current:
-            due += step
+        if rule == "daily":
+            due += timedelta(days=1)
+            while due <= current:
+                due += timedelta(days=1)
+        elif rule == "weekdays":
+            due += timedelta(days=1)
+            while due.weekday() >= 5:
+                due += timedelta(days=1)
+            while due <= current:
+                due += timedelta(days=1)
+                while due.weekday() >= 5:
+                    due += timedelta(days=1)
+        elif rule == "weekly":
+            due += timedelta(days=7)
+            while due <= current:
+                due += timedelta(days=7)
+        else:
+            try:
+                repeat_day = int(item.get("repeat_day") or due.day)
+            except (TypeError, ValueError):
+                return None
+            if not 1 <= repeat_day <= 31:
+                return None
+
+            while True:
+                year = due.year + (1 if due.month == 12 else 0)
+                month = 1 if due.month == 12 else due.month + 1
+                last_day = calendar.monthrange(year, month)[1]
+                due = due.replace(
+                    year=year,
+                    month=month,
+                    day=min(repeat_day, last_day),
+                )
+                if due > current:
+                    break
 
         item["due_at"] = due.isoformat(timespec="seconds")
         item["done"] = False
@@ -301,7 +356,7 @@ def complete_reminder(
     for item in items:
         if item.get("id") != reminder_id:
             continue
-        if item.get("repeat_rule") in ("daily", "weekly") and not item.get("done"):
+        if item.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly") and not item.get("done"):
             return (
                 advance_recurring_reminder(reminder_id, now=now) is not None
             )
