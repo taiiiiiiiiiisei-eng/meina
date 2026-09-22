@@ -152,7 +152,7 @@ def parse_reminder_reschedule_command(
         ),
         (
             # 「予定の宿題を明日20時に変更して」
-            rf"^{_ACTION_NOUN}(?:の|から)(?P<target>.+?)(?:を|は)?"
+            rf"^{_ACTION_NOUN}(?:の|から)(?P<target>.+?)(?:を|は)"
             rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
             True,
         ),
