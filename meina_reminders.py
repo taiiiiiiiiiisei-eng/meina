@@ -124,6 +124,23 @@ def due_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     return result
 
 
+def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
+    """IDが一致する未完了リマインダーの日時だけを更新する。"""
+    try:
+        due = datetime.fromisoformat(str(due_at))
+    except (TypeError, ValueError):
+        return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item["due_at"] = due.isoformat(timespec="seconds")
+        _save(items)
+        return item
+    return None
+
+
 def complete_reminder(reminder_id: str) -> bool:
     items = _load()
     changed = False
