@@ -335,6 +335,96 @@ def parse_reminder_repeat_change_command(
 
 
 
+
+_PRE_NOTIFY_CLEAR_ACTION = (
+    r"(?:解除(?:して|してください)?|"
+    r"なし(?:にして|にしてください)?|"
+    r"オフ(?:にして|にしてください)?|"
+    r"停止(?:して|してください)?)"
+)
+
+
+def parse_reminder_pre_notify_set_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定ごとの「10分前通知」設定命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    patterns = (
+        (
+            rf"^(?P<target>.+?)(?:の)?(?:{_ACTION_NOUN}(?:の)?)?"
+            rf"(?:事前通知|事前のお知らせ|前通知)(?:を|は)?"
+            rf"(?P<minutes>\d{{1,4}})分前(?:に)?"
+            rf"(?:設定して|設定してください|して|してください)$"
+        ),
+        (
+            rf"^(?P<target>.+?)(?:の)?(?:{_ACTION_NOUN})?(?:を|は)?"
+            rf"(?P<minutes>\d{{1,4}})分前(?:にも|に)?"
+            rf"(?:通知して|通知してください|知らせて|知らせてください)$"
+        ),
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+
+        minutes = int(match.group("minutes"))
+        if not 1 <= minutes <= 1440:
+            return None
+
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "notify_before_minutes": minutes,
+        }
+    return None
+
+
+def parse_reminder_pre_notify_clear_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定ごとの事前通知解除命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    patterns = (
+        (
+            rf"^(?P<target>.+?)(?:の)?(?:{_ACTION_NOUN}(?:の)?)?"
+            rf"(?:事前通知|事前のお知らせ|前通知)(?:を|は)?"
+            rf"{_PRE_NOTIFY_CLEAR_ACTION}$"
+        ),
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+        }
+    return None
+
+
 _PAUSE_ACTION = r"(?:一時停止(?:して|してください)?|保留(?:して|してください)?)"
 _RESUME_ACTION = r"(?:再開(?:して|してください)?|再開して|戻して|戻してください)"
 
