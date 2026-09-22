@@ -383,6 +383,58 @@ def main() -> int:
         is None
     )
 
+    snooze_cases = (
+        (
+            "宿題を10分後に回して",
+            "宿題",
+            10,
+            None,
+        ),
+        (
+            "18時の宿題を15分延長して",
+            "宿題",
+            15,
+            18,
+        ),
+        (
+            "宿題の予定を30分延期して",
+            "宿題",
+            30,
+            None,
+        ),
+    )
+    for command, target, delay, hour in snooze_cases:
+        parsed_snooze = meina_reminder_parser.parse_reminder_snooze_command(
+            command,
+            now,
+        )
+        assert parsed_snooze is not None, command
+        assert parsed_snooze["target"] == target, command
+        assert parsed_snooze["delay_minutes"] == delay, command
+        assert parsed_snooze["hour"] == hour, command
+
+    assert (
+        meina_reminder_parser.parse_reminder_snooze_command(
+            "宿題を0分後に回して",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_snooze_command(
+            "宿題を1441分後に回して",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_snooze_command(
+            "宿題を10分後に回していい？",
+            now,
+        )
+        is None
+    )
+
     pre_notify_cases = (
         (
             "薬を10分前にも知らせて",
@@ -632,6 +684,45 @@ def main() -> int:
     assert soon_default_route is not None
     assert soon_default_route["kind"] == "reminder_soon"
     assert soon_default_route["query"] == 30
+
+    week_route = route_command(
+        "今週の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert week_route is not None
+    assert week_route["kind"] == "reminder_week"
+
+    month_route = route_command(
+        "今月の予定",
+        {"confidence": 0.10},
+    )
+    assert month_route is not None
+    assert month_route["kind"] == "reminder_month"
+
+    overdue_route = route_command(
+        "期限切れの予定ある？",
+        {"confidence": 0.10},
+    )
+    assert overdue_route is not None
+    assert overdue_route["kind"] == "reminder_overdue"
+
+    snooze_route = route_command(
+        "宿題を10分後に回して",
+        {"confidence": 0.10},
+    )
+    assert snooze_route is not None
+    assert snooze_route["kind"] == "reminder_snooze"
+    assert snooze_route["query"]["target"] == "宿題"
+    assert snooze_route["query"]["delay_minutes"] == 10
+
+    snooze_at_time_route = route_command(
+        "18時の宿題を15分延長して",
+        {"confidence": 0.10},
+    )
+    assert snooze_at_time_route is not None
+    assert snooze_at_time_route["kind"] == "reminder_snooze"
+    assert snooze_at_time_route["query"]["target"] == "宿題"
+    assert snooze_at_time_route["query"]["hour"] == 18
 
     reschedule_route = route_command(
         "宿題の予定を明日20時に変更して",
@@ -1222,6 +1313,109 @@ def main() -> int:
                 soon_15["id"],
                 soon_45["id"],
             ]
+
+            calendar_now = datetime.fromisoformat(
+                "2030-01-02T12:00:00+09:00"
+            )
+            week_monday = meina_reminders.add_reminder(
+                "週の月曜",
+                "2029-12-31T09:00:00+09:00",
+            )
+            week_sunday = meina_reminders.add_reminder(
+                "週の日曜",
+                "2030-01-06T20:00:00+09:00",
+            )
+            next_monday = meina_reminders.add_reminder(
+                "次週の月曜",
+                "2030-01-07T09:00:00+09:00",
+            )
+            week_items = meina_reminders.week_reminders(calendar_now)
+            week_ids = {item["id"] for item in week_items}
+            assert week_monday["id"] in week_ids
+            assert week_sunday["id"] in week_ids
+            assert next_monday["id"] not in week_ids
+
+            january_item = meina_reminders.add_reminder(
+                "1月末",
+                "2030-01-31T23:00:00+09:00",
+            )
+            february_item = meina_reminders.add_reminder(
+                "2月初",
+                "2030-02-01T00:00:00+09:00",
+            )
+            month_items = meina_reminders.month_reminders(calendar_now)
+            month_ids = {item["id"] for item in month_items}
+            assert january_item["id"] in month_ids
+            assert february_item["id"] not in month_ids
+
+            overdue_active = meina_reminders.add_reminder(
+                "期限切れ有効",
+                "2029-12-30T10:00:00+09:00",
+            )
+            overdue_paused = meina_reminders.add_reminder(
+                "期限切れ停止",
+                "2029-12-30T11:00:00+09:00",
+            )
+            assert meina_reminders.pause_reminder(overdue_paused["id"])
+            overdue_items = meina_reminders.overdue_reminders(calendar_now)
+            overdue_ids = {item["id"] for item in overdue_items}
+            assert overdue_active["id"] in overdue_ids
+            assert overdue_paused["id"] not in overdue_ids
+            overdue_with_paused = meina_reminders.overdue_reminders(
+                calendar_now,
+                include_paused=True,
+            )
+            assert overdue_paused["id"] in {
+                item["id"] for item in overdue_with_paused
+            }
+
+            one_snooze = meina_reminders.add_reminder(
+                "単発スヌーズ",
+                "2041-01-01T10:00:00+09:00",
+            )
+            assert meina_reminders.set_reminder_pre_notify(one_snooze["id"], 10)
+            snoozed_one = meina_reminders.snooze_reminder(
+                one_snooze["id"],
+                15,
+                now=datetime.fromisoformat("2041-01-01T10:05:00+09:00"),
+            )
+            assert snoozed_one is not None
+            assert snoozed_one["due_at"] == "2041-01-01T10:20:00+09:00"
+            assert "pre_notified_due_at" not in snoozed_one
+
+            daily_snooze = meina_reminders.add_reminder(
+                "定期スヌーズ",
+                "2041-01-01T18:00:00+09:00",
+                repeat_rule="daily",
+            )
+            snoozed_daily = meina_reminders.snooze_reminder(
+                daily_snooze["id"],
+                20,
+                now=datetime.fromisoformat("2041-01-01T17:55:00+09:00"),
+            )
+            assert snoozed_daily is not None
+            assert snoozed_daily["due_at"] == "2041-01-01T18:15:00+09:00"
+            assert snoozed_daily["snooze_original_due_at"] == (
+                "2041-01-01T18:00:00+09:00"
+            )
+            assert meina_reminders.complete_reminder(
+                daily_snooze["id"],
+                now=datetime.fromisoformat("2041-01-01T18:16:00+09:00"),
+            )
+            daily_after_snooze = meina_reminders.find_reminders("定期スヌーズ")
+            assert len(daily_after_snooze) == 1
+            assert daily_after_snooze[0]["due_at"] == (
+                "2041-01-02T18:00:00+09:00"
+            )
+            assert "snooze_original_due_at" not in daily_after_snooze[0]
+            assert meina_reminders.snooze_reminder(
+                daily_snooze["id"],
+                0,
+            ) is None
+            assert meina_reminders.snooze_reminder(
+                daily_snooze["id"],
+                1441,
+            ) is None
 
             pre_item = meina_reminders.add_reminder(
                 "事前通知テスト",
