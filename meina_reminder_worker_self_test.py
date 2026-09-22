@@ -46,6 +46,12 @@ def main() -> int:
                 repeat_rule="monthly",
                 repeat_day=31,
             )
+            paused = meina_reminders.add_reminder(
+                "停止中の確認",
+                "2030-01-05T08:00:00+09:00",
+                repeat_rule="daily",
+            )
+            assert meina_reminders.pause_reminder(paused["id"]) is not None
 
             spoken: list[str] = []
             delivered = process_due_reminders(spoken.append, now=now)
@@ -56,6 +62,7 @@ def main() -> int:
             assert any("毎週の確認" in message for message in spoken)
             assert any("平日の確認" in message for message in spoken)
             assert any("月末の確認" in message for message in spoken)
+            assert not any("停止中の確認" in message for message in spoken)
 
             all_items = meina_reminders.list_reminders(include_done=True)
             by_id = {item["id"]: item for item in all_items}
@@ -73,6 +80,14 @@ def main() -> int:
             # 同じ現在時刻でもう一度処理しても二重通知しない。
             assert process_due_reminders(spoken.append, now=now) == 0
             assert len(spoken) == 5
+
+            resumed = meina_reminders.resume_reminder(
+                paused["id"],
+                now=now,
+            )
+            assert resumed is not None
+            assert resumed["due_at"] == "2030-01-06T08:00:00+09:00"
+            assert process_due_reminders(spoken.append, now=now) == 0
 
             assert is_reminder_worker_running() is False
             assert start_reminder_worker(spoken.append, interval_seconds=60.0) is True
