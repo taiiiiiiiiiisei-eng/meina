@@ -7,23 +7,23 @@ from datetime import datetime, timedelta
 
 _RELATIVE = re.compile(r"(?:あと\s*)?(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*(?:後|で)")
 _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
+_DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")
+_CALENDAR_DATE = re.compile(r"(?:(?P<year>\d{4})\s*年\s*)?(?P<month>\d{1,2})\s*月\s*(?P<day>\d{1,2})\s*日")
 _COMMAND_WORDS = re.compile(
     r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて|追加|登録|設定)"
-    r"(?:を)?(?:追加|登録|設定|リマインド)?"
-    r"(?:して|してね|してください|して下さい|お願い|お願いします)?"
 )
-_DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")\n_CALENDAR_DATE = re.compile(r"(?:(?P<year>\\d{4})\\s*年\\s*)?(?P<month>\\d{1,2})\\s*月\\s*(?P<day>\\d{1,2})\\s*日")
-_TRAILING_COMMAND = re.compile(
+_TRAILING = re.compile(
     r"(?:を)?(?:追加|登録|設定|リマインド|リマインダー)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?$"
 )
 
 
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
-    """相対時間または今日/明日/明後日の時刻から予定・リマインダーを解析する。"""
+    """相対時間・曜日語・年月日指定から予定/リマインダーを解析する。"""
     raw = str(text or "").strip()
     if not raw:
         return None
+
     direct_notice = bool(re.search(r"(?:起こして|知らせて|思い出させて|教えて)", raw))
     has_schedule_intent = bool(
         re.search(r"(?:リマインド|リマインダー|予定|スケジュール|追加|登録|設定)", raw)
@@ -45,43 +45,95 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
             "日": timedelta(days=amount),
         }[unit]
         due = current + delta
-        text_part = _extract_text(raw, relative.span())
-        if text_part:
-            return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
-        direct_label = _default_direct_notice_text(raw)
-        if direct_label:
-            return {"text": direct_label, "due_at": due.isoformat(timespec="seconds")}
-        return None
+        text_part = _extract_text(raw, [relative.span()])
+        return _build_result(raw, text_part, due)
 
     clock = _CLOCK.search(raw)
     if not clock:
         return None
 
-    hour = int(clock.group("hour"))
-    minute = int(clock.group("minute") or 0)
-    ampm = clock.group("ampm")
+    parsed_clock = _parse_clock(clock)
+    if parsed_clock is None:
+        return None
+    hour, minute = parsed_clock
+
+    explicit_date = _CALENDAR_DATE.search(raw)
+    day_match = _DAY_WORDS.search(raw)
+
+    if explicit_date:
+        due = _make_explicit_date(current, explicit_date, hour, minute)
+        if due is None:
+            return None
+        spans = [explicit_date.span(), clock.span()]
+    else:
+        day_name = day_match.group("day") if day_match else "今日"
+        day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_name]
+        due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        due += timedelta(days=day_offset)
+        if day_offset == 0 and due <= current:
+            due += timedelta(days=1)
+        spans = [clock.span()]
+        if day_match:
+            spans.append(day_match.span())
+
+    text_part = _extract_text(raw, spans)
+    return _build_result(raw, text_part, due)
+
+
+def _parse_clock(match: re.Match[str]) -> tuple[int, int] | None:
+    hour = int(match.group("hour"))
+    minute = int(match.group("minute") or 0)
+    ampm = match.group("ampm")
+
     if ampm == "午前" and hour == 12:
         hour = 0
     elif ampm == "午後" and hour < 12:
         hour += 12
+
     if hour > 23 or minute > 59:
         return None
+    return hour, minute
 
-    day_match = _DAY_WORDS.search(raw)
-    day_name = day_match.group("day") if day_match else "今日"
-    day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_name]
 
-    due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    due += timedelta(days=day_offset)
-    if day_offset == 0 and due <= current:
-        due += timedelta(days=1)
+def _make_explicit_date(
+    current: datetime,
+    match: re.Match[str],
+    hour: int,
+    minute: int,
+) -> datetime | None:
+    year_text = match.group("year")
+    month = int(match.group("month"))
+    day = int(match.group("day"))
 
-    text_part = _extract_text(raw, clock.span())
+    year = int(year_text) if year_text else current.year
+    try:
+        due = current.replace(
+            year=year,
+            month=month,
+            day=day,
+            hour=hour,
+            minute=minute,
+            second=0,
+            microsecond=0,
+        )
+    except ValueError:
+        return None
+
+    # 年省略時、今年の日付がすでに過ぎていたら翌年に回す。
+    if not year_text and due <= current:
+        try:
+            due = due.replace(year=year + 1)
+        except ValueError:
+            return None
+    return due
+
+
+def _build_result(raw: str, text_part: str, due: datetime) -> dict | None:
     if text_part:
         return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
-    direct_label = _default_direct_notice_text(raw)
-    if direct_label:
-        return {"text": direct_label, "due_at": due.isoformat(timespec="seconds")}
+    fallback = _default_direct_notice_text(raw)
+    if fallback:
+        return {"text": fallback, "due_at": due.isoformat(timespec="seconds")}
     return None
 
 
@@ -98,17 +150,19 @@ def _default_direct_notice_text(raw: str) -> str | None:
     return None
 
 
-def _extract_text(raw: str, time_span: tuple[int, int]) -> str:
-    before = raw[: time_span[0]]
-    after = raw[time_span[1] :]
-    text = after or before
+def _extract_text(raw: str, spans: list[tuple[int, int]]) -> str:
+    chars = list(raw)
+    for start, end in sorted(spans, reverse=True):
+        chars[start:end] = [" "] * (end - start)
+    text = "".join(chars)
+
     text = _DAY_WORDS.sub("", text)
-    text = re.sub(r"^(?:に|へ|を|の|って)\s*", "", text)
+    text = _CALENDAR_DATE.sub("", text)
     text = _COMMAND_WORDS.sub("", text)
+    text = _TRAILING.sub("", text)
+
+    text = re.sub(r"^(?:に|へ|を|の|って)\s*", "", text)
+    text = re.sub(r"(?:に|へ|を|の|って)\s*$", "", text)
+    text = re.sub(r"\s+", " ", text)
     text = text.replace("予定", "")
-    text = _TRAILING_COMMAND.sub("", text)
-    text = re.sub(r"^[、。！？?\s]+", "", text)
-    text = re.sub(r"[、。！？?\s]+$", "", text)
     return text.strip(" 、。！？?")
-
-
