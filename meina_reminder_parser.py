@@ -183,6 +183,80 @@ def parse_reminder_reschedule_command(
     return None
 
 
+_RENAME_FINISH = (
+    r"(?:名前変更(?:して|してください)?|"
+    r"改名(?:して|してください)?|"
+    r"名前(?:を)?(?:変更(?:して|してください)?|変えて|変えてください))"
+)
+_PLAIN_RENAME_FINISH = (
+    r"(?:変更(?:して|してください)?|変えて|変えてください)"
+)
+
+
+def parse_reminder_rename_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定名変更命令から現在名と新しい名前を安全に取り出す。"""
+    del now  # 日時変更パーサーと同じ呼び出し形を保つ。
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    if not re.search(_ACTION_NOUN, compact):
+        return None
+    if not re.search(r"(?:名前変更|改名|名前(?:を)?(?:変更|変えて)|(?:予定|リマインダー|リマインド|スケジュール)名)", compact):
+        return None
+
+    patterns = (
+        # 「宿題の予定を数学の宿題に名前変更して」
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
+        rf"(?P<new_name>.+?)に{_RENAME_FINISH}$",
+        # 「リマインダーの配信を夜配信に改名して」
+        rf"^{_ACTION_NOUN}(?:の|から)(?P<target>.+?)(?:を|は)"
+        rf"(?P<new_name>.+?)に{_RENAME_FINISH}$",
+        # 「宿題の予定名を数学の宿題に変更して」
+        rf"^(?P<target>.+?)(?:の)?"
+        rf"(?:予定名|リマインダー名|リマインド名|スケジュール名|{_ACTION_NOUN}の名前)"
+        rf"(?:を|は)(?P<new_name>.+?)に{_PLAIN_RENAME_FINISH}$",
+    )
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        target = re.sub(
+            r"^(?:を|の|から|は|って)+|(?:を|の|は|って)+$",
+            "",
+            match.group("target"),
+        ).strip()
+        new_name = match.group("new_name").strip("をのは")
+        return {"target": target, "new_name": new_name}
+
+    # 名前か新名称のどちらかがない場合も、実行側で安全に聞き返せる形にする。
+    missing_target = re.fullmatch(
+        rf"^{_ACTION_NOUN}(?:を|は)?(?P<new_name>.+?)に{_RENAME_FINISH}$",
+        compact,
+    )
+    if missing_target:
+        return {
+            "target": "",
+            "new_name": missing_target.group("new_name").strip("をのは"),
+        }
+
+    missing_name = re.fullmatch(
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?{_RENAME_FINISH}$",
+        compact,
+    )
+    if missing_name:
+        return {
+            "target": missing_name.group("target").strip("をのは"),
+            "new_name": "",
+        }
+
+    return None
+
+
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
     """相対時間・曜日語・年月日指定から予定/リマインダーを解析する。"""
     raw = str(text or "").strip()
