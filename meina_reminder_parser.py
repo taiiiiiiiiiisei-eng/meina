@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 
 _RELATIVE = re.compile(r"(?:あと\s*)?(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*(?:後|で)")
 _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
+_DURATION_AFTER_CLOCK = re.compile(
+    r"から\s*(?P<num>\d{1,4})\s*(?P<unit>分|時間)"
+)
 _DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")
 _CALENDAR_DATE = re.compile(r"(?:(?P<year>\d{4})\s*年\s*)?(?P<month>\d{1,2})\s*月\s*(?P<day>\d{1,2})\s*日")
 _REPEAT_DAILY = re.compile(r"毎日")
@@ -602,6 +605,15 @@ def _parse_due_at_text(text: str, now: datetime | None = None) -> datetime | Non
         return None
     hour, minute = parsed_clock
 
+    duration_match = _DURATION_AFTER_CLOCK.search(raw, clock.end())
+    duration_minutes = None
+    if duration_match:
+        amount = int(duration_match.group("num"))
+        unit = duration_match.group("unit")
+        duration_minutes = amount * 60 if unit == "時間" else amount
+        if not 1 <= duration_minutes <= 1440:
+            return None
+
     explicit_date = _CALENDAR_DATE.search(raw)
     if explicit_date:
         return _make_explicit_date(current, explicit_date, hour, minute)
@@ -890,6 +902,8 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         if due is None:
             return None
         spans = [explicit_date.span(), clock.span()]
+        if duration_match:
+            spans.append(duration_match.span())
     else:
         day_name = day_match.group("day") if day_match else "今日"
         day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_name]
@@ -898,11 +912,16 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         if day_offset == 0 and due <= current:
             due += timedelta(days=1)
         spans = [clock.span()]
+        if duration_match:
+            spans.append(duration_match.span())
         if day_match:
             spans.append(day_match.span())
 
     text_part = _extract_text(raw, spans)
-    return _build_result(raw, text_part, due)
+    result = _build_result(raw, text_part, due)
+    if result is not None and duration_minutes is not None:
+        result["duration_minutes"] = duration_minutes
+    return result
 
 
 def _parse_clock(match: re.Match[str]) -> tuple[int, int] | None:
