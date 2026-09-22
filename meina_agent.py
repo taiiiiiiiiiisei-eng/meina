@@ -565,7 +565,10 @@ def _execute_routed_command_base(route):
                 "Google・YouTube検索、アプリ起動、配信準備、Twitch切り抜き、Twitch投稿準備、配信中の見どころ監視・見どころ一覧・AIおすすめ選定に対応しています。"
             )
         elif kind == "self_status":
+            from meina_reminder_worker import is_reminder_worker_running
+
             neural = "OK" if NEURAL_TTS_AVAILABLE else "OFF"
+            reminder_worker = "OK" if is_reminder_worker_running() else "WARN"
             cuda = "OK" if os.path.isdir(CUBLAS_BIN) and os.path.isdir(CUDNN_BIN) else "WARN"
             nvidia = "OK" if shutil.which("nvidia-smi") else "WARN"
             ollama_status = "WARN"
@@ -594,6 +597,7 @@ def _execute_routed_command_base(route):
                 f"CUDA DLLは{cuda}、"
                 f"NVIDIAドライバーは{nvidia}、"
                 f"Neural TTSは{neural}、"
+                f"リマインダー監視は{reminder_worker}、"
                 f"Windows TTSは{'OK' if engine else 'NG'}です。"
             )
         elif kind == "weather":
@@ -1892,6 +1896,9 @@ def main():
                 "🛑 めいなを終了します"
             )
 
+            from meina_reminder_worker import stop_reminder_worker
+            stop_reminder_worker()
+
             speak(
                 "またね！"
             )
@@ -1904,6 +1911,9 @@ def main():
             print(
                 "🛑 めいなを終了します"
             )
+
+            from meina_reminder_worker import stop_reminder_worker
+            stop_reminder_worker()
 
             break
 
