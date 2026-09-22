@@ -555,8 +555,13 @@ def _format_reminders(items):
         else:
             status = "未完了"
         repeat_text = f"、{repeat}" if repeat else ""
+        try:
+            pre_minutes = int(item.get("notify_before_minutes") or 0)
+        except (TypeError, ValueError):
+            pre_minutes = 0
+        pre_text = f"、{pre_minutes}分前通知" if pre_minutes > 0 else ""
         lines.append(
-            f"・{item.get('text', '')}、{due}{repeat_text}、{status}"
+            f"・{item.get('text', '')}、{due}{repeat_text}{pre_text}、{status}"
         )
     return "\n".join(lines)
 
@@ -741,6 +746,73 @@ def _execute_routed_command_base(route):
             from meina_reminders import list_reminders
             items = list_reminders()
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
+        elif kind in ("reminder_pre_notify_set", "reminder_pre_notify_clear"):
+            from meina_reminders import (
+                clear_reminder_pre_notify,
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                set_reminder_pre_notify,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+            notify_before = request.get("notify_before_minutes")
+
+            if not query_text:
+                result = "事前通知を変更する予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時の事前通知対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "事前通知を変更する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    if kind == "reminder_pre_notify_set":
+                        changed = set_reminder_pre_notify(
+                            item["id"],
+                            notify_before,
+                        )
+                        result = (
+                            f"「{changed['text']}」を{changed['notify_before_minutes']}分前にも"
+                            "通知するようにしました。"
+                            if changed
+                            else f"「{query_text}」の事前通知を設定できませんでした。"
+                        )
+                    else:
+                        changed = clear_reminder_pre_notify(item["id"])
+                        result = (
+                            f"「{changed['text']}」の事前通知を解除しました。"
+                            if changed
+                            else f"「{query_text}」の事前通知を解除できませんでした。"
+                        )
         elif kind in ("reminder_pause", "reminder_resume"):
             from meina_reminders import (
                 filter_reminders_by_due,
