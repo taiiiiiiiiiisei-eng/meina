@@ -24,6 +24,7 @@ REQUIRED_KINDS = (
     "reminder_upcoming",
     "reminder_brief",
     "reminder_next",
+    "reminder_soon",
     "reminder_list",
     "reminder_pause",
     "reminder_resume",
