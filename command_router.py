@@ -116,6 +116,31 @@ def route_command(text, frame):
         "今日のスケジュールまとめ",
     )):
         return {"kind": "reminder_brief", "target": "local", "query": None, "confidence": 1.0}
+    if text:
+        soon_match = re.search(
+            r"(?P<minutes>\d{1,4})\s*分以内(?:の)?(?:予定|リマインダー|リマインド)",
+            str(text),
+        )
+        if soon_match:
+            minutes = max(1, min(int(soon_match.group("minutes")), 1440))
+            return {
+                "kind": "reminder_soon",
+                "target": "local",
+                "query": minutes,
+                "confidence": 1.0,
+            }
+        if any(p in compact for p in (
+            "もうすぐの予定",
+            "近い予定",
+            "直近の予定",
+            "もうすぐのリマインダー",
+        )):
+            return {
+                "kind": "reminder_soon",
+                "target": "local",
+                "query": 30,
+                "confidence": 1.0,
+            }
     if text and any(p in compact for p in (
         "次の予定",
         "次のリマインダー",
