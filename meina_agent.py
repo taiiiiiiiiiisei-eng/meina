@@ -538,11 +538,13 @@ from meina_voice_intent import (
 def _format_reminders(items):
     if not items:
         return "予定はありません。"
+    from meina_reminders import format_reminder_due
+
     lines = []
     for item in items:
-        due = str(item.get("due_at", "")).replace("T", " ")
+        due = format_reminder_due(item.get("due_at", ""))
         status = "完了" if item.get("done") else "未完了"
-        lines.append(f"・{item.get('text', '')} / {due} / {status}")
+        lines.append(f"・{item.get('text', '')}、{due}、{status}")
     return "\n".join(lines)
 
 
@@ -612,7 +614,11 @@ def _execute_routed_command_base(route):
                 result = "予定の日時を読み取れませんでした。例えば「30分後に宿題をする予定を追加して」と言ってください。"
             else:
                 item = add_reminder(parsed["text"], parsed["due_at"])
-                result = f"予定を追加しました。「{item['text']}」は{item['due_at'].replace('T', ' ')}です。"
+                from meina_reminders import format_reminder_due
+                result = (
+                    f"予定を追加しました。「{item['text']}」は"
+                    f"{format_reminder_due(item['due_at'])}です。"
+                )
         elif kind == "reminder_today":
             from meina_reminders import today_reminders
             items = today_reminders()
@@ -652,9 +658,10 @@ def _execute_routed_command_base(route):
                 else:
                     item = reschedule_reminder(matches[0]["id"], due_at)
                     if item:
+                        from meina_reminders import format_reminder_due
                         result = (
                             f"「{item['text']}」の日時を"
-                            f"{item['due_at'].replace('T', ' ')}に変更しました。"
+                            f"{format_reminder_due(item['due_at'])}に変更しました。"
                         )
                     else:
                         result = f"「{query_text}」の日時を変更できませんでした。"
