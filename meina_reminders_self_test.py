@@ -51,6 +51,12 @@ def main() -> int:
             "daily",
         ),
         (
+            "平日18時に宿題をリマインドして",
+            "宿題",
+            "2026-09-14T18:00:00+00:00",
+            "weekdays",
+        ),
+        (
             "毎週土曜18時に配信予定を追加して",
             "配信",
             "2026-09-12T18:00:00+00:00",
@@ -62,6 +68,12 @@ def main() -> int:
             "2026-09-14T09:00:00+00:00",
             "weekly",
         ),
+        (
+            "毎月31日18時に月末処理予定を追加して",
+            "月末処理",
+            "2026-09-30T18:00:00+00:00",
+            "monthly",
+        ),
     )
     for command, expected_text, expected_due, expected_repeat in recurring_cases:
         parsed_repeat = meina_reminder_parser.parse_reminder_command(command, now)
@@ -69,6 +81,8 @@ def main() -> int:
         assert parsed_repeat["text"] == expected_text, command
         assert parsed_repeat["due_at"] == expected_due, command
         assert parsed_repeat["repeat_rule"] == expected_repeat, command
+        if expected_repeat == "monthly":
+            assert parsed_repeat["repeat_day"] == 31, command
 
     late_saturday = datetime(2026, 9, 12, 20, 0, tzinfo=timezone.utc)
     parsed_next_week = meina_reminder_parser.parse_reminder_command(
@@ -78,6 +92,22 @@ def main() -> int:
     assert parsed_next_week is not None
     assert parsed_next_week["due_at"] == "2026-09-19T18:00:00+00:00"
     assert parsed_next_week["repeat_rule"] == "weekly"
+
+    assert (
+        meina_reminder_parser.parse_reminder_command(
+            "毎月32日18時に無効予定を追加して",
+            now,
+        )
+        is None
+    )
+
+    friday = datetime(2030, 1, 4, 10, 0, tzinfo=timezone.utc)
+    friday_weekday = meina_reminder_parser.parse_reminder_command(
+        "平日18時に勉強をリマインドして",
+        friday,
+    )
+    assert friday_weekday is not None
+    assert friday_weekday["due_at"] == "2030-01-04T18:00:00+00:00"
 
     format_now = datetime.fromisoformat("2026-09-23T10:00:00+09:00")
     assert (
@@ -355,6 +385,8 @@ def main() -> int:
         "30分後に知らせて": ("reminder", "30分後に知らせて"),
         "毎日18時に薬をリマインドして": ("reminder", "毎日18時に薬をリマインドして"),
         "毎週土曜18時に配信予定を追加して": ("reminder", "毎週土曜18時に配信予定を追加して"),
+        "平日18時に宿題をリマインドして": ("reminder", "平日18時に宿題をリマインドして"),
+        "毎月15日18時に支払い予定を追加して": ("reminder", "毎月15日18時に支払い予定を追加して"),
         "リマインダー一覧を教えて": ("reminder_list", None),
         "今日の予定を教えて": ("reminder_today", None),
         "明日の予定を教えて": ("reminder_tomorrow", None),
@@ -622,6 +654,53 @@ def main() -> int:
             assert len(weekly_after) == 1
             assert weekly_after[0]["done"] is False
             assert weekly_after[0]["due_at"] == "2030-01-26T18:00:00+09:00"
+
+            weekdays = meina_reminders.add_reminder(
+                "平日勉強",
+                "2030-01-04T18:00:00+09:00",
+                repeat_rule="weekdays",
+            )
+            assert meina_reminders.format_reminder_repeat(weekdays) == "平日"
+            assert meina_reminders.complete_reminder(
+                weekdays["id"],
+                now=datetime.fromisoformat("2030-01-04T18:01:00+09:00"),
+            )
+            weekdays_after = meina_reminders.find_reminders("平日勉強")
+            assert len(weekdays_after) == 1
+            assert weekdays_after[0]["due_at"] == "2030-01-07T18:00:00+09:00"
+
+            monthly = meina_reminders.add_reminder(
+                "月末処理",
+                "2030-01-31T18:00:00+09:00",
+                repeat_rule="monthly",
+                repeat_day=31,
+            )
+            assert monthly["repeat_day"] == 31
+            assert meina_reminders.format_reminder_repeat(monthly) == "毎月31日"
+            assert meina_reminders.complete_reminder(
+                monthly["id"],
+                now=datetime.fromisoformat("2030-01-31T18:01:00+09:00"),
+            )
+            monthly_after = meina_reminders.find_reminders("月末処理")
+            assert len(monthly_after) == 1
+            assert monthly_after[0]["due_at"] == "2030-02-28T18:00:00+09:00"
+            assert monthly_after[0]["repeat_day"] == 31
+
+            assert meina_reminders.complete_reminder(
+                monthly["id"],
+                now=datetime.fromisoformat("2030-02-28T18:01:00+09:00"),
+            )
+            monthly_after = meina_reminders.find_reminders("月末処理")
+            assert monthly_after[0]["due_at"] == "2030-03-31T18:00:00+09:00"
+            assert monthly_after[0]["repeat_day"] == 31
+
+            rescheduled_monthly = meina_reminders.reschedule_reminder(
+                monthly["id"],
+                "2030-03-20T19:00:00+09:00",
+            )
+            assert rescheduled_monthly is not None
+            assert rescheduled_monthly["repeat_day"] == 20
+            assert meina_reminders.format_reminder_repeat(rescheduled_monthly) == "毎月20日"
     finally:
         meina_reminders.REMINDER_PATH = original
 
