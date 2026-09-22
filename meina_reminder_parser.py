@@ -237,6 +237,103 @@ def parse_reminder_selector_text(
 
 
 
+
+_REPEAT_CHANGE_ACTION = (
+    r"(?:変更(?:して|してください)?|"
+    r"変えて|変えてください|"
+    r"にして|にしてください)"
+)
+
+
+def _parse_repeat_spec_text(text: str) -> dict | None:
+    """繰り返し表現を内部ルールへ変換する。"""
+    raw = str(text or "").strip()
+
+    if _REPEAT_DAILY.fullmatch(raw):
+        return {
+            "repeat_rule": "daily",
+            "repeat_day": None,
+            "repeat_weekday": None,
+        }
+
+    if _REPEAT_WEEKDAYS.fullmatch(raw):
+        return {
+            "repeat_rule": "weekdays",
+            "repeat_day": None,
+            "repeat_weekday": None,
+        }
+
+    weekly = _REPEAT_WEEKLY.fullmatch(raw)
+    if weekly:
+        return {
+            "repeat_rule": "weekly",
+            "repeat_day": None,
+            "repeat_weekday": _WEEKDAY_INDEX[weekly.group("weekday")],
+        }
+
+    monthly = _REPEAT_MONTHLY.fullmatch(raw)
+    if monthly:
+        day = int(monthly.group("day"))
+        if not 1 <= day <= 31:
+            return None
+        return {
+            "repeat_rule": "monthly",
+            "repeat_day": day,
+            "repeat_weekday": None,
+        }
+
+    return None
+
+
+def parse_reminder_repeat_change_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """「薬の繰り返しを平日に変更して」の対象と新ルールを解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    repeat_spec = (
+        r"(?:毎日|平日|毎平日|"
+        r"毎週(?:月|火|水|木|金|土|日)(?:曜(?:日)?)?|"
+        r"毎月\d{1,2}日)"
+    )
+
+    patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}?(?:の)?"
+        rf"(?:繰り返し|定期設定)(?:を|は)?"
+        rf"(?P<spec>{repeat_spec})(?:に)?{_REPEAT_CHANGE_ACTION}$",
+        rf"^(?P<target>.+?)(?:を|は)?"
+        rf"(?P<spec>{repeat_spec})(?:の)?(?:繰り返し|定期設定)"
+        rf"(?:に)?{_REPEAT_CHANGE_ACTION}$",
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+
+        repeat = _parse_repeat_spec_text(match.group("spec"))
+        if repeat is None:
+            return None
+
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            **repeat,
+        }
+
+    return None
+
+
 _REPEAT_CLEAR_ACTION = (
     r"(?:停止(?:して|してください)?|"
     r"止めて|止めてください|"
