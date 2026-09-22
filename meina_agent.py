@@ -692,25 +692,72 @@ def _execute_routed_command_base(route):
                     else:
                         result = f"「{query_text}」の予定名を変更できませんでした。"
         elif kind in ("reminder_done", "reminder_delete"):
-            from meina_reminders import complete_reminder, delete_reminder, find_reminders
-            query_text = re.sub(
-                r"(リマインダー|リマインド)(を)?(完了|削除)(して|してください|お願い(?:します)?)?",
-                "",
-                query or "",
-            ).strip(" 、。！？?")
+            from meina_reminders import (
+                complete_reminder,
+                delete_reminder,
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+            )
+
+            if isinstance(query, dict):
+                query_text = str(query.get("target") or "").strip()
+                date_filter = query.get("date")
+                hour_filter = query.get("hour")
+                minute_filter = query.get("minute")
+            else:
+                query_text = re.sub(
+                    r"(リマインダー|リマインド)(を)?(完了|削除)(して|してください|お願い(?:します)?)?",
+                    "",
+                    query or "",
+                ).strip(" 、。！？?")
+                date_filter = None
+                hour_filter = None
+                minute_filter = None
+
             if not query_text:
                 result = "対象のリマインダー名を指定してください。"
             else:
                 matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
                 if not matches:
-                    result = "対象のリマインダーが見つかりませんでした。"
+                    if has_due_filter:
+                        result = "指定した日時の対象リマインダーが見つかりませんでした。"
+                    else:
+                        result = "対象のリマインダーが見つかりませんでした。"
                 elif len(matches) > 1:
-                    result = f"「{query_text}」に一致するリマインダーが{len(matches)}件あります。もう少し具体的に指定してください。"
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致するリマインダーが{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
                 else:
                     item = matches[0]
-                    ok = complete_reminder(item["id"]) if kind == "reminder_done" else delete_reminder(item["id"])
+                    ok = (
+                        complete_reminder(item["id"])
+                        if kind == "reminder_done"
+                        else delete_reminder(item["id"])
+                    )
                     action = "完了" if kind == "reminder_done" else "削除"
-                    result = f"「{item['text']}」を{action}しました。" if ok else f"「{item['text']}」を{action}できませんでした。"
+                    result = (
+                        f"「{item['text']}」を{action}しました。"
+                        if ok
+                        else f"「{item['text']}」を{action}できませんでした。"
+                    )
         elif kind == "twitch_live_highlight":
             from twitch_live_highlight import is_monitor_running, start_monitor
             if is_monitor_running():
