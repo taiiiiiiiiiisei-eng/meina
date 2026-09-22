@@ -118,8 +118,18 @@ def route_command(text, frame):
         from meina_reminder_parser import (
             parse_reminder_action_request,
             parse_reminder_rename_command,
+            parse_reminder_repeat_clear_command,
             parse_reminder_reschedule_command,
         )
+
+        repeat_clear = parse_reminder_repeat_clear_command(text)
+        if repeat_clear is not None:
+            return {
+                "kind": "reminder_repeat_clear",
+                "target": "local",
+                "query": repeat_clear,
+                "confidence": 1.0,
+            }
 
         reschedule = parse_reminder_reschedule_command(text)
         if reschedule is not None:
