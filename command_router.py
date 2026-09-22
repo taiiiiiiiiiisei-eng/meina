@@ -108,6 +108,22 @@ def route_command(text, frame):
         }
     if text and re.search(r"\d{1,2}\s*時(?:\s*\d{1,2}\s*分?)?|(?:あと\s*)?\d+\s*(?:秒|分|時間|時|日)\s*(?:後|で)", str(text)) and any(p in compact for p in ("起こして", "知らせて", "思い出させて", "教えて")):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
+    if text and any(p in compact for p in (
+        "今日の予定まとめ",
+        "今日の予定をまとめて",
+        "今日の予定をまとめて教えて",
+        "今日の予定を簡単に教えて",
+        "今日のスケジュールまとめ",
+    )):
+        return {"kind": "reminder_brief", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in (
+        "次の予定",
+        "次のリマインダー",
+        "次のリマインド",
+        "一番近い予定",
+        "次は何の予定",
+    )):
+        return {"kind": "reminder_next", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
