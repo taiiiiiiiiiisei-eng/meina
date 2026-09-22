@@ -61,6 +61,12 @@ def start_reminder_worker(
     return True
 
 
+
+def is_reminder_worker_running() -> bool:
+    """監視スレッドが現在生存しているか返す。"""
+    return _worker_thread is not None and _worker_thread.is_alive()
+
+
 def stop_reminder_worker() -> bool:
     """テストや終了処理用に監視スレッドへ停止要求を送る。"""
     global _worker_thread, _worker_stop
