@@ -75,6 +75,11 @@ def format_reminder_duration(item: dict[str, Any]) -> str:
     return f"{remain}分"
 
 
+def format_reminder_importance(item: dict[str, Any]) -> str:
+    """重要予定なら表示用ラベルを返す。"""
+    return "重要" if item.get("important") else ""
+
+
 def format_reminder_repeat(item: dict[str, Any]) -> str:
     """繰り返し設定を読み上げやすい日本語へ整形する。"""
     rule = item.get("repeat_rule")
@@ -361,6 +366,62 @@ def find_free_time_slots(
     if (end_at - current).total_seconds() >= minimum * 60:
         free.append((current, end_at))
     return free
+
+
+def find_conflicting_reminders(
+    reminder_id: str,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """対象予定と時間帯が重なる他の通知中予定を返す。"""
+    current = now or datetime.now().astimezone()
+    items = list_reminders()
+    target = next((item for item in items if item.get("id") == reminder_id), None)
+    if target is None or target.get("paused"):
+        return []
+
+    target_interval = _reminder_interval(target, current)
+    if target_interval is None:
+        return []
+    target_start, target_end = target_interval
+
+    conflicts: list[dict[str, Any]] = []
+    for item in items:
+        if item.get("id") == reminder_id or item.get("paused"):
+            continue
+        interval = _reminder_interval(item, current)
+        if interval is None:
+            continue
+        start, end = interval
+        if target_start < end and start < target_end:
+            conflicts.append(item)
+
+    conflicts.sort(key=lambda item: str(item.get("due_at", "")))
+    return conflicts
+
+
+def important_reminders() -> list[dict[str, Any]]:
+    """重要フラグが付いた未完了予定を時刻順で返す。"""
+    items = [item for item in list_reminders() if item.get("important")]
+    items.sort(key=lambda item: str(item.get("due_at", "")))
+    return items
+
+
+def set_reminder_importance(
+    reminder_id: str,
+    important: bool,
+) -> dict[str, Any] | None:
+    """予定の重要フラグだけを変更する。"""
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        if important:
+            item["important"] = True
+        else:
+            item.pop("important", None)
+        _save(items)
+        return item
+    return None
 
 
 def filter_reminders_by_due(
