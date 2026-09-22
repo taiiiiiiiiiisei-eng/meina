@@ -109,6 +109,58 @@ def route_command(text, frame):
     if text and re.search(r"\d{1,2}\s*時(?:\s*\d{1,2}\s*分?)?|(?:あと\s*)?\d+\s*(?:秒|分|時間|時|日)\s*(?:後|で)", str(text)) and any(p in compact for p in ("起こして", "知らせて", "思い出させて", "教えて")):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in (
+        "予定かぶってる",
+        "予定被ってる",
+        "予定重なってる",
+        "予定の重なり",
+        "スケジュールかぶってる",
+        "スケジュール重複",
+    )):
+        return {
+            "kind": "reminder_conflicts",
+            "target": "local",
+            "query": 7,
+            "confidence": 1.0,
+        }
+
+    if text:
+        free_match = re.search(
+            r"(?:(?P<day>今日|明日)\s*)?"
+            r"(?P<start_hour>\d{1,2})\s*時"
+            r"(?:\s*(?P<start_minute>\d{1,2})\s*分)?"
+            r"\s*から\s*"
+            r"(?P<end_hour>\d{1,2})\s*時"
+            r"(?:\s*(?P<end_minute>\d{1,2})\s*分)?"
+            r"(?:\s*まで)?(?:\s*の)?"
+            r"(?:空き時間|空いてる時間|空いている時間|空き)",
+            str(text),
+        )
+        if free_match:
+            sh = int(free_match.group("start_hour"))
+            sm = int(free_match.group("start_minute") or 0)
+            eh = int(free_match.group("end_hour"))
+            em = int(free_match.group("end_minute") or 0)
+            if (
+                0 <= sh <= 23
+                and 0 <= eh <= 23
+                and 0 <= sm <= 59
+                and 0 <= em <= 59
+                and (eh, em) > (sh, sm)
+            ):
+                return {
+                    "kind": "reminder_free_time",
+                    "target": "local",
+                    "query": {
+                        "day": free_match.group("day") or "今日",
+                        "start_hour": sh,
+                        "start_minute": sm,
+                        "end_hour": eh,
+                        "end_minute": em,
+                    },
+                    "confidence": 1.0,
+                }
+
+    if text and any(p in compact for p in (
         "今日の予定まとめ",
         "今日の予定をまとめて",
         "今日の予定をまとめて教えて",
