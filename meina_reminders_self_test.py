@@ -246,6 +246,27 @@ def main() -> int:
         is None
     )
 
+    selected_reschedule = meina_reminder_parser.parse_reminder_reschedule_command(
+        "18時の宿題の予定を明日20時に変更して",
+        now,
+    )
+    assert selected_reschedule is not None
+    assert selected_reschedule["target"] == "宿題"
+    assert selected_reschedule["hour"] == 18
+    assert selected_reschedule["minute"] == 0
+    assert selected_reschedule["date"] is None
+    assert selected_reschedule["due_at"] == "2026-09-13T20:00:00+00:00"
+
+    dated_reschedule = meina_reminder_parser.parse_reminder_reschedule_command(
+        "明日の宿題の予定を明後日21時に変更して",
+        now,
+    )
+    assert dated_reschedule is not None
+    assert dated_reschedule["target"] == "宿題"
+    assert dated_reschedule["date"] == "2026-09-13"
+    assert dated_reschedule["hour"] is None
+    assert dated_reschedule["due_at"] == "2026-09-14T21:00:00+00:00"
+
     rename_cases = (
         ("宿題の予定を数学の宿題に名前変更して", "宿題", "数学の宿題"),
         ("リマインダーの配信を夜配信に改名して", "配信", "夜配信"),
@@ -269,6 +290,27 @@ def main() -> int:
         )
         is None
     )
+
+    selected_rename = meina_reminder_parser.parse_reminder_rename_command(
+        "18時の宿題の予定名を数学の宿題に変更して",
+        now,
+    )
+    assert selected_rename is not None
+    assert selected_rename["target"] == "宿題"
+    assert selected_rename["new_name"] == "数学の宿題"
+    assert selected_rename["hour"] == 18
+    assert selected_rename["minute"] == 0
+    assert selected_rename["date"] is None
+
+    dated_rename = meina_reminder_parser.parse_reminder_rename_command(
+        "明日の宿題の予定を英語の宿題に名前変更して",
+        now,
+    )
+    assert dated_rename is not None
+    assert dated_rename["target"] == "宿題"
+    assert dated_rename["new_name"] == "英語の宿題"
+    assert dated_rename["date"] == "2026-09-13"
+    assert dated_rename["hour"] is None
 
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
@@ -311,10 +353,33 @@ def main() -> int:
     assert rename_route is not None
     assert rename_route["kind"] == "reminder_rename"
     assert rename_route["confidence"] == 1.0
-    assert rename_route["query"] == {
-        "target": "宿題",
-        "new_name": "数学の宿題",
-    }
+    assert rename_route["query"]["target"] == "宿題"
+    assert rename_route["query"]["new_name"] == "数学の宿題"
+    assert rename_route["query"]["date"] is None
+    assert rename_route["query"]["hour"] is None
+    assert rename_route["query"]["minute"] is None
+
+    selected_reschedule_route = route_command(
+        "18時の宿題の予定を明日20時に変更して",
+        {"confidence": 0.10},
+    )
+    assert selected_reschedule_route is not None
+    assert selected_reschedule_route["kind"] == "reminder_reschedule"
+    assert selected_reschedule_route["query"]["target"] == "宿題"
+    assert selected_reschedule_route["query"]["hour"] == 18
+    assert selected_reschedule_route["query"]["minute"] == 0
+    assert "T20:00:00" in selected_reschedule_route["query"]["due_at"]
+
+    selected_rename_route = route_command(
+        "18時の宿題の予定名を数学の宿題に変更して",
+        {"confidence": 0.10},
+    )
+    assert selected_rename_route is not None
+    assert selected_rename_route["kind"] == "reminder_rename"
+    assert selected_rename_route["query"]["target"] == "宿題"
+    assert selected_rename_route["query"]["new_name"] == "数学の宿題"
+    assert selected_rename_route["query"]["hour"] == 18
+    assert selected_rename_route["query"]["minute"] == 0
 
     due_done_route = route_command(
         "18時の宿題を完了して",
