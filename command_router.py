@@ -115,7 +115,19 @@ def route_command(text, frame):
     if text and any(p in compact for p in ("リマインダー一覧", "リマインド一覧", "リマインダーを教えて", "リマインドを教えて")):
         return {"kind": "reminder_list", "target": "local", "query": None, "confidence": 1.0}
     if text:
-        from meina_reminder_parser import parse_reminder_action_target
+        from meina_reminder_parser import (
+            parse_reminder_action_target,
+            parse_reminder_reschedule_command,
+        )
+
+        reschedule = parse_reminder_reschedule_command(text)
+        if reschedule is not None:
+            return {
+                "kind": "reminder_reschedule",
+                "target": "local",
+                "query": reschedule,
+                "confidence": 1.0,
+            }
 
         done_target = parse_reminder_action_target(text, "done")
         if done_target is not None:
