@@ -163,6 +163,71 @@ def parse_reminder_action_request(
     }
 
 
+def parse_reminder_selector_text(
+    text: str,
+    now: datetime | None = None,
+) -> dict:
+    """予定名に含まれる任意の日付・時刻指定を分離する。"""
+    current = now or datetime.now().astimezone()
+    target_text = str(text or "").strip()
+
+    date_value = None
+    calendar_match = _CALENDAR_DATE.search(target_text)
+    day_match = _DAY_WORDS.search(target_text)
+    if calendar_match:
+        year_text = calendar_match.group("year")
+        year = int(year_text) if year_text else current.year
+        month = int(calendar_match.group("month"))
+        day = int(calendar_match.group("day"))
+        try:
+            date_value = current.replace(
+                year=year,
+                month=month,
+                day=day,
+            ).date().isoformat()
+        except ValueError:
+            return {
+                "target": "",
+                "date": None,
+                "hour": None,
+                "minute": None,
+                "valid": False,
+            }
+    elif day_match:
+        day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_match.group("day")]
+        date_value = (current + timedelta(days=day_offset)).date().isoformat()
+
+    hour = None
+    minute = None
+    clock_match = _CLOCK.search(target_text)
+    if clock_match:
+        parsed_clock = _parse_clock(clock_match)
+        if parsed_clock is None:
+            return {
+                "target": "",
+                "date": date_value,
+                "hour": None,
+                "minute": None,
+                "valid": False,
+            }
+        hour, minute = parsed_clock
+
+    clean_target = _CALENDAR_DATE.sub("", target_text)
+    clean_target = _DAY_WORDS.sub("", clean_target)
+    clean_target = _CLOCK.sub("", clean_target)
+    clean_target = re.sub(r"^(?:の|を|は|から|って)+", "", clean_target)
+    clean_target = re.sub(r"(?:の|を|は|って)+$", "", clean_target)
+    clean_target = clean_target.strip(" 、。！？?")
+
+    return {
+        "target": clean_target,
+        "date": date_value,
+        "hour": hour,
+        "minute": minute,
+        "valid": True,
+    }
+
+
 _RESCHEDULE_ACTION = (
     r"(?:変更(?:して|してください)?|"
     r"変えて|変えてください|"
@@ -257,12 +322,19 @@ def parse_reminder_reschedule_command(
         target = re.sub(r"^(?:を|の|から|は|って)+", "", target)
         target = re.sub(r"(?:を|の|は|って)+$", "", target).strip()
 
+        selector = parse_reminder_selector_text(target, now)
+        if not selector.get("valid", False):
+            return None
+
         due = _parse_due_at_text(match.group("when"), now)
         if due is None:
             return None
         return {
-            "target": target,
+            "target": selector["target"],
             "due_at": due.isoformat(timespec="seconds"),
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
         }
 
     return None
@@ -282,8 +354,7 @@ def parse_reminder_rename_command(
     text: str,
     now: datetime | None = None,
 ) -> dict | None:
-    """予定名変更命令から現在名と新しい名前を安全に取り出す。"""
-    del now  # 日時変更パーサーと同じ呼び出し形を保つ。
+    """予定名変更命令から現在名・任意の日時指定・新しい名前を取り出す。"""
     raw = str(text or "").strip()
     if not raw or raw.rstrip().endswith(("?", "？")):
         return None
@@ -315,8 +386,17 @@ def parse_reminder_rename_command(
             "",
             match.group("target"),
         ).strip()
+        selector = parse_reminder_selector_text(target, now)
+        if not selector.get("valid", False):
+            return None
         new_name = match.group("new_name").strip("をのは")
-        return {"target": target, "new_name": new_name}
+        return {
+            "target": selector["target"],
+            "new_name": new_name,
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+        }
 
     # 名前か新名称のどちらかがない場合も、実行側で安全に聞き返せる形にする。
     missing_target = re.fullmatch(
@@ -327,6 +407,9 @@ def parse_reminder_rename_command(
         return {
             "target": "",
             "new_name": missing_target.group("new_name").strip("をのは"),
+            "date": None,
+            "hour": None,
+            "minute": None,
         }
 
     missing_name = re.fullmatch(
@@ -334,9 +417,18 @@ def parse_reminder_rename_command(
         compact,
     )
     if missing_name:
+        selector = parse_reminder_selector_text(
+            missing_name.group("target").strip("をのは"),
+            now,
+        )
+        if not selector.get("valid", False):
+            return None
         return {
-            "target": missing_name.group("target").strip("をのは"),
+            "target": selector["target"],
             "new_name": "",
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
         }
 
     return None
