@@ -54,14 +54,46 @@ def format_reminder_due(due_at: str, now: datetime | None = None) -> str:
     return f"{date_text}{time_text}"
 
 
-def add_reminder(text: str, due_at: str) -> dict[str, Any]:
+_WEEKDAYS_JA = ("月", "火", "水", "木", "金", "土", "日")
+_VALID_REPEAT_RULES = {None, "daily", "weekly"}
+
+
+def format_reminder_repeat(item: dict[str, Any]) -> str:
+    """繰り返し設定を読み上げやすい日本語へ整形する。"""
+    rule = item.get("repeat_rule")
+    if rule == "daily":
+        return "毎日"
+    if rule == "weekly":
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            return f"毎週{_WEEKDAYS_JA[due.weekday()]}曜"
+        except (TypeError, ValueError):
+            return "毎週"
+    return ""
+
+
+def _normalize_repeat_rule(value: Any) -> str | None:
+    rule = str(value or "").strip().lower() or None
+    if rule not in _VALID_REPEAT_RULES:
+        raise ValueError(f"unsupported repeat_rule: {value}")
+    return rule
+
+
+def add_reminder(
+    text: str,
+    due_at: str,
+    repeat_rule: str | None = None,
+) -> dict[str, Any]:
     due = datetime.fromisoformat(due_at)
+    repeat = _normalize_repeat_rule(repeat_rule)
     item = {
         "id": f"r-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
         "text": str(text).strip(),
         "due_at": due.isoformat(timespec="seconds"),
         "done": False,
     }
+    if repeat:
+        item["repeat_rule"] = repeat
     items = _load()
     items.append(item)
     _save(items)
@@ -222,17 +254,60 @@ def rename_reminder(reminder_id: str, new_text: str) -> dict[str, Any] | None:
     return None
 
 
-def complete_reminder(reminder_id: str) -> bool:
+
+def advance_recurring_reminder(
+    reminder_id: str,
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """繰り返し予定を次回へ進める。遅延時は現在時刻より後まで繰り越す。"""
+    current = now or datetime.now().astimezone()
     items = _load()
-    changed = False
     for item in items:
-        if item.get("id") == reminder_id:
-            item["done"] = True
-            changed = True
-            break
-    if changed:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+
+        rule = item.get("repeat_rule")
+        if rule not in ("daily", "weekly"):
+            return None
+
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+        except (TypeError, ValueError):
+            return None
+
+        if due.tzinfo is None and current.tzinfo is not None:
+            due = due.replace(tzinfo=current.tzinfo)
+        elif due.tzinfo is not None and current.tzinfo is not None:
+            due = due.astimezone(current.tzinfo)
+
+        step = timedelta(days=1 if rule == "daily" else 7)
+        due += step
+        while due <= current:
+            due += step
+
+        item["due_at"] = due.isoformat(timespec="seconds")
+        item["done"] = False
         _save(items)
-    return changed
+        return item
+    return None
+
+
+def complete_reminder(
+    reminder_id: str,
+    now: datetime | None = None,
+) -> bool:
+    """通常予定は完了、繰り返し予定は次回へ進める。"""
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id:
+            continue
+        if item.get("repeat_rule") in ("daily", "weekly") and not item.get("done"):
+            return advance_recurring_reminder(reminder_id, now=now)
+            is not None
+        item["done"] = True
+        _save(items)
+        return True
+    return False
 
 
 def delete_reminder(reminder_id: str) -> bool:
