@@ -129,6 +129,77 @@ def main() -> int:
         is None
     )
 
+    due_action_cases = (
+        (
+            "18時の宿題を完了して",
+            "done",
+            "宿題",
+            None,
+            18,
+            0,
+        ),
+        (
+            "明日の宿題を削除して",
+            "delete",
+            "宿題",
+            "2026-09-13",
+            None,
+            None,
+        ),
+        (
+            "明日18時の宿題の予定を完了して",
+            "done",
+            "宿題",
+            "2026-09-13",
+            18,
+            0,
+        ),
+        (
+            "9月25日の宿題を削除して",
+            "delete",
+            "宿題",
+            "2026-09-25",
+            None,
+            None,
+        ),
+        (
+            "午後6時の配信を完了して",
+            "done",
+            "配信",
+            None,
+            18,
+            0,
+        ),
+    )
+    for command, action, target, date_value, hour, minute in due_action_cases:
+        request = meina_reminder_parser.parse_reminder_action_request(
+            command,
+            action,
+            now,
+        )
+        assert request is not None, command
+        assert request["target"] == target, command
+        assert request["date"] == date_value, command
+        assert request["hour"] == hour, command
+        assert request["minute"] == minute, command
+
+    assert (
+        meina_reminder_parser.parse_reminder_action_request(
+            "18時の宿題を完了していい？",
+            "done",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_action_request(
+            "宿題を完了して",
+            "done",
+            now,
+        )
+        is None
+    )
+
     reschedule_cases = (
         (
             "宿題の予定を明日20時に変更して",
@@ -245,6 +316,27 @@ def main() -> int:
         "new_name": "数学の宿題",
     }
 
+    due_done_route = route_command(
+        "18時の宿題を完了して",
+        {"confidence": 0.10},
+    )
+    assert due_done_route is not None
+    assert due_done_route["kind"] == "reminder_done"
+    assert due_done_route["confidence"] == 1.0
+    assert due_done_route["query"]["target"] == "宿題"
+    assert due_done_route["query"]["hour"] == 18
+    assert due_done_route["query"]["minute"] == 0
+
+    due_delete_route = route_command(
+        "明日の宿題を削除して",
+        {"confidence": 0.10},
+    )
+    assert due_delete_route is not None
+    assert due_delete_route["kind"] == "reminder_delete"
+    assert due_delete_route["confidence"] == 1.0
+    assert due_delete_route["query"]["target"] == "宿題"
+    assert due_delete_route["query"]["date"] is not None
+
     original = meina_reminders.REMINDER_PATH
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -355,6 +447,46 @@ def main() -> int:
                 )
                 is None
             )
+
+            first_same_name = meina_reminders.add_reminder(
+                "英語",
+                "2030-01-05T18:00:00+09:00",
+            )
+            second_same_name = meina_reminders.add_reminder(
+                "英語",
+                "2030-01-05T20:00:00+09:00",
+            )
+            english_matches = meina_reminders.find_reminders("英語")
+            assert {item["id"] for item in english_matches} == {
+                first_same_name["id"],
+                second_same_name["id"],
+            }
+
+            at_18 = meina_reminders.filter_reminders_by_due(
+                english_matches,
+                hour=18,
+                minute=0,
+                now=datetime.fromisoformat("2030-01-05T12:00:00+09:00"),
+            )
+            assert [item["id"] for item in at_18] == [first_same_name["id"]]
+
+            on_date = meina_reminders.filter_reminders_by_due(
+                english_matches,
+                date="2030-01-05",
+                now=datetime.fromisoformat("2030-01-05T12:00:00+09:00"),
+            )
+            assert {item["id"] for item in on_date} == {
+                first_same_name["id"],
+                second_same_name["id"],
+            }
+
+            no_match = meina_reminders.filter_reminders_by_due(
+                english_matches,
+                hour=19,
+                minute=0,
+                now=datetime.fromisoformat("2030-01-05T12:00:00+09:00"),
+            )
+            assert no_match == []
     finally:
         meina_reminders.REMINDER_PATH = original
 
