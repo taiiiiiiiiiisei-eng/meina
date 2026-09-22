@@ -659,6 +659,62 @@ def _execute_routed_command_base(route):
             from meina_reminders import list_reminders
             items = list_reminders()
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
+        elif kind == "reminder_repeat_clear":
+            from meina_reminders import (
+                clear_reminder_repeat,
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "繰り返しを解除する予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時の繰り返し予定が見つかりませんでした。"
+                        if has_due_filter
+                        else "繰り返しを解除する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    if not item.get("repeat_rule"):
+                        result = f"「{item['text']}」は繰り返し予定ではありません。"
+                    else:
+                        cleared = clear_reminder_repeat(item["id"])
+                        result = (
+                            f"「{cleared['text']}」の繰り返しを解除しました。"
+                            if cleared
+                            else f"「{query_text}」の繰り返しを解除できませんでした。"
+                        )
         elif kind == "reminder_reschedule":
             from meina_reminders import (
                 filter_reminders_by_due,
