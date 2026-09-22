@@ -117,11 +117,31 @@ def route_command(text, frame):
     if text:
         from meina_reminder_parser import (
             parse_reminder_action_request,
+            parse_reminder_pause_command,
             parse_reminder_rename_command,
             parse_reminder_repeat_change_command,
             parse_reminder_repeat_clear_command,
+            parse_reminder_resume_command,
             parse_reminder_reschedule_command,
         )
+
+        pause_request = parse_reminder_pause_command(text)
+        if pause_request is not None:
+            return {
+                "kind": "reminder_pause",
+                "target": "local",
+                "query": pause_request,
+                "confidence": 1.0,
+            }
+
+        resume_request = parse_reminder_resume_command(text)
+        if resume_request is not None:
+            return {
+                "kind": "reminder_resume",
+                "target": "local",
+                "query": resume_request,
+                "confidence": 1.0,
+            }
 
         repeat_change = parse_reminder_repeat_change_command(text)
         if repeat_change is not None:
