@@ -811,6 +811,15 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
             return None
         hour, minute = parsed_clock
 
+        duration_match = _DURATION_AFTER_CLOCK.search(raw, clock.end())
+        duration_minutes = None
+        if duration_match:
+            amount = int(duration_match.group("num"))
+            unit = duration_match.group("unit")
+            duration_minutes = amount * 60 if unit == "時間" else amount
+            if not 1 <= duration_minutes <= 1440:
+                return None
+
         due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
         repeat_rule = "daily"
         repeat_day = None
@@ -859,7 +868,10 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
             if due <= current:
                 due += timedelta(days=1)
 
-        text_part = _extract_text(raw, [clock.span(), repeat_span])
+        spans = [clock.span(), repeat_span]
+        if duration_match:
+            spans.append(duration_match.span())
+        text_part = _extract_text(raw, spans)
         result = _build_result(
             raw,
             text_part,
@@ -868,6 +880,8 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         )
         if result is not None and repeat_day is not None:
             result["repeat_day"] = repeat_day
+        if result is not None and duration_minutes is not None:
+            result["duration_minutes"] = duration_minutes
         return result
 
     relative = _RELATIVE.search(raw)
