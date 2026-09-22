@@ -106,7 +106,19 @@ def route_command(text, frame):
             "query": mode,
             "confidence": 1.0,
         }
-    if text and re.search(r"\d{1,2}\s*時(?:\s*\d{1,2}\s*分?)?|(?:あと\s*)?\d+\s*(?:秒|分|時間|時|日)\s*(?:後|で)", str(text)) and any(p in compact for p in ("起こして", "知らせて", "思い出させて", "教えて")):
+    if (
+        text
+        and re.search(
+            r"\d{1,2}\s*時(?:\s*\d{1,2}\s*分?)?|"
+            r"(?:あと\s*)?\d+\s*(?:秒|分|時間|時|日)\s*(?:後|で)",
+            str(text),
+        )
+        and any(p in compact for p in ("起こして", "知らせて", "思い出させて", "教えて"))
+        and not any(
+            p in compact
+            for p in ("空き時間", "空いてる時間", "空いている時間")
+        )
+    ):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in (
         "予定かぶってる",
