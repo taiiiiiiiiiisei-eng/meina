@@ -1,65 +1,37 @@
-"""起動時にローカルリマインダー監視を追加する安全なアップグレーダー。"""
+"""旧リマインダー監視アップグレーダーの安全な互換チェック。
+
+現在は meina_agent.py から meina_reminder_worker.py を直接起動する。
+このスクリプトは互換性のため残すが、ファイル書き換えは行わない。
+"""
 from __future__ import annotations
 
-import shutil
+import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 AGENT = ROOT / "meina_agent.py"
-MARKER = "# MEINA_REMINDER_WORKER_V1"
-BACKUP = ROOT / "meina_agent.py.backup_before_reminder_worker_v1"
+WORKER = ROOT / "meina_reminder_worker.py"
 
-BLOCK = r'''
-# MEINA_REMINDER_WORKER_V1
-def _meina_reminder_worker():
-    import threading
-    import time
-    from meina_reminders import complete_reminder, due_reminders
-
-    def worker():
-        while True:
-            try:
-                for item in due_reminders():
-                    message = f"リマインダーです。{item.get('text', '')}"
-                    speak(message)
-                    complete_reminder(str(item.get("id", "")))
-            except Exception as e:
-                print("❌ リマインダー監視エラー:", e)
-            time.sleep(1.0)
-
-    threading.Thread(
-        target=worker,
-        daemon=True,
-        name="meina-reminder-worker",
-    ).start()
-
-
-_meina_reminder_worker()
-'''
 
 def main() -> int:
-    if not AGENT.exists():
-        print("meina_agent.py not found")
+    for path in (AGENT, WORKER):
+        if not path.exists():
+            print(f"FAILED: {path.name} が見つかりません")
+            return 1
+        try:
+            ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError as exc:
+            print(f"FAILED: {path.name} Python構文エラー: {exc}")
+            return 1
+
+    agent_text = AGENT.read_text(encoding="utf-8")
+    if "start_reminder_worker" not in agent_text:
+        print("FAILED: meina_agent.py に直接監視配線がありません")
         return 1
-    text = AGENT.read_text(encoding="utf-8")
-    if MARKER in text:
-        print("Reminder worker already applied")
-        return 0
-    if not BACKUP.exists():
-        shutil.copy2(AGENT, BACKUP)
-        print(f"Backup created: {BACKUP}")
-    anchor = "
-# =========================================================
-# メイン
-# =========================================================
-"
-    if anchor not in text:
-        raise RuntimeError("main anchor not found")
-    text = text.replace(anchor, "
-" + BLOCK + anchor, 1)
-    AGENT.write_text(text, encoding="utf-8")
-    print("Reminder worker integration applied")
+
+    print("Reminder worker direct integration: PASS")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
