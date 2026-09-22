@@ -236,6 +236,48 @@ def parse_reminder_selector_text(
     }
 
 
+
+_REPEAT_CLEAR_ACTION = (
+    r"(?:停止(?:して|してください)?|"
+    r"止めて|止めてください|"
+    r"解除(?:して|してください)?|"
+    r"やめて|やめてください|"
+    r"終了(?:して|してください)?)"
+)
+
+
+def parse_reminder_repeat_clear_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """「薬の繰り返しを停止して」の対象名と任意の日時指定を取り出す。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}?(?:の)?"
+        rf"(?:繰り返し|定期設定)(?:を|は)?{_REPEAT_CLEAR_ACTION}$",
+        rf"^(?P<target>.+?)(?:の)?(?:繰り返し|定期設定)"
+        rf"(?:を|は)?{_REPEAT_CLEAR_ACTION}$",
+    )
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+        }
+    return None
+
+
 _RESCHEDULE_ACTION = (
     r"(?:変更(?:して|してください)?|"
     r"変えて|変えてください|"
