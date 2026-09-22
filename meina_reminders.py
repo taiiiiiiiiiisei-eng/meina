@@ -59,6 +59,22 @@ _WEEKDAYS_JA = ("月", "火", "水", "木", "金", "土", "日")
 _VALID_REPEAT_RULES = {None, "daily", "weekdays", "weekly", "monthly"}
 
 
+def format_reminder_duration(item: dict[str, Any]) -> str:
+    """所要時間を読み上げやすい日本語へ整形する。"""
+    try:
+        minutes = int(item.get("duration_minutes") or 0)
+    except (TypeError, ValueError):
+        return ""
+    if minutes <= 0:
+        return ""
+    hours, remain = divmod(minutes, 60)
+    if hours and remain:
+        return f"{hours}時間{remain}分"
+    if hours:
+        return f"{hours}時間"
+    return f"{remain}分"
+
+
 def format_reminder_repeat(item: dict[str, Any]) -> str:
     """繰り返し設定を読み上げやすい日本語へ整形する。"""
     rule = item.get("repeat_rule")
@@ -98,8 +114,14 @@ def add_reminder(
     due_at: str,
     repeat_rule: str | None = None,
     repeat_day: int | None = None,
+    duration_minutes: int | None = None,
 ) -> dict[str, Any]:
     due = datetime.fromisoformat(due_at)
+    duration = None
+    if duration_minutes is not None:
+        duration = int(duration_minutes)
+        if not 1 <= duration <= 1440:
+            raise ValueError("duration_minutes must be between 1 and 1440")
     repeat = _normalize_repeat_rule(repeat_rule)
     monthly_day = None
     if repeat == "monthly":
@@ -116,6 +138,8 @@ def add_reminder(
         item["repeat_rule"] = repeat
     if monthly_day is not None:
         item["repeat_day"] = monthly_day
+    if duration is not None:
+        item["duration_minutes"] = duration
     items = _load()
     items.append(item)
     _save(items)
@@ -163,6 +187,7 @@ def find_duplicate_reminder(
     *,
     repeat_rule: str | None = None,
     repeat_day: int | None = None,
+    duration_minutes: int | None = None,
 ) -> dict[str, Any] | None:
     """同名・同日時・同じ繰り返し設定の未完了予定を探す。"""
     needle = _normalize_reminder_text(text)
@@ -204,6 +229,13 @@ def find_duplicate_reminder(
                 continue
             if item_day != requested_day:
                 continue
+        try:
+            item_duration = int(item.get("duration_minutes") or 0)
+            requested_duration = int(duration_minutes or 0)
+        except (TypeError, ValueError):
+            continue
+        if item_duration != requested_duration:
+            continue
         return item
     return None
 
@@ -234,6 +266,101 @@ def next_reminder(
         return None
     candidates.sort(key=lambda pair: pair[0])
     return candidates[0][1]
+
+
+def _reminder_interval(
+    item: dict[str, Any],
+    current: datetime,
+) -> tuple[datetime, datetime] | None:
+    """予定の開始・終了を返す。所要時間なしは1分の点予定として扱う。"""
+    try:
+        start = datetime.fromisoformat(str(item.get("due_at", "")))
+        if start.tzinfo is None and current.tzinfo is not None:
+            start = start.replace(tzinfo=current.tzinfo)
+        elif start.tzinfo is not None and current.tzinfo is not None:
+            start = start.astimezone(current.tzinfo)
+        duration = int(item.get("duration_minutes") or 1)
+    except (TypeError, ValueError):
+        return None
+    duration = max(1, min(duration, 1440))
+    return start, start + timedelta(minutes=duration)
+
+
+def find_schedule_conflicts(
+    now: datetime | None = None,
+    *,
+    days: int = 7,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """指定期間内で時間帯が重なる通知中の予定ペアを返す。"""
+    current = now or datetime.now().astimezone()
+    end = current + timedelta(days=max(1, min(int(days), 31)))
+    candidates: list[tuple[datetime, datetime, dict[str, Any]]] = []
+
+    for item in list_reminders():
+        if item.get("paused"):
+            continue
+        interval = _reminder_interval(item, current)
+        if interval is None:
+            continue
+        start, finish = interval
+        if finish < current or start > end:
+            continue
+        candidates.append((start, finish, item))
+
+    candidates.sort(key=lambda row: row[0])
+    conflicts: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for index, (start, finish, item) in enumerate(candidates):
+        for other_start, other_finish, other in candidates[index + 1:]:
+            if other_start >= finish:
+                break
+            if start < other_finish and other_start < finish:
+                conflicts.append((item, other))
+    return conflicts
+
+
+def find_free_time_slots(
+    start_at: datetime,
+    end_at: datetime,
+    *,
+    minimum_minutes: int = 15,
+) -> list[tuple[datetime, datetime]]:
+    """指定時間帯の空き枠を返す。一時停止中の予定は占有しない。"""
+    if end_at <= start_at:
+        return []
+
+    minimum = max(1, min(int(minimum_minutes), 1440))
+    busy: list[tuple[datetime, datetime]] = []
+    current = start_at
+
+    for item in list_reminders():
+        if item.get("paused"):
+            continue
+        interval = _reminder_interval(item, start_at)
+        if interval is None:
+            continue
+        busy_start, busy_end = interval
+        if busy_end <= start_at or busy_start >= end_at:
+            continue
+        busy.append((max(busy_start, start_at), min(busy_end, end_at)))
+
+    busy.sort(key=lambda row: row[0])
+    merged: list[list[datetime]] = []
+    for busy_start, busy_end in busy:
+        if not merged or busy_start > merged[-1][1]:
+            merged.append([busy_start, busy_end])
+        elif busy_end > merged[-1][1]:
+            merged[-1][1] = busy_end
+
+    free: list[tuple[datetime, datetime]] = []
+    for busy_start, busy_end in merged:
+        if (busy_start - current).total_seconds() >= minimum * 60:
+            free.append((current, busy_start))
+        if busy_end > current:
+            current = busy_end
+
+    if (end_at - current).total_seconds() >= minimum * 60:
+        free.append((current, end_at))
+    return free
 
 
 def filter_reminders_by_due(
