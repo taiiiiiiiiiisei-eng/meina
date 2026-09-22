@@ -383,6 +383,67 @@ def main() -> int:
         is None
     )
 
+    repeat_change_cases = (
+        (
+            "薬の繰り返しを平日に変更して",
+            "薬",
+            "weekdays",
+            None,
+            None,
+            None,
+        ),
+        (
+            "18時の薬の予定の繰り返しを毎週土曜に変更して",
+            "薬",
+            "weekly",
+            5,
+            18,
+            None,
+        ),
+        (
+            "支払いの定期設定を毎月15日に変えて",
+            "支払い",
+            "monthly",
+            None,
+            None,
+            15,
+        ),
+        (
+            "宿題を毎日の繰り返しにして",
+            "宿題",
+            "daily",
+            None,
+            None,
+            None,
+        ),
+    )
+    for command, target, rule, weekday, hour, day in repeat_change_cases:
+        changed_repeat = meina_reminder_parser.parse_reminder_repeat_change_command(
+            command,
+            now,
+        )
+        assert changed_repeat is not None, command
+        assert changed_repeat["target"] == target, command
+        assert changed_repeat["repeat_rule"] == rule, command
+        assert changed_repeat["repeat_weekday"] == weekday, command
+        assert changed_repeat["hour"] == hour, command
+        assert changed_repeat["repeat_day"] == day, command
+
+    assert (
+        meina_reminder_parser.parse_reminder_repeat_change_command(
+            "薬の繰り返しを平日に変更していい？",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_repeat_change_command(
+            "薬の繰り返しを毎月32日に変更して",
+            now,
+        )
+        is None
+    )
+
     selected_rename = meina_reminder_parser.parse_reminder_rename_command(
         "18時の宿題の予定名を数学の宿題に変更して",
         now,
@@ -454,6 +515,26 @@ def main() -> int:
     assert rename_route["query"]["date"] is None
     assert rename_route["query"]["hour"] is None
     assert rename_route["query"]["minute"] is None
+
+    repeat_change_route = route_command(
+        "薬の繰り返しを平日に変更して",
+        {"confidence": 0.10},
+    )
+    assert repeat_change_route is not None
+    assert repeat_change_route["kind"] == "reminder_repeat_set"
+    assert repeat_change_route["confidence"] == 1.0
+    assert repeat_change_route["query"]["target"] == "薬"
+    assert repeat_change_route["query"]["repeat_rule"] == "weekdays"
+
+    repeat_change_weekly_route = route_command(
+        "18時の薬の予定の繰り返しを毎週土曜に変更して",
+        {"confidence": 0.10},
+    )
+    assert repeat_change_weekly_route is not None
+    assert repeat_change_weekly_route["kind"] == "reminder_repeat_set"
+    assert repeat_change_weekly_route["query"]["target"] == "薬"
+    assert repeat_change_weekly_route["query"]["hour"] == 18
+    assert repeat_change_weekly_route["query"]["repeat_weekday"] == 5
 
     repeat_clear_route = route_command(
         "薬の繰り返しを停止して",
@@ -761,6 +842,69 @@ def main() -> int:
             assert cleared_one_shot is not None
             assert cleared_one_shot["text"] == "単発予定"
             assert meina_reminders.clear_reminder_repeat("missing-id") is None
+
+            repeat_change_target = meina_reminders.add_reminder(
+                "繰り返し変更",
+                "2030-01-05T18:00:00+09:00",
+            )
+            changed_weekdays = meina_reminders.set_reminder_repeat(
+                repeat_change_target["id"],
+                "weekdays",
+                now=datetime.fromisoformat("2030-01-04T19:00:00+09:00"),
+            )
+            assert changed_weekdays is not None
+            assert changed_weekdays["repeat_rule"] == "weekdays"
+            assert changed_weekdays["due_at"] == "2030-01-07T18:00:00+09:00"
+            assert meina_reminders.format_reminder_repeat(changed_weekdays) == "平日"
+
+            changed_weekly = meina_reminders.set_reminder_repeat(
+                repeat_change_target["id"],
+                "weekly",
+                repeat_weekday=5,
+                now=datetime.fromisoformat("2030-01-07T19:00:00+09:00"),
+            )
+            assert changed_weekly is not None
+            assert changed_weekly["repeat_rule"] == "weekly"
+            assert changed_weekly["due_at"] == "2030-01-12T18:00:00+09:00"
+            assert meina_reminders.format_reminder_repeat(changed_weekly) == "毎週土曜"
+
+            changed_monthly = meina_reminders.set_reminder_repeat(
+                repeat_change_target["id"],
+                "monthly",
+                repeat_day=31,
+                now=datetime.fromisoformat("2030-01-15T12:00:00+09:00"),
+            )
+            assert changed_monthly is not None
+            assert changed_monthly["repeat_rule"] == "monthly"
+            assert changed_monthly["repeat_day"] == 31
+            assert changed_monthly["due_at"] == "2030-01-31T18:00:00+09:00"
+            assert meina_reminders.format_reminder_repeat(changed_monthly) == "毎月31日"
+
+            changed_daily = meina_reminders.set_reminder_repeat(
+                repeat_change_target["id"],
+                "daily",
+                now=datetime.fromisoformat("2030-01-31T19:00:00+09:00"),
+            )
+            assert changed_daily is not None
+            assert changed_daily["repeat_rule"] == "daily"
+            assert "repeat_day" not in changed_daily
+            assert changed_daily["due_at"] == "2030-02-01T18:00:00+09:00"
+
+            assert (
+                meina_reminders.set_reminder_repeat(
+                    repeat_change_target["id"],
+                    "weekly",
+                    repeat_weekday=7,
+                )
+                is None
+            )
+            assert (
+                meina_reminders.set_reminder_repeat(
+                    repeat_change_target["id"],
+                    "yearly",
+                )
+                is None
+            )
     finally:
         meina_reminders.REMINDER_PATH = original
 
