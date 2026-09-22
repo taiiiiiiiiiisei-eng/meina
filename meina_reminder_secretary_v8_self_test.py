@@ -23,6 +23,7 @@ REQUIRED_KINDS = (
     "reminder_tomorrow",
     "reminder_upcoming",
     "reminder_list",
+    "reminder_repeat_set",
     "reminder_repeat_clear",
     "reminder_reschedule",
     "reminder_rename",
@@ -92,6 +93,9 @@ def main() -> int:
         return 1
     if "stop_reminder_worker" not in agent_text:
         print("FAILED: meina_agent の終了時に監視停止処理がありません")
+        return 1
+    if "_SPEAK_LOCK" not in agent_text or "with _SPEAK_LOCK:" not in agent_text:
+        print("FAILED: TTSのスレッド競合防止ロックがありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
