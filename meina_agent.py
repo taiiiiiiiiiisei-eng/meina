@@ -636,11 +636,19 @@ def _execute_routed_command_base(route):
             items = list_reminders()
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
         elif kind == "reminder_reschedule":
-            from meina_reminders import find_reminders, reschedule_reminder
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                reschedule_reminder,
+            )
 
             request = query if isinstance(query, dict) else {}
             query_text = str(request.get("target") or "").strip()
             due_at = str(request.get("due_at") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
 
             if not query_text:
                 result = "変更する予定名を指定してください。"
@@ -648,17 +656,36 @@ def _execute_routed_command_base(route):
                 result = "変更後の日時を指定してください。"
             else:
                 matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
                 if not matches:
-                    result = "変更する予定が見つかりませんでした。"
+                    result = (
+                        "指定した日時の変更対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "変更する予定が見つかりませんでした。"
+                    )
                 elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
                     result = (
                         f"「{query_text}」に一致する予定が{len(matches)}件あります。"
-                        "もう少し具体的に指定してください。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
                     )
                 else:
                     item = reschedule_reminder(matches[0]["id"], due_at)
                     if item:
-                        from meina_reminders import format_reminder_due
                         result = (
                             f"「{item['text']}」の日時を"
                             f"{format_reminder_due(item['due_at'])}に変更しました。"
@@ -666,11 +693,19 @@ def _execute_routed_command_base(route):
                     else:
                         result = f"「{query_text}」の日時を変更できませんでした。"
         elif kind == "reminder_rename":
-            from meina_reminders import find_reminders, rename_reminder
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                rename_reminder,
+            )
 
             request = query if isinstance(query, dict) else {}
             query_text = str(request.get("target") or "").strip()
             new_name = str(request.get("new_name") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
 
             if not query_text:
                 result = "名前を変更する予定名を指定してください。"
@@ -678,12 +713,32 @@ def _execute_routed_command_base(route):
                 result = "新しい予定名を指定してください。"
             else:
                 matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
                 if not matches:
-                    result = "名前を変更する予定が見つかりませんでした。"
+                    result = (
+                        "指定した日時の名前変更対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "名前を変更する予定が見つかりませんでした。"
+                    )
                 elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
                     result = (
                         f"「{query_text}」に一致する予定が{len(matches)}件あります。"
-                        "もう少し具体的に指定してください。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
                     )
                 else:
                     item = rename_reminder(matches[0]["id"], new_name)
