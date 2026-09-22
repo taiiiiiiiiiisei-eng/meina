@@ -675,6 +675,8 @@ def set_reminder_repeat(
 
         item["repeat_rule"] = rule
         item["due_at"] = next_due.isoformat(timespec="seconds")
+        item.pop("snooze_original_due_at", None)
+        item.pop("pre_notified_due_at", None)
         _save(items)
         return item
     return None
@@ -738,6 +740,7 @@ def clear_reminder_repeat(reminder_id: str) -> dict[str, Any] | None:
             continue
         item.pop("repeat_rule", None)
         item.pop("repeat_day", None)
+        item.pop("snooze_original_due_at", None)
         _save(items)
         return item
     return None
