@@ -908,6 +908,15 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         return None
     hour, minute = parsed_clock
 
+    duration_match = _DURATION_AFTER_CLOCK.search(raw, clock.end())
+    duration_minutes = None
+    if duration_match:
+        amount = int(duration_match.group("num"))
+        unit = duration_match.group("unit")
+        duration_minutes = amount * 60 if unit == "時間" else amount
+        if not 1 <= duration_minutes <= 1440:
+            return None
+
     explicit_date = _CALENDAR_DATE.search(raw)
     day_match = _DAY_WORDS.search(raw)
 
