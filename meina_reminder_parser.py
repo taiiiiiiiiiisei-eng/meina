@@ -12,7 +12,7 @@ _COMMAND_WORDS = re.compile(
     r"(?:を)?(?:追加|登録|設定|リマインド)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?"
 )
-_DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")
+_DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")\n_CALENDAR_DATE = re.compile(r"(?:(?P<year>\\d{4})\\s*年\\s*)?(?P<month>\\d{1,2})\\s*月\\s*(?P<day>\\d{1,2})\\s*日")
 _TRAILING_COMMAND = re.compile(
     r"(?:を)?(?:追加|登録|設定|リマインド|リマインダー)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?$"
