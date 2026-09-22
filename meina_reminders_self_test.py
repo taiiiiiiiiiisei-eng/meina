@@ -357,6 +357,32 @@ def main() -> int:
         is None
     )
 
+    clear_repeat = meina_reminder_parser.parse_reminder_repeat_clear_command(
+        "薬の繰り返しを停止して",
+        now,
+    )
+    assert clear_repeat is not None
+    assert clear_repeat["target"] == "薬"
+    assert clear_repeat["date"] is None
+    assert clear_repeat["hour"] is None
+
+    clear_repeat_at_time = meina_reminder_parser.parse_reminder_repeat_clear_command(
+        "18時の薬の予定の繰り返しを解除して",
+        now,
+    )
+    assert clear_repeat_at_time is not None
+    assert clear_repeat_at_time["target"] == "薬"
+    assert clear_repeat_at_time["hour"] == 18
+    assert clear_repeat_at_time["minute"] == 0
+
+    assert (
+        meina_reminder_parser.parse_reminder_repeat_clear_command(
+            "薬の繰り返しを停止していい？",
+            now,
+        )
+        is None
+    )
+
     selected_rename = meina_reminder_parser.parse_reminder_rename_command(
         "18時の宿題の予定名を数学の宿題に変更して",
         now,
@@ -428,6 +454,24 @@ def main() -> int:
     assert rename_route["query"]["date"] is None
     assert rename_route["query"]["hour"] is None
     assert rename_route["query"]["minute"] is None
+
+    repeat_clear_route = route_command(
+        "薬の繰り返しを停止して",
+        {"confidence": 0.10},
+    )
+    assert repeat_clear_route is not None
+    assert repeat_clear_route["kind"] == "reminder_repeat_clear"
+    assert repeat_clear_route["confidence"] == 1.0
+    assert repeat_clear_route["query"]["target"] == "薬"
+
+    repeat_clear_at_time_route = route_command(
+        "18時の薬の予定の繰り返しを解除して",
+        {"confidence": 0.10},
+    )
+    assert repeat_clear_at_time_route is not None
+    assert repeat_clear_at_time_route["kind"] == "reminder_repeat_clear"
+    assert repeat_clear_at_time_route["query"]["target"] == "薬"
+    assert repeat_clear_at_time_route["query"]["hour"] == 18
 
     selected_reschedule_route = route_command(
         "18時の宿題の予定を明日20時に変更して",
@@ -701,6 +745,22 @@ def main() -> int:
             assert rescheduled_monthly is not None
             assert rescheduled_monthly["repeat_day"] == 20
             assert meina_reminders.format_reminder_repeat(rescheduled_monthly) == "毎月20日"
+
+            cleared = meina_reminders.clear_reminder_repeat(monthly["id"])
+            assert cleared is not None
+            assert "repeat_rule" not in cleared
+            assert "repeat_day" not in cleared
+            assert cleared["due_at"] == "2030-03-20T19:00:00+09:00"
+            assert meina_reminders.format_reminder_repeat(cleared) == ""
+
+            one_shot = meina_reminders.add_reminder(
+                "単発予定",
+                "2030-04-01T12:00:00+09:00",
+            )
+            cleared_one_shot = meina_reminders.clear_reminder_repeat(one_shot["id"])
+            assert cleared_one_shot is not None
+            assert cleared_one_shot["text"] == "単発予定"
+            assert meina_reminders.clear_reminder_repeat("missing-id") is None
     finally:
         meina_reminders.REMINDER_PATH = original
 
