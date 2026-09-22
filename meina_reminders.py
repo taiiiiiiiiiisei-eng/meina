@@ -310,6 +310,36 @@ def upcoming_reminders(days: int = 7, now: datetime | None = None) -> list[dict[
     return result
 
 
+
+def reminders_within(
+    minutes: int = 30,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """現在から指定分以内に始まる通知中の予定を時刻順で返す。"""
+    current = now or datetime.now().astimezone()
+    window = max(1, min(int(minutes), 1440))
+    end = current + timedelta(minutes=window)
+    result: list[dict[str, Any]] = []
+
+    for item in list_reminders():
+        if item.get("paused"):
+            continue
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+
+        if current <= due <= end:
+            result.append(item)
+
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
 def due_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     current = now or datetime.now().astimezone()
     result = []
