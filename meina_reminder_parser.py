@@ -144,22 +144,31 @@ def parse_reminder_reschedule_command(
         return None
 
     patterns = (
-        # 「宿題の予定を明日20時に変更して」
-        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
-        rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
-        # 「予定を明日20時に変更して」: 対象名が未指定
-        rf"^{_ACTION_NOUN}(?:を|は)?(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
-        # 「予定の宿題を明日20時に変更して」
-        rf"^{_ACTION_NOUN}(?:の|から)(?P<target>.+?)(?:を|は)?"
-        rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+        (
+            # 「宿題の予定を明日20時に変更して」
+            rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
+            rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+            True,
+        ),
+        (
+            # 「予定の宿題を明日20時に変更して」
+            rf"^{_ACTION_NOUN}(?:の|から)(?P<target>.+?)(?:を|は)?"
+            rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+            True,
+        ),
+        (
+            # 「予定を明日20時に変更して」: 対象名が未指定
+            rf"^{_ACTION_NOUN}(?:を|は)?(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+            False,
+        ),
     )
 
-    for index, pattern in enumerate(patterns):
+    for pattern, has_target in patterns:
         match = re.fullmatch(pattern, compact)
         if not match:
             continue
 
-        target = "" if index == 1 else match.groupdict().get("target", "")
+        target = match.groupdict().get("target", "") if has_target else ""
         target = re.sub(r"^(?:を|の|から|は|って)+", "", target)
         target = re.sub(r"(?:を|の|は|って)+$", "", target).strip()
 
