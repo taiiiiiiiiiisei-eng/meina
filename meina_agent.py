@@ -538,13 +538,17 @@ from meina_voice_intent import (
 def _format_reminders(items):
     if not items:
         return "予定はありません。"
-    from meina_reminders import format_reminder_due
+    from meina_reminders import format_reminder_due, format_reminder_repeat
 
     lines = []
     for item in items:
         due = format_reminder_due(item.get("due_at", ""))
+        repeat = format_reminder_repeat(item)
         status = "完了" if item.get("done") else "未完了"
-        lines.append(f"・{item.get('text', '')}、{due}、{status}")
+        repeat_text = f"、{repeat}" if repeat else ""
+        lines.append(
+            f"・{item.get('text', '')}、{due}{repeat_text}、{status}"
+        )
     return "\n".join(lines)
 
 
@@ -608,16 +612,29 @@ def _execute_routed_command_base(route):
             result = format_pc_status(get_pc_status())
         elif kind == "reminder":
             from meina_reminder_parser import parse_reminder_command
-            from meina_reminders import add_reminder
+            from meina_reminders import (
+                add_reminder,
+                format_reminder_due,
+                format_reminder_repeat,
+            )
             parsed = parse_reminder_command(query or "")
             if not parsed:
-                result = "予定の日時を読み取れませんでした。例えば「30分後に宿題をする予定を追加して」と言ってください。"
+                result = (
+                    "予定の日時を読み取れませんでした。例えば"
+                    "「30分後に宿題をする予定を追加して」や"
+                    "「毎日18時に薬をリマインドして」と言ってください。"
+                )
             else:
-                item = add_reminder(parsed["text"], parsed["due_at"])
-                from meina_reminders import format_reminder_due
+                item = add_reminder(
+                    parsed["text"],
+                    parsed["due_at"],
+                    repeat_rule=parsed.get("repeat_rule"),
+                )
+                repeat = format_reminder_repeat(item)
+                repeat_text = f"、{repeat}" if repeat else ""
                 result = (
                     f"予定を追加しました。「{item['text']}」は"
-                    f"{format_reminder_due(item['due_at'])}です。"
+                    f"{format_reminder_due(item['due_at'])}{repeat_text}です。"
                 )
         elif kind == "reminder_today":
             from meina_reminders import today_reminders
@@ -1824,6 +1841,13 @@ def main():
     speak(
         "めいな、起動しました"
     )
+
+    from meina_reminder_worker import start_reminder_worker
+
+    if start_reminder_worker(speak):
+        print("⏰ リマインダー監視 : ON")
+    else:
+        print("⏰ リマインダー監視 : すでに起動中")
 
     # =====================================================
     # 待機ループ
