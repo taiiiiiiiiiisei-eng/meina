@@ -43,6 +43,42 @@ def main() -> int:
         assert parsed_schedule["text"] == expected_text, command
         assert parsed_schedule["due_at"] == expected_time, command
 
+    recurring_cases = (
+        (
+            "毎日18時に薬をリマインドして",
+            "薬",
+            "2026-09-12T18:00:00+00:00",
+            "daily",
+        ),
+        (
+            "毎週土曜18時に配信予定を追加して",
+            "配信",
+            "2026-09-12T18:00:00+00:00",
+            "weekly",
+        ),
+        (
+            "毎週月曜日9時に学校の予定を追加して",
+            "学校",
+            "2026-09-14T09:00:00+00:00",
+            "weekly",
+        ),
+    )
+    for command, expected_text, expected_due, expected_repeat in recurring_cases:
+        parsed_repeat = meina_reminder_parser.parse_reminder_command(command, now)
+        assert parsed_repeat is not None, command
+        assert parsed_repeat["text"] == expected_text, command
+        assert parsed_repeat["due_at"] == expected_due, command
+        assert parsed_repeat["repeat_rule"] == expected_repeat, command
+
+    late_saturday = datetime(2026, 9, 12, 20, 0, tzinfo=timezone.utc)
+    parsed_next_week = meina_reminder_parser.parse_reminder_command(
+        "毎週土曜18時に配信予定を追加して",
+        late_saturday,
+    )
+    assert parsed_next_week is not None
+    assert parsed_next_week["due_at"] == "2026-09-19T18:00:00+00:00"
+    assert parsed_next_week["repeat_rule"] == "weekly"
+
     format_now = datetime.fromisoformat("2026-09-23T10:00:00+09:00")
     assert (
         meina_reminders.format_reminder_due(
@@ -317,6 +353,8 @@ def main() -> int:
         "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
         "18時に起こして": ("reminder", "18時に起こして"),
         "30分後に知らせて": ("reminder", "30分後に知らせて"),
+        "毎日18時に薬をリマインドして": ("reminder", "毎日18時に薬をリマインドして"),
+        "毎週土曜18時に配信予定を追加して": ("reminder", "毎週土曜18時に配信予定を追加して"),
         "リマインダー一覧を教えて": ("reminder_list", None),
         "今日の予定を教えて": ("reminder_today", None),
         "明日の予定を教えて": ("reminder_tomorrow", None),
@@ -552,6 +590,38 @@ def main() -> int:
                 now=datetime.fromisoformat("2030-01-05T12:00:00+09:00"),
             )
             assert no_match == []
+
+
+            daily = meina_reminders.add_reminder(
+                "薬",
+                "2030-01-05T18:00:00+09:00",
+                repeat_rule="daily",
+            )
+            assert daily["repeat_rule"] == "daily"
+            assert meina_reminders.format_reminder_repeat(daily) == "毎日"
+            assert meina_reminders.complete_reminder(
+                daily["id"],
+                now=datetime.fromisoformat("2030-01-05T18:01:00+09:00"),
+            )
+            daily_after = meina_reminders.find_reminders("薬")
+            assert len(daily_after) == 1
+            assert daily_after[0]["done"] is False
+            assert daily_after[0]["due_at"] == "2030-01-06T18:00:00+09:00"
+
+            weekly = meina_reminders.add_reminder(
+                "週次配信",
+                "2030-01-05T18:00:00+09:00",
+                repeat_rule="weekly",
+            )
+            assert meina_reminders.format_reminder_repeat(weekly) == "毎週土曜"
+            assert meina_reminders.complete_reminder(
+                weekly["id"],
+                now=datetime.fromisoformat("2030-01-20T12:00:00+09:00"),
+            )
+            weekly_after = meina_reminders.find_reminders("週次配信")
+            assert len(weekly_after) == 1
+            assert weekly_after[0]["done"] is False
+            assert weekly_after[0]["due_at"] == "2030-01-26T18:00:00+09:00"
     finally:
         meina_reminders.REMINDER_PATH = original
 
