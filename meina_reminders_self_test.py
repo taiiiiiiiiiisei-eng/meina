@@ -43,6 +43,45 @@ def main() -> int:
         assert parsed_schedule["text"] == expected_text, command
         assert parsed_schedule["due_at"] == expected_time, command
 
+    format_now = datetime.fromisoformat("2026-09-23T10:00:00+09:00")
+    assert (
+        meina_reminders.format_reminder_due(
+            "2026-09-23T18:00:00+09:00",
+            format_now,
+        )
+        == "今日18時"
+    )
+    assert (
+        meina_reminders.format_reminder_due(
+            "2026-09-24T20:30:00+09:00",
+            format_now,
+        )
+        == "明日20時30分"
+    )
+    assert (
+        meina_reminders.format_reminder_due(
+            "2026-09-25T18:00:00+09:00",
+            format_now,
+        )
+        == "9月25日18時"
+    )
+    assert (
+        meina_reminders.format_reminder_due(
+            "2027-01-03T09:05:00+09:00",
+            format_now,
+        )
+        == "2027年1月3日9時5分"
+    )
+    assert (
+        meina_reminders.format_reminder_due(
+            "2026-09-23T09:00:00+00:00",
+            format_now,
+        )
+        == "今日18時"
+    )
+    assert meina_reminders.format_reminder_due("not-a-date", format_now) == "not-a-date"
+    assert meina_reminders.format_reminder_due("", format_now) == "日時不明"
+
     parsed_natural = meina_reminder_parser.parse_reminder_command("30分後に知らせて", now)
     assert parsed_natural is not None
     assert parsed_natural["text"] == "通知"
