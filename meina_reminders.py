@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -44,12 +45,31 @@ def list_reminders(include_done: bool = False) -> list[dict[str, Any]]:
     return [item for item in items if not item.get("done")]
 
 
+def _normalize_reminder_text(value: Any) -> str:
+    """音声認識で混ざりやすい空白を無視して比較用文字列へ正規化する。"""
+    return re.sub(r"[\\s　]+", "", str(value or "")).casefold()
+
+
 def find_reminders(query: str) -> list[dict[str, Any]]:
-    """内容にqueryを含む未完了リマインダーだけ返す。"""
-    needle = str(query or "").strip().lower()
+    """完全一致を優先し、なければ部分一致する未完了リマインダーを返す。"""
+    needle = _normalize_reminder_text(query)
     if not needle:
         return []
-    return [item for item in list_reminders() if needle in str(item.get("text", "")).lower()]
+
+    items = list_reminders()
+    exact = [
+        item
+        for item in items
+        if _normalize_reminder_text(item.get("text", "")) == needle
+    ]
+    if exact:
+        return exact
+
+    return [
+        item
+        for item in items
+        if needle in _normalize_reminder_text(item.get("text", ""))
+    ]
 
 
 def _date_reminders(target_date, current: datetime) -> list[dict[str, Any]]:
