@@ -311,6 +311,103 @@ def upcoming_reminders(days: int = 7, now: datetime | None = None) -> list[dict[
 
 
 
+
+def set_reminder_pre_notify(
+    reminder_id: str,
+    minutes: int,
+) -> dict[str, Any] | None:
+    """予定の事前通知を設定する。1分〜24時間前まで。"""
+    try:
+        value = int(minutes)
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= value <= 1440:
+        return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item["notify_before_minutes"] = value
+        item.pop("pre_notified_due_at", None)
+        _save(items)
+        return item
+    return None
+
+
+def clear_reminder_pre_notify(reminder_id: str) -> dict[str, Any] | None:
+    """事前通知だけを解除する。通常の本番通知は残す。"""
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item.pop("notify_before_minutes", None)
+        item.pop("pre_notified_due_at", None)
+        _save(items)
+        return item
+    return None
+
+
+def pre_due_reminders(
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """事前通知の時間帯に入った未通知予定を返す。"""
+    current = now or datetime.now().astimezone()
+    result: list[dict[str, Any]] = []
+
+    for item in list_reminders():
+        if item.get("paused"):
+            continue
+
+        try:
+            lead = int(item.get("notify_before_minutes") or 0)
+        except (TypeError, ValueError):
+            continue
+        if not 1 <= lead <= 1440:
+            continue
+
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+
+        due_key = str(item.get("due_at", ""))
+        if item.get("pre_notified_due_at") == due_key:
+            continue
+
+        start = due - timedelta(minutes=lead)
+        if start <= current < due:
+            result.append(item)
+
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def mark_reminder_pre_notified(
+    reminder_id: str,
+    due_at: str,
+) -> bool:
+    """現在の予定時刻に対する事前通知済みマーカーを保存する。"""
+    due_key = str(due_at or "").strip()
+    if not due_key:
+        return False
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        if str(item.get("due_at", "")) != due_key:
+            return False
+        item["pre_notified_due_at"] = due_key
+        _save(items)
+        return True
+    return False
+
+
 def reminders_within(
     minutes: int = 30,
     now: datetime | None = None,
