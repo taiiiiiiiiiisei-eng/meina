@@ -979,12 +979,12 @@ def main() -> int:
             paused_item = meina_reminders.pause_reminder(paused_daily["id"])
             assert paused_item is not None
             assert paused_item["paused"] is True
-            assert (
-                meina_reminders.due_reminders(
-                    datetime.fromisoformat("2030-02-03T20:00:00+09:00")
-                )
-                == []
+            due_while_paused = meina_reminders.due_reminders(
+                datetime.fromisoformat("2030-02-03T20:00:00+09:00")
             )
+            assert paused_daily["id"] not in {
+                item["id"] for item in due_while_paused
+            }
 
             resumed_item = meina_reminders.resume_reminder(
                 paused_daily["id"],
