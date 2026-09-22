@@ -263,6 +263,108 @@ def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
 
 
 
+
+def set_reminder_repeat(
+    reminder_id: str,
+    repeat_rule: str,
+    *,
+    repeat_day: int | None = None,
+    repeat_weekday: int | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """未完了予定の繰り返し設定を変更し、次回日時を未来へ正規化する。"""
+    try:
+        rule = _normalize_repeat_rule(repeat_rule)
+    except ValueError:
+        return None
+    if rule is None:
+        return clear_reminder_repeat(reminder_id)
+
+    current = now or datetime.now().astimezone()
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+        except (TypeError, ValueError):
+            return None
+
+        if due.tzinfo is None and current.tzinfo is not None:
+            due = due.replace(tzinfo=current.tzinfo)
+        elif due.tzinfo is not None and current.tzinfo is not None:
+            due = due.astimezone(current.tzinfo)
+
+        hour, minute, second = due.hour, due.minute, due.second
+        base = current.replace(
+            hour=hour,
+            minute=minute,
+            second=second,
+            microsecond=0,
+        )
+
+        if rule == "daily":
+            next_due = base
+            if next_due <= current:
+                next_due += timedelta(days=1)
+            item.pop("repeat_day", None)
+        elif rule == "weekdays":
+            next_due = base
+            if next_due <= current:
+                next_due += timedelta(days=1)
+            while next_due.weekday() >= 5:
+                next_due += timedelta(days=1)
+            item.pop("repeat_day", None)
+        elif rule == "weekly":
+            try:
+                weekday = int(
+                    due.weekday() if repeat_weekday is None else repeat_weekday
+                )
+            except (TypeError, ValueError):
+                return None
+            if not 0 <= weekday <= 6:
+                return None
+            days_ahead = (weekday - current.weekday()) % 7
+            next_due = base + timedelta(days=days_ahead)
+            if next_due <= current:
+                next_due += timedelta(days=7)
+            item.pop("repeat_day", None)
+        else:
+            try:
+                day = int(repeat_day or due.day)
+            except (TypeError, ValueError):
+                return None
+            if not 1 <= day <= 31:
+                return None
+
+            year, month = current.year, current.month
+            last_day = calendar.monthrange(year, month)[1]
+            next_due = current.replace(
+                day=min(day, last_day),
+                hour=hour,
+                minute=minute,
+                second=second,
+                microsecond=0,
+            )
+            if next_due <= current:
+                year = year + (1 if month == 12 else 0)
+                month = 1 if month == 12 else month + 1
+                last_day = calendar.monthrange(year, month)[1]
+                next_due = next_due.replace(
+                    year=year,
+                    month=month,
+                    day=min(day, last_day),
+                )
+            item["repeat_day"] = day
+
+        item["repeat_rule"] = rule
+        item["due_at"] = next_due.isoformat(timespec="seconds")
+        _save(items)
+        return item
+    return None
+
+
 def clear_reminder_repeat(reminder_id: str) -> dict[str, Any] | None:
     """繰り返し設定だけを解除し、現在の次回予定は1回分として残す。"""
     items = _load()
