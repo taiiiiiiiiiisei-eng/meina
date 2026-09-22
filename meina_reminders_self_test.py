@@ -56,6 +56,40 @@ def main() -> int:
         now,
     ) is None
 
+    action_cases = (
+        ("リマインダーを完了して宿題", "done", "宿題"),
+        ("宿題のリマインダーを完了して", "done", "宿題"),
+        ("リマインダーの宿題を済みにして", "done", "宿題"),
+        ("宿題の予定終わった", "done", "宿題"),
+        ("リマインダーを削除して宿題", "delete", "宿題"),
+        ("宿題の予定を消して", "delete", "宿題"),
+        ("リマインダーから宿題を削除して", "delete", "宿題"),
+        ("宿題のスケジュールをキャンセルして", "delete", "宿題"),
+        ("リマインダーを完了して", "done", ""),
+        ("予定を消して", "delete", ""),
+    )
+    for command, action, expected_target in action_cases:
+        assert (
+            meina_reminder_parser.parse_reminder_action_target(command, action)
+            == expected_target
+        ), command
+
+    # 質問文は変更命令として扱わず、誤って完了・削除しない。
+    assert (
+        meina_reminder_parser.parse_reminder_action_target(
+            "宿題の予定終わった？",
+            "done",
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_action_target(
+            "宿題の予定を消していい？",
+            "delete",
+        )
+        is None
+    )
+
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
         "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
@@ -65,8 +99,13 @@ def main() -> int:
         "今日の予定を教えて": ("reminder_today", None),
         "明日の予定を教えて": ("reminder_tomorrow", None),
         "今後の予定を教えて": ("reminder_upcoming", None),
-        "リマインダーを完了して宿題": ("reminder_done", "リマインダーを完了して宿題"),
-        "リマインダーを削除して宿題": ("reminder_delete", "リマインダーを削除して宿題"),
+        "リマインダーを完了して宿題": ("reminder_done", "宿題"),
+        "リマインダーを削除して宿題": ("reminder_delete", "宿題"),
+        "宿題のリマインダーを完了して": ("reminder_done", "宿題"),
+        "宿題の予定を消して": ("reminder_delete", "宿題"),
+        "リマインダーから宿題を削除して": ("reminder_delete", "宿題"),
+        "リマインダーを完了して": ("reminder_done", ""),
+        "予定を消して": ("reminder_delete", ""),
     }
     for text, (kind, expected_query) in cases.items():
         route = route_command(text, {"confidence": 0.10})
