@@ -629,6 +629,7 @@ def _execute_routed_command_base(route):
             from meina_reminder_parser import parse_reminder_command
             from meina_reminders import (
                 add_reminder,
+                find_duplicate_reminder,
                 format_reminder_due,
                 format_reminder_repeat,
             )
@@ -640,16 +641,73 @@ def _execute_routed_command_base(route):
                     "「毎日18時に薬をリマインドして」と言ってください。"
                 )
             else:
-                item = add_reminder(
+                duplicate = find_duplicate_reminder(
                     parsed["text"],
                     parsed["due_at"],
                     repeat_rule=parsed.get("repeat_rule"),
                     repeat_day=parsed.get("repeat_day"),
                 )
+                if duplicate:
+                    repeat = format_reminder_repeat(duplicate)
+                    repeat_text = f"、{repeat}" if repeat else ""
+                    result = (
+                        f"同じ予定がすでにあります。「{duplicate['text']}」は"
+                        f"{format_reminder_due(duplicate['due_at'])}{repeat_text}です。"
+                    )
+                else:
+                    item = add_reminder(
+                        parsed["text"],
+                        parsed["due_at"],
+                        repeat_rule=parsed.get("repeat_rule"),
+                        repeat_day=parsed.get("repeat_day"),
+                    )
+                    repeat = format_reminder_repeat(item)
+                    repeat_text = f"、{repeat}" if repeat else ""
+                    result = (
+                        f"予定を追加しました。「{item['text']}」は"
+                        f"{format_reminder_due(item['due_at'])}{repeat_text}です。"
+                    )
+        elif kind == "reminder_brief":
+            from meina_reminders import (
+                format_reminder_due,
+                next_reminder,
+                today_reminders,
+            )
+
+            items = today_reminders()
+            active = [item for item in items if not item.get("paused")]
+            paused = [item for item in items if item.get("paused")]
+            next_item = next_reminder()
+
+            if not items:
+                result = "今日の予定はありません。"
+            else:
+                parts = [f"今日は予定が{len(items)}件あります。"]
+                if active:
+                    parts.append(f"通知中は{len(active)}件です。")
+                if paused:
+                    parts.append(f"一時停止中が{len(paused)}件あります。")
+                if next_item and next_item in items:
+                    parts.append(
+                        f"次は「{next_item['text']}」で、"
+                        f"{format_reminder_due(next_item['due_at'])}です。"
+                    )
+                result = "".join(parts) + "\n" + _format_reminders(items)
+        elif kind == "reminder_next":
+            from meina_reminders import (
+                format_reminder_due,
+                format_reminder_repeat,
+                next_reminder,
+            )
+
+            item = next_reminder()
+            if not item:
+                result = "これからの予定はありません。"
+            else:
                 repeat = format_reminder_repeat(item)
                 repeat_text = f"、{repeat}" if repeat else ""
                 result = (
-                    f"予定を追加しました。「{item['text']}」は"
+                    f"次の予定は「{item['text']}」です。"
                     f"{format_reminder_due(item['due_at'])}{repeat_text}です。"
                 )
         elif kind == "reminder_today":
