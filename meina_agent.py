@@ -629,6 +629,35 @@ def _execute_routed_command_base(route):
             from meina_reminders import list_reminders
             items = list_reminders()
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
+        elif kind == "reminder_reschedule":
+            from meina_reminders import find_reminders, reschedule_reminder
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            due_at = str(request.get("due_at") or "").strip()
+
+            if not query_text:
+                result = "変更する予定名を指定してください。"
+            elif not due_at:
+                result = "変更後の日時を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                if not matches:
+                    result = "変更する予定が見つかりませんでした。"
+                elif len(matches) > 1:
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        "もう少し具体的に指定してください。"
+                    )
+                else:
+                    item = reschedule_reminder(matches[0]["id"], due_at)
+                    if item:
+                        result = (
+                            f"「{item['text']}」の日時を"
+                            f"{item['due_at'].replace('T', ' ')}に変更しました。"
+                        )
+                    else:
+                        result = f"「{query_text}」の日時を変更できませんでした。"
         elif kind in ("reminder_done", "reminder_delete"):
             from meina_reminders import complete_reminder, delete_reminder, find_reminders
             query_text = re.sub(
