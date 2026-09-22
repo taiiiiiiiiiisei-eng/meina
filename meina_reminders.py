@@ -47,7 +47,7 @@ def list_reminders(include_done: bool = False) -> list[dict[str, Any]]:
 
 def _normalize_reminder_text(value: Any) -> str:
     """音声認識で混ざりやすい空白を無視して比較用文字列へ正規化する。"""
-    return re.sub(r"[\\s　]+", "", str(value or "")).casefold()
+    return re.sub(r"[\s　]+", "", str(value or "")).casefold()
 
 
 def find_reminders(query: str) -> list[dict[str, Any]]:
