@@ -159,12 +159,32 @@ def route_command(text, frame):
         from meina_reminder_parser import (
             parse_reminder_action_request,
             parse_reminder_pause_command,
+            parse_reminder_pre_notify_clear_command,
+            parse_reminder_pre_notify_set_command,
             parse_reminder_rename_command,
             parse_reminder_repeat_change_command,
             parse_reminder_repeat_clear_command,
             parse_reminder_resume_command,
             parse_reminder_reschedule_command,
         )
+
+        pre_notify_set = parse_reminder_pre_notify_set_command(text)
+        if pre_notify_set is not None:
+            return {
+                "kind": "reminder_pre_notify_set",
+                "target": "local",
+                "query": pre_notify_set,
+                "confidence": 1.0,
+            }
+
+        pre_notify_clear = parse_reminder_pre_notify_clear_command(text)
+        if pre_notify_clear is not None:
+            return {
+                "kind": "reminder_pre_notify_clear",
+                "target": "local",
+                "query": pre_notify_clear,
+                "confidence": 1.0,
+            }
 
         pause_request = parse_reminder_pause_command(text)
         if pause_request is not None:
