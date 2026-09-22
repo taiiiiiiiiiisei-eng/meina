@@ -102,6 +102,41 @@ def find_reminders(query: str) -> list[dict[str, Any]]:
     ]
 
 
+def filter_reminders_by_due(
+    items: list[dict[str, Any]],
+    *,
+    date: str | None = None,
+    hour: int | None = None,
+    minute: int | None = None,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """候補を日付・時刻で安全に絞り込む。日時指定なしならそのまま返す。"""
+    if date is None and hour is None and minute is None:
+        return list(items)
+
+    current = now or datetime.now().astimezone()
+    result: list[dict[str, Any]] = []
+    for item in items:
+        try:
+            due = datetime.fromisoformat(str(item["due_at"]))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if date is not None and due.date().isoformat() != str(date):
+            continue
+        if hour is not None and due.hour != int(hour):
+            continue
+        if minute is not None and due.minute != int(minute):
+            continue
+        result.append(item)
+
+    return result
+
+
 def _date_reminders(target_date, current: datetime) -> list[dict[str, Any]]:
     result = []
     for item in list_reminders():
