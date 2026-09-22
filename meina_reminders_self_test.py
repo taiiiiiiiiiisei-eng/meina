@@ -136,6 +136,30 @@ def main() -> int:
         is None
     )
 
+    rename_cases = (
+        ("宿題の予定を数学の宿題に名前変更して", "宿題", "数学の宿題"),
+        ("リマインダーの配信を夜配信に改名して", "配信", "夜配信"),
+        ("勉強の予定名を資格勉強に変更して", "勉強", "資格勉強"),
+        ("予定を数学の宿題に名前変更して", "", "数学の宿題"),
+        ("宿題の予定を名前変更して", "宿題", ""),
+    )
+    for command, expected_target, expected_name in rename_cases:
+        parsed_rename = meina_reminder_parser.parse_reminder_rename_command(
+            command,
+            now,
+        )
+        assert parsed_rename is not None, command
+        assert parsed_rename["target"] == expected_target, command
+        assert parsed_rename["new_name"] == expected_name, command
+
+    assert (
+        meina_reminder_parser.parse_reminder_rename_command(
+            "宿題の予定を数学の宿題に名前変更していい？",
+            now,
+        )
+        is None
+    )
+
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
         "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
@@ -169,6 +193,18 @@ def main() -> int:
     assert reschedule_route["confidence"] == 1.0
     assert reschedule_route["query"]["target"] == "宿題"
     assert "T20:00:00" in reschedule_route["query"]["due_at"]
+
+    rename_route = route_command(
+        "宿題の予定を数学の宿題に名前変更して",
+        {"confidence": 0.10},
+    )
+    assert rename_route is not None
+    assert rename_route["kind"] == "reminder_rename"
+    assert rename_route["confidence"] == 1.0
+    assert rename_route["query"] == {
+        "target": "宿題",
+        "new_name": "数学の宿題",
+    }
 
     original = meina_reminders.REMINDER_PATH
     try:
@@ -260,6 +296,23 @@ def main() -> int:
                 meina_reminders.reschedule_reminder(
                     rescheduled["id"],
                     "not-a-date",
+                )
+                is None
+            )
+
+            renamed = meina_reminders.rename_reminder(
+                rescheduled["id"],
+                "夜の配信準備",
+            )
+            assert renamed is not None
+            assert renamed["id"] == rescheduled["id"]
+            assert renamed["text"] == "夜の配信準備"
+            assert renamed["due_at"] == "2030-01-04T20:30:00+09:00"
+            assert meina_reminders.rename_reminder(rescheduled["id"], "") is None
+            assert (
+                meina_reminders.rename_reminder(
+                    "missing-id",
+                    "見つからない予定",
                 )
                 is None
             )
