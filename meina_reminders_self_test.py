@@ -383,6 +383,45 @@ def main() -> int:
         is None
     )
 
+    pause_command = meina_reminder_parser.parse_reminder_pause_command(
+        "薬の予定を一時停止して",
+        now,
+    )
+    assert pause_command is not None
+    assert pause_command["target"] == "薬"
+    assert pause_command["date"] is None
+    assert pause_command["hour"] is None
+
+    pause_at_time = meina_reminder_parser.parse_reminder_pause_command(
+        "18時の薬の予定を一時停止して",
+        now,
+    )
+    assert pause_at_time is not None
+    assert pause_at_time["target"] == "薬"
+    assert pause_at_time["hour"] == 18
+
+    resume_command = meina_reminder_parser.parse_reminder_resume_command(
+        "薬のリマインダーを再開して",
+        now,
+    )
+    assert resume_command is not None
+    assert resume_command["target"] == "薬"
+
+    assert (
+        meina_reminder_parser.parse_reminder_pause_command(
+            "薬の予定を一時停止していい？",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_resume_command(
+            "薬のリマインダーを再開していい？",
+            now,
+        )
+        is None
+    )
+
     repeat_change_cases = (
         (
             "薬の繰り返しを平日に変更して",
@@ -515,6 +554,32 @@ def main() -> int:
     assert rename_route["query"]["date"] is None
     assert rename_route["query"]["hour"] is None
     assert rename_route["query"]["minute"] is None
+
+    pause_route = route_command(
+        "薬の予定を一時停止して",
+        {"confidence": 0.10},
+    )
+    assert pause_route is not None
+    assert pause_route["kind"] == "reminder_pause"
+    assert pause_route["confidence"] == 1.0
+    assert pause_route["query"]["target"] == "薬"
+
+    resume_route = route_command(
+        "薬のリマインダーを再開して",
+        {"confidence": 0.10},
+    )
+    assert resume_route is not None
+    assert resume_route["kind"] == "reminder_resume"
+    assert resume_route["confidence"] == 1.0
+    assert resume_route["query"]["target"] == "薬"
+
+    pause_at_time_route = route_command(
+        "18時の薬の予定を一時停止して",
+        {"confidence": 0.10},
+    )
+    assert pause_at_time_route is not None
+    assert pause_at_time_route["kind"] == "reminder_pause"
+    assert pause_at_time_route["query"]["hour"] == 18
 
     repeat_change_route = route_command(
         "薬の繰り返しを平日に変更して",
@@ -905,6 +970,45 @@ def main() -> int:
                 )
                 is None
             )
+
+            paused_daily = meina_reminders.add_reminder(
+                "停止テスト",
+                "2030-02-01T18:00:00+09:00",
+                repeat_rule="daily",
+            )
+            paused_item = meina_reminders.pause_reminder(paused_daily["id"])
+            assert paused_item is not None
+            assert paused_item["paused"] is True
+            assert (
+                meina_reminders.due_reminders(
+                    datetime.fromisoformat("2030-02-03T20:00:00+09:00")
+                )
+                == []
+            )
+
+            resumed_item = meina_reminders.resume_reminder(
+                paused_daily["id"],
+                now=datetime.fromisoformat("2030-02-03T20:00:00+09:00"),
+            )
+            assert resumed_item is not None
+            assert "paused" not in resumed_item
+            assert resumed_item["repeat_rule"] == "daily"
+            assert resumed_item["due_at"] == "2030-02-04T18:00:00+09:00"
+
+            one_shot_pause = meina_reminders.add_reminder(
+                "単発停止",
+                "2030-02-01T12:00:00+09:00",
+            )
+            assert meina_reminders.pause_reminder(one_shot_pause["id"]) is not None
+            one_shot_resumed = meina_reminders.resume_reminder(
+                one_shot_pause["id"],
+                now=datetime.fromisoformat("2030-02-03T20:00:00+09:00"),
+            )
+            assert one_shot_resumed is not None
+            assert one_shot_resumed["due_at"] == "2030-02-01T12:00:00+09:00"
+            assert "paused" not in one_shot_resumed
+            assert meina_reminders.pause_reminder("missing-id") is None
+            assert meina_reminders.resume_reminder("missing-id") is None
     finally:
         meina_reminders.REMINDER_PATH = original
 
