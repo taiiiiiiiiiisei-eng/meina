@@ -334,6 +334,57 @@ def parse_reminder_repeat_change_command(
     return None
 
 
+
+_PAUSE_ACTION = r"(?:一時停止(?:して|してください)?|保留(?:して|してください)?)"
+_RESUME_ACTION = r"(?:再開(?:して|してください)?|再開して|戻して|戻してください)"
+
+
+def _parse_reminder_pause_resume_command(
+    text: str,
+    action_pattern: str,
+    now: datetime | None = None,
+) -> dict | None:
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?{action_pattern}$",
+        rf"^(?P<target>.+?)(?:の)?(?:繰り返し|定期設定)(?:を|は)?{action_pattern}$",
+    )
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+        }
+    return None
+
+
+def parse_reminder_pause_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定通知の一時停止命令を解析する。"""
+    return _parse_reminder_pause_resume_command(text, _PAUSE_ACTION, now)
+
+
+def parse_reminder_resume_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """一時停止した予定通知の再開命令を解析する。"""
+    return _parse_reminder_pause_resume_command(text, _RESUME_ACTION, now)
+
+
 _REPEAT_CLEAR_ACTION = (
     r"(?:停止(?:して|してください)?|"
     r"止めて|止めてください|"
