@@ -302,8 +302,9 @@ def complete_reminder(
         if item.get("id") != reminder_id:
             continue
         if item.get("repeat_rule") in ("daily", "weekly") and not item.get("done"):
-            return advance_recurring_reminder(reminder_id, now=now)
-            is not None
+            return (
+                advance_recurring_reminder(reminder_id, now=now) is not None
+            )
         item["done"] = True
         _save(items)
         return True
