@@ -156,6 +156,86 @@ def find_reminders(query: str) -> list[dict[str, Any]]:
     ]
 
 
+
+def find_duplicate_reminder(
+    text: str,
+    due_at: str,
+    *,
+    repeat_rule: str | None = None,
+    repeat_day: int | None = None,
+) -> dict[str, Any] | None:
+    """同名・同日時・同じ繰り返し設定の未完了予定を探す。"""
+    needle = _normalize_reminder_text(text)
+    if not needle:
+        return None
+
+    try:
+        requested_due = datetime.fromisoformat(str(due_at))
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        requested_rule = _normalize_repeat_rule(repeat_rule)
+    except ValueError:
+        return None
+
+    requested_day = None
+    if requested_rule == "monthly":
+        try:
+            requested_day = int(repeat_day or requested_due.day)
+        except (TypeError, ValueError):
+            return None
+
+    for item in list_reminders():
+        if _normalize_reminder_text(item.get("text", "")) != needle:
+            continue
+        try:
+            item_due = datetime.fromisoformat(str(item.get("due_at", "")))
+        except (TypeError, ValueError):
+            continue
+        if item_due != requested_due:
+            continue
+        if (item.get("repeat_rule") or None) != requested_rule:
+            continue
+        if requested_rule == "monthly":
+            try:
+                item_day = int(item.get("repeat_day") or item_due.day)
+            except (TypeError, ValueError):
+                continue
+            if item_day != requested_day:
+                continue
+        return item
+    return None
+
+
+def next_reminder(
+    now: datetime | None = None,
+    *,
+    include_paused: bool = False,
+) -> dict[str, Any] | None:
+    """現在以降で最も近い未完了予定を返す。通常は一時停止中を除外する。"""
+    current = now or datetime.now().astimezone()
+    candidates: list[tuple[datetime, dict[str, Any]]] = []
+    for item in list_reminders():
+        if item.get("paused") and not include_paused:
+            continue
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+        if due >= current:
+            candidates.append((due, item))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda pair: pair[0])
+    return candidates[0][1]
+
+
 def filter_reminders_by_due(
     items: list[dict[str, Any]],
     *,
