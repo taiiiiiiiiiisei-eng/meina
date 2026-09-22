@@ -26,6 +26,8 @@ REQUIRED_KINDS = (
     "reminder_overdue",
     "reminder_upcoming",
     "reminder_brief",
+    "reminder_conflicts",
+    "reminder_free_time",
     "reminder_next",
     "reminder_soon",
     "reminder_list",
@@ -123,6 +125,12 @@ def main() -> int:
         return 1
     if "week_reminders" not in agent_text or "month_reminders" not in agent_text:
         print("FAILED: 暦週・暦月の予定表示配線がありません")
+        return 1
+    if "duration_minutes" not in agent_text or "format_reminder_duration" not in agent_text:
+        print("FAILED: 所要時間つき予定の実行配線がありません")
+        return 1
+    if "find_schedule_conflicts" not in agent_text or "find_free_time_slots" not in agent_text:
+        print("FAILED: 予定重複・空き時間の実行配線がありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
