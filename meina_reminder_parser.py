@@ -516,6 +516,54 @@ def parse_reminder_repeat_clear_command(
     return None
 
 
+
+_SNOOZE_ACTION = (
+    r"(?:回して|回してください|"
+    r"延長して|延長してください|"
+    r"延期して|延期してください|"
+    r"スヌーズして|スヌーズしてください)"
+)
+
+
+def parse_reminder_snooze_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """「宿題を10分後に回して」の対象名・任意の日時指定・遅延分を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}?(?:を|は)?"
+        rf"(?P<minutes>\d{{1,4}})分(?:後)?(?:に)?{_SNOOZE_ACTION}$",
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+
+        minutes = int(match.group("minutes"))
+        if not 1 <= minutes <= 1440:
+            return None
+
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "delay_minutes": minutes,
+        }
+
+    return None
+
+
 _RESCHEDULE_ACTION = (
     r"(?:変更(?:して|してください)?|"
     r"変えて|変えてください|"
