@@ -9,6 +9,7 @@ import meina_reminders
 from meina_reminder_worker import (
     is_reminder_worker_running,
     process_due_reminders,
+    process_pre_due_reminders,
     start_reminder_worker,
     stop_reminder_worker,
 )
@@ -81,6 +82,31 @@ def main() -> int:
             assert process_due_reminders(spoken.append, now=now) == 0
             assert len(spoken) == 5
 
+            pre_item = meina_reminders.add_reminder(
+                "事前通知の確認",
+                "2030-01-05T12:10:00+09:00",
+            )
+            assert meina_reminders.set_reminder_pre_notify(pre_item["id"], 15)
+
+            assert process_pre_due_reminders(spoken.append, now=now) == 1
+            assert len(spoken) == 6
+            assert any(
+                "事前のお知らせ" in message and "事前通知の確認" in message
+                for message in spoken
+            )
+
+            # 同じ予定時刻への事前通知は一度だけ。
+            assert process_pre_due_reminders(spoken.append, now=now) == 0
+            assert len(spoken) == 6
+
+            due_after_pre = datetime.fromisoformat("2030-01-05T12:11:00+09:00")
+            assert process_due_reminders(spoken.append, now=due_after_pre) == 1
+            assert len(spoken) == 7
+            assert any(
+                "リマインダーです。事前通知の確認" in message
+                for message in spoken
+            )
+
             resumed = meina_reminders.resume_reminder(
                 paused["id"],
                 now=now,
@@ -88,6 +114,7 @@ def main() -> int:
             assert resumed is not None
             assert resumed["due_at"] == "2030-01-06T08:00:00+09:00"
             assert process_due_reminders(spoken.append, now=now) == 0
+            assert len(spoken) == 7
 
             assert is_reminder_worker_running() is False
             assert start_reminder_worker(spoken.append, interval_seconds=60.0) is True
