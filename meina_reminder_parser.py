@@ -249,40 +249,6 @@ def _parse_due_at_text(text: str, now: datetime | None = None) -> datetime | Non
 
     current = now or datetime.now().astimezone()
 
-    daily_match = _REPEAT_DAILY.search(raw)
-    weekly_match = _REPEAT_WEEKLY.search(raw)
-    if daily_match or weekly_match:
-        clock = _CLOCK.search(raw)
-        if not clock:
-            return None
-
-        parsed_clock = _parse_clock(clock)
-        if parsed_clock is None:
-            return None
-        hour, minute = parsed_clock
-
-        due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        repeat_rule = "daily"
-        repeat_span = daily_match.span() if daily_match else weekly_match.span()
-
-        if weekly_match:
-            repeat_rule = "weekly"
-            target_weekday = _WEEKDAY_INDEX[weekly_match.group("weekday")]
-            days_ahead = (target_weekday - current.weekday()) % 7
-            due += timedelta(days=days_ahead)
-            if due <= current:
-                due += timedelta(days=7)
-        elif due <= current:
-            due += timedelta(days=1)
-
-        text_part = _extract_text(raw, [clock.span(), repeat_span])
-        return _build_result(
-            raw,
-            text_part,
-            due,
-            repeat_rule=repeat_rule,
-        )
-
     relative = _RELATIVE.search(raw)
     if relative:
         amount = int(relative.group("num"))
@@ -487,6 +453,40 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
         return None
 
     current = now or datetime.now().astimezone()
+
+    daily_match = _REPEAT_DAILY.search(raw)
+    weekly_match = _REPEAT_WEEKLY.search(raw)
+    if daily_match or weekly_match:
+        clock = _CLOCK.search(raw)
+        if not clock:
+            return None
+
+        parsed_clock = _parse_clock(clock)
+        if parsed_clock is None:
+            return None
+        hour, minute = parsed_clock
+
+        due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        repeat_rule = "daily"
+        repeat_span = daily_match.span() if daily_match else weekly_match.span()
+
+        if weekly_match:
+            repeat_rule = "weekly"
+            target_weekday = _WEEKDAY_INDEX[weekly_match.group("weekday")]
+            days_ahead = (target_weekday - current.weekday()) % 7
+            due += timedelta(days=days_ahead)
+            if due <= current:
+                due += timedelta(days=7)
+        elif due <= current:
+            due += timedelta(days=1)
+
+        text_part = _extract_text(raw, [clock.span(), repeat_span])
+        return _build_result(
+            raw,
+            text_part,
+            due,
+            repeat_rule=repeat_rule,
+        )
 
     relative = _RELATIVE.search(raw)
     if relative:
