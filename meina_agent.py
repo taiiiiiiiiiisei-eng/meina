@@ -6,6 +6,7 @@ import tempfile
 import sysconfig
 import shutil
 import subprocess
+import threading
 
 import sounddevice as sd
 import pyttsx3
@@ -22,6 +23,7 @@ from meina_task_plans import get_task_plan, validate_task_plan
 # =========================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_SPEAK_LOCK = threading.RLock()
 
 print("============================================================")
 print("🤖 めいな Voice Agent")
@@ -354,23 +356,25 @@ def _speak_neural(text):
             pass
 
 def speak(text):
-    """めいなの自然な音声出力。Neural TTS優先、失敗時はWindows TTS。"""
+    """めいなの自然な音声出力。複数スレッドのTTS呼び出しを直列化する。"""
     speech = _prepare_tts_text(text)
     if not speech:
         return
-    print("🔊 めいな:", text)
-    if NEURAL_TTS_AVAILABLE:
+
+    with _SPEAK_LOCK:
+        print("🔊 めいな:", text)
+        if NEURAL_TTS_AVAILABLE:
+            try:
+                _speak_neural(speech)
+                return
+            except Exception as e:
+                print("⚠️ Neural TTSエラー。Windows TTSへ切り替えます:", e)
         try:
-            _speak_neural(speech)
-            return
+            engine.stop()
+            engine.say(speech)
+            engine.runAndWait()
         except Exception as e:
-            print("⚠️ Neural TTSエラー。Windows TTSへ切り替えます:", e)
-    try:
-        engine.stop()
-        engine.say(speech)
-        engine.runAndWait()
-    except Exception as e:
-        print("❌ TTS ERROR:", e)
+            print("❌ TTS ERROR:", e)
 # =========================================================
 # 音声録音
 # =========================================================
