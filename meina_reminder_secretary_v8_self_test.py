@@ -22,6 +22,7 @@ REQUIRED_KINDS = (
     "reminder_upcoming",
     "reminder_list",
     "reminder_reschedule",
+    "reminder_rename",
     "reminder_done",
     "reminder_delete",
 )
