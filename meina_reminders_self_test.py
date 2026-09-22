@@ -532,6 +532,24 @@ def main() -> int:
         assert route["confidence"] == 1.0
         assert route["query"] == expected_query
 
+    brief_route = route_command(
+        "今日の予定まとめ",
+        {"confidence": 0.10},
+    )
+    assert brief_route is not None
+    assert brief_route["kind"] == "reminder_brief"
+    assert brief_route["confidence"] == 1.0
+    assert brief_route["query"] is None
+
+    next_route = route_command(
+        "次の予定は？",
+        {"confidence": 0.10},
+    )
+    assert next_route is not None
+    assert next_route["kind"] == "reminder_next"
+    assert next_route["confidence"] == 1.0
+    assert next_route["query"] is None
+
     reschedule_route = route_command(
         "宿題の予定を明日20時に変更して",
         {"confidence": 0.10},
@@ -1009,6 +1027,70 @@ def main() -> int:
             assert "paused" not in one_shot_resumed
             assert meina_reminders.pause_reminder("missing-id") is None
             assert meina_reminders.resume_reminder("missing-id") is None
+
+            duplicate_source = meina_reminders.add_reminder(
+                "重複確認",
+                "2040-01-01T10:00:00+09:00",
+            )
+            duplicate_match = meina_reminders.find_duplicate_reminder(
+                "重 複確認",
+                "2040-01-01T10:00:00+09:00",
+            )
+            assert duplicate_match is not None
+            assert duplicate_match["id"] == duplicate_source["id"]
+            assert (
+                meina_reminders.find_duplicate_reminder(
+                    "重複確認",
+                    "2040-01-01T11:00:00+09:00",
+                )
+                is None
+            )
+
+            recurring_duplicate = meina_reminders.add_reminder(
+                "月次重複",
+                "2040-01-31T18:00:00+09:00",
+                repeat_rule="monthly",
+                repeat_day=31,
+            )
+            recurring_match = meina_reminders.find_duplicate_reminder(
+                "月次重複",
+                "2040-01-31T18:00:00+09:00",
+                repeat_rule="monthly",
+                repeat_day=31,
+            )
+            assert recurring_match is not None
+            assert recurring_match["id"] == recurring_duplicate["id"]
+            assert (
+                meina_reminders.find_duplicate_reminder(
+                    "月次重複",
+                    "2040-01-31T18:00:00+09:00",
+                    repeat_rule="monthly",
+                    repeat_day=30,
+                )
+                is None
+            )
+
+            paused_next = meina_reminders.add_reminder(
+                "停止中の次予定",
+                "2040-01-02T10:00:00+09:00",
+            )
+            assert meina_reminders.pause_reminder(paused_next["id"]) is not None
+            active_next = meina_reminders.add_reminder(
+                "有効な次予定",
+                "2040-01-02T11:00:00+09:00",
+            )
+            next_item = meina_reminders.next_reminder(
+                datetime.fromisoformat("2040-01-02T09:00:00+09:00")
+            )
+            assert next_item is not None
+            assert next_item["id"] == active_next["id"]
+
+            next_including_paused = meina_reminders.next_reminder(
+                datetime.fromisoformat("2040-01-02T09:00:00+09:00"),
+                include_paused=True,
+            )
+            assert next_including_paused is not None
+            assert next_including_paused["id"] == paused_next["id"]
     finally:
         meina_reminders.REMINDER_PATH = original
 
