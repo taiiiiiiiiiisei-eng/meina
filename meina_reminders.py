@@ -141,6 +141,22 @@ def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
     return None
 
 
+def rename_reminder(reminder_id: str, new_text: str) -> dict[str, Any] | None:
+    """IDが一致する未完了リマインダーの名前だけを更新する。"""
+    name = str(new_text or "").strip()
+    if not name or any(ord(char) < 32 for char in name):
+        return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item["text"] = name
+        _save(items)
+        return item
+    return None
+
+
 def complete_reminder(reminder_id: str) -> bool:
     items = _load()
     changed = False
