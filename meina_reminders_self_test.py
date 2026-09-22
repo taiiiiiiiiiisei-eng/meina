@@ -43,6 +43,41 @@ def main() -> int:
         assert parsed_schedule["text"] == expected_text, command
         assert parsed_schedule["due_at"] == expected_time, command
 
+    duration_cases = (
+        (
+            "18時から1時間勉強の予定を追加して",
+            "勉強",
+            "2026-09-12T18:00:00+00:00",
+            60,
+        ),
+        (
+            "明日20時から90分配信予定を追加して",
+            "配信",
+            "2026-09-13T20:00:00+00:00",
+            90,
+        ),
+        (
+            "毎日18時から2時間勉強をリマインドして",
+            "勉強",
+            "2026-09-12T18:00:00+00:00",
+            120,
+        ),
+    )
+    for command, expected_text, expected_due, expected_duration in duration_cases:
+        parsed_duration = meina_reminder_parser.parse_reminder_command(command, now)
+        assert parsed_duration is not None, command
+        assert parsed_duration["text"] == expected_text, command
+        assert parsed_duration["due_at"] == expected_due, command
+        assert parsed_duration["duration_minutes"] == expected_duration, command
+
+    assert (
+        meina_reminder_parser.parse_reminder_command(
+            "18時から1441分勉強の予定を追加して",
+            now,
+        )
+        is None
+    )
+
     recurring_cases = (
         (
             "毎日18時に薬をリマインドして",
@@ -649,6 +684,37 @@ def main() -> int:
         assert route["kind"] == kind
         assert route["confidence"] == 1.0
         assert route["query"] == expected_query
+
+    conflict_route = route_command(
+        "予定かぶってる？",
+        {"confidence": 0.10},
+    )
+    assert conflict_route is not None
+    assert conflict_route["kind"] == "reminder_conflicts"
+    assert conflict_route["query"] == 7
+
+    free_route = route_command(
+        "今日18時から22時の空き時間を教えて",
+        {"confidence": 0.10},
+    )
+    assert free_route is not None
+    assert free_route["kind"] == "reminder_free_time"
+    assert free_route["query"] == {
+        "day": "今日",
+        "start_hour": 18,
+        "start_minute": 0,
+        "end_hour": 22,
+        "end_minute": 0,
+    }
+
+    free_tomorrow_route = route_command(
+        "明日18時30分から21時の空いてる時間",
+        {"confidence": 0.10},
+    )
+    assert free_tomorrow_route is not None
+    assert free_tomorrow_route["kind"] == "reminder_free_time"
+    assert free_tomorrow_route["query"]["day"] == "明日"
+    assert free_tomorrow_route["query"]["start_minute"] == 30
 
     brief_route = route_command(
         "今日の予定まとめ",
@@ -1416,6 +1482,94 @@ def main() -> int:
                 daily_snooze["id"],
                 1441,
             ) is None
+
+            duration_item = meina_reminders.add_reminder(
+                "所要時間テスト",
+                "2050-01-01T18:00:00+09:00",
+                duration_minutes=90,
+            )
+            assert duration_item["duration_minutes"] == 90
+            assert meina_reminders.format_reminder_duration(duration_item) == "1時間30分"
+
+            same_without_duration = meina_reminders.find_duplicate_reminder(
+                "所要時間テスト",
+                "2050-01-01T18:00:00+09:00",
+            )
+            assert same_without_duration is None
+            same_with_duration = meina_reminders.find_duplicate_reminder(
+                "所要時間テスト",
+                "2050-01-01T18:00:00+09:00",
+                duration_minutes=90,
+            )
+            assert same_with_duration is not None
+            assert same_with_duration["id"] == duration_item["id"]
+
+            conflict_a = meina_reminders.add_reminder(
+                "重なりA",
+                "2050-01-02T18:00:00+09:00",
+                duration_minutes=60,
+            )
+            conflict_b = meina_reminders.add_reminder(
+                "重なりB",
+                "2050-01-02T18:30:00+09:00",
+                duration_minutes=60,
+            )
+            no_conflict = meina_reminders.add_reminder(
+                "重ならない",
+                "2050-01-02T20:00:00+09:00",
+                duration_minutes=30,
+            )
+            conflicts = meina_reminders.find_schedule_conflicts(
+                now=datetime.fromisoformat("2050-01-02T17:00:00+09:00"),
+                days=1,
+            )
+            conflict_ids = {
+                frozenset((first["id"], second["id"]))
+                for first, second in conflicts
+            }
+            assert frozenset((conflict_a["id"], conflict_b["id"])) in conflict_ids
+            assert all(no_conflict["id"] not in pair for pair in conflict_ids)
+
+            paused_conflict = meina_reminders.add_reminder(
+                "停止中重なり",
+                "2050-01-02T18:15:00+09:00",
+                duration_minutes=60,
+            )
+            assert meina_reminders.pause_reminder(paused_conflict["id"])
+            conflicts_after_pause = meina_reminders.find_schedule_conflicts(
+                now=datetime.fromisoformat("2050-01-02T17:00:00+09:00"),
+                days=1,
+            )
+            assert all(
+                paused_conflict["id"] not in {first["id"], second["id"]}
+                for first, second in conflicts_after_pause
+            )
+
+            free_slots = meina_reminders.find_free_time_slots(
+                datetime.fromisoformat("2050-01-02T18:00:00+09:00"),
+                datetime.fromisoformat("2050-01-02T22:00:00+09:00"),
+                minimum_minutes=15,
+            )
+            assert free_slots == [
+                (
+                    datetime.fromisoformat("2050-01-02T19:30:00+09:00"),
+                    datetime.fromisoformat("2050-01-02T20:00:00+09:00"),
+                ),
+                (
+                    datetime.fromisoformat("2050-01-02T20:30:00+09:00"),
+                    datetime.fromisoformat("2050-01-02T22:00:00+09:00"),
+                ),
+            ]
+
+            try:
+                meina_reminders.add_reminder(
+                    "無効時間",
+                    "2050-01-03T12:00:00+09:00",
+                    duration_minutes=1441,
+                )
+                raise AssertionError("invalid duration should fail")
+            except ValueError:
+                pass
 
             pre_item = meina_reminders.add_reminder(
                 "事前通知テスト",
