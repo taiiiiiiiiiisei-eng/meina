@@ -294,6 +294,66 @@ def tomorrow_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     return _date_reminders((current + timedelta(days=1)).date(), current)
 
 
+def _range_reminders(start_date, end_date, current: datetime) -> list[dict[str, Any]]:
+    """開始日〜終了日の未完了予定を時刻順で返す。"""
+    result: list[dict[str, Any]] = []
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item["due_at"]))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (KeyError, TypeError, ValueError):
+            continue
+        if start_date <= due.date() <= end_date:
+            result.append(item)
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def week_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
+    """現在の暦週（月曜〜日曜）の未完了予定を返す。"""
+    current = now or datetime.now().astimezone()
+    monday = current.date() - timedelta(days=current.weekday())
+    sunday = monday + timedelta(days=6)
+    return _range_reminders(monday, sunday, current)
+
+
+def month_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
+    """現在の暦月の未完了予定を返す。"""
+    current = now or datetime.now().astimezone()
+    last_day = calendar.monthrange(current.year, current.month)[1]
+    start = current.date().replace(day=1)
+    end = current.date().replace(day=last_day)
+    return _range_reminders(start, end, current)
+
+
+def overdue_reminders(
+    now: datetime | None = None,
+    *,
+    include_paused: bool = False,
+) -> list[dict[str, Any]]:
+    """期限を過ぎた未完了予定を古い順に返す。"""
+    current = now or datetime.now().astimezone()
+    result: list[dict[str, Any]] = []
+    for item in list_reminders():
+        if item.get("paused") and not include_paused:
+            continue
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+        if due < current:
+            result.append(item)
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
 def upcoming_reminders(days: int = 7, now: datetime | None = None) -> list[dict[str, Any]]:
     """現在から指定日数以内の未完了予定を時刻順で返す。"""
     current = now or datetime.now().astimezone()
@@ -452,6 +512,50 @@ def due_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     return result
 
 
+def snooze_reminder(
+    reminder_id: str,
+    minutes: int,
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """今回の予定だけを指定分後へ回す。定期予定の次回周期は元時刻を維持する。"""
+    try:
+        delay = int(minutes)
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= delay <= 1440:
+        return None
+
+    current = now or datetime.now().astimezone()
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+
+        try:
+            old_due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if old_due.tzinfo is None and current.tzinfo is not None:
+                old_due = old_due.replace(tzinfo=current.tzinfo)
+            elif old_due.tzinfo is not None and current.tzinfo is not None:
+                old_due = old_due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            return None
+
+        if item.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly"):
+            item.setdefault(
+                "snooze_original_due_at",
+                old_due.isoformat(timespec="seconds"),
+            )
+        else:
+            item.pop("snooze_original_due_at", None)
+
+        new_due = current + timedelta(minutes=delay)
+        item["due_at"] = new_due.isoformat(timespec="seconds")
+        item.pop("pre_notified_due_at", None)
+        _save(items)
+        return item
+    return None
+
+
 def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
     """IDが一致する未完了リマインダーの日時だけを更新する。"""
     try:
@@ -464,6 +568,8 @@ def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
         if item.get("id") != reminder_id or item.get("done"):
             continue
         item["due_at"] = due.isoformat(timespec="seconds")
+        item.pop("snooze_original_due_at", None)
+        item.pop("pre_notified_due_at", None)
         if item.get("repeat_rule") == "monthly":
             item["repeat_day"] = due.day
         _save(items)
@@ -669,8 +775,11 @@ def advance_recurring_reminder(
         if rule not in ("daily", "weekdays", "weekly", "monthly"):
             return None
 
+        anchor_due_at = item.pop("snooze_original_due_at", None)
         try:
-            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            due = datetime.fromisoformat(
+                str(anchor_due_at or item.get("due_at", ""))
+            )
         except (TypeError, ValueError):
             return None
 
