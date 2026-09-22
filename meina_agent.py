@@ -693,6 +693,21 @@ def _execute_routed_command_base(route):
                         f"{format_reminder_due(next_item['due_at'])}です。"
                     )
                 result = "".join(parts) + "\n" + _format_reminders(items)
+        elif kind == "reminder_soon":
+            from meina_reminders import reminders_within
+
+            try:
+                minutes = max(1, min(int(query or 30), 1440))
+            except (TypeError, ValueError):
+                minutes = 30
+            items = reminders_within(minutes)
+            if not items:
+                result = f"{minutes}分以内の予定はありません。"
+            else:
+                result = (
+                    f"{minutes}分以内の予定が{len(items)}件あります。\n"
+                    + _format_reminders(items)
+                )
         elif kind == "reminder_next":
             from meina_reminders import (
                 format_reminder_due,
