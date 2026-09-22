@@ -1,6 +1,7 @@
 """めいなの自然な日本語リマインダー・予定命令を安全に解析する。"""
 from __future__ import annotations
 
+import calendar
 import re
 from datetime import datetime, timedelta
 
@@ -10,9 +11,11 @@ _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\
 _DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")
 _CALENDAR_DATE = re.compile(r"(?:(?P<year>\d{4})\s*年\s*)?(?P<month>\d{1,2})\s*月\s*(?P<day>\d{1,2})\s*日")
 _REPEAT_DAILY = re.compile(r"毎日")
+_REPEAT_WEEKDAYS = re.compile(r"(?:平日|毎平日)")
 _REPEAT_WEEKLY = re.compile(
     r"毎週\s*(?P<weekday>月|火|水|木|金|土|日)(?:曜(?:日)?)?"
 )
+_REPEAT_MONTHLY = re.compile(r"毎月\s*(?P<day>\d{1,2})\s*日")
 _WEEKDAY_INDEX = {"月": 0, "火": 1, "水": 2, "木": 3, "金": 4, "土": 5, "日": 6}
 _COMMAND_WORDS = re.compile(
     r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて|追加|登録|設定)"
@@ -455,8 +458,10 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
     current = now or datetime.now().astimezone()
 
     daily_match = _REPEAT_DAILY.search(raw)
+    weekdays_match = _REPEAT_WEEKDAYS.search(raw)
     weekly_match = _REPEAT_WEEKLY.search(raw)
-    if daily_match or weekly_match:
+    monthly_match = _REPEAT_MONTHLY.search(raw)
+    if daily_match or weekdays_match or weekly_match or monthly_match:
         clock = _CLOCK.search(raw)
         if not clock:
             return None
@@ -468,25 +473,62 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
 
         due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
         repeat_rule = "daily"
-        repeat_span = daily_match.span() if daily_match else weekly_match.span()
+        repeat_day = None
 
-        if weekly_match:
+        if monthly_match:
+            repeat_rule = "monthly"
+            repeat_span = monthly_match.span()
+            repeat_day = int(monthly_match.group("day"))
+            if not 1 <= repeat_day <= 31:
+                return None
+
+            last_day = calendar.monthrange(current.year, current.month)[1]
+            due = current.replace(
+                day=min(repeat_day, last_day),
+                hour=hour,
+                minute=minute,
+                second=0,
+                microsecond=0,
+            )
+            if due <= current:
+                year = current.year + (1 if current.month == 12 else 0)
+                month = 1 if current.month == 12 else current.month + 1
+                last_day = calendar.monthrange(year, month)[1]
+                due = due.replace(
+                    year=year,
+                    month=month,
+                    day=min(repeat_day, last_day),
+                )
+        elif weekly_match:
             repeat_rule = "weekly"
+            repeat_span = weekly_match.span()
             target_weekday = _WEEKDAY_INDEX[weekly_match.group("weekday")]
             days_ahead = (target_weekday - current.weekday()) % 7
             due += timedelta(days=days_ahead)
             if due <= current:
                 due += timedelta(days=7)
-        elif due <= current:
-            due += timedelta(days=1)
+        elif weekdays_match:
+            repeat_rule = "weekdays"
+            repeat_span = weekdays_match.span()
+            if due <= current:
+                due += timedelta(days=1)
+            while due.weekday() >= 5:
+                due += timedelta(days=1)
+        else:
+            repeat_span = daily_match.span()
+            if due <= current:
+                due += timedelta(days=1)
 
         text_part = _extract_text(raw, [clock.span(), repeat_span])
-        return _build_result(
+        result = _build_result(
             raw,
             text_part,
             due,
             repeat_rule=repeat_rule,
         )
+        if result is not None and repeat_day is not None:
+            result["repeat_day"] = repeat_day
+        return result
 
     relative = _RELATIVE.search(raw)
     if relative:
@@ -624,7 +666,9 @@ def _extract_text(raw: str, spans: list[tuple[int, int]]) -> str:
     text = _DAY_WORDS.sub("", text)
     text = _CALENDAR_DATE.sub("", text)
     text = _REPEAT_DAILY.sub("", text)
+    text = _REPEAT_WEEKDAYS.sub("", text)
     text = _REPEAT_WEEKLY.sub("", text)
+    text = _REPEAT_MONTHLY.sub("", text)
     text = _COMMAND_WORDS.sub("", text)
     text = _TRAILING.sub("", text)
 
