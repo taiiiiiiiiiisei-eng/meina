@@ -13,6 +13,7 @@ AGENT = ROOT / "meina_agent.py"
 ROUTER = ROOT / "command_router.py"
 PARSER = ROOT / "meina_reminder_parser.py"
 REMINDERS = ROOT / "meina_reminders.py"
+WORKER = ROOT / "meina_reminder_worker.py"
 REMINDER_TEST = ROOT / "meina_reminders_self_test.py"
 
 REQUIRED_KINDS = (
@@ -45,7 +46,7 @@ def _parse_file(path: Path) -> ast.AST | None:
 
 
 def main() -> int:
-    required_files = (AGENT, ROUTER, PARSER, REMINDERS, REMINDER_TEST)
+    required_files = (AGENT, ROUTER, PARSER, REMINDERS, WORKER, REMINDER_TEST)
     for path in required_files:
         if not path.exists():
             print(f"FAILED: {path.name} が見つかりません")
@@ -64,6 +65,14 @@ def main() -> int:
 
     if "execute_routed_command" not in agent_funcs or "_execute_routed_command_base" not in agent_funcs:
         print("FAILED: 通常のルーティング関数が見つかりません")
+        return 1
+
+    worker_funcs = _functions(trees[WORKER])
+    if "start_reminder_worker" not in worker_funcs or "process_due_reminders" not in worker_funcs:
+        print("FAILED: リマインダー監視関数が見つかりません")
+        return 1
+    if "start_reminder_worker" not in agent_text:
+        print("FAILED: meina_agent からリマインダー監視が起動されません")
         return 1
 
     missing_router = [
