@@ -262,6 +262,20 @@ def reschedule_reminder(reminder_id: str, due_at: str) -> dict[str, Any] | None:
     return None
 
 
+
+def clear_reminder_repeat(reminder_id: str) -> dict[str, Any] | None:
+    """繰り返し設定だけを解除し、現在の次回予定は1回分として残す。"""
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item.pop("repeat_rule", None)
+        item.pop("repeat_day", None)
+        _save(items)
+        return item
+    return None
+
+
 def rename_reminder(reminder_id: str, new_text: str) -> dict[str, Any] | None:
     """IDが一致する未完了リマインダーの名前だけを更新する。"""
     name = str(new_text or "").strip()
