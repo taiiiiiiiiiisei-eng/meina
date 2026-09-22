@@ -1,0 +1,117 @@
+"""リマインダー秘書の安全な最終検証。
+既存ルーティングを壊さず、関連Pythonの構文と依存関係なしセルフテストを確認する。
+"""
+from __future__ import annotations
+
+import ast
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+AGENT = ROOT / "meina_agent.py"
+ROUTER = ROOT / "command_router.py"
+PARSER = ROOT / "meina_reminder_parser.py"
+REMINDERS = ROOT / "meina_reminders.py"
+REMINDER_TEST = ROOT / "meina_reminders_self_test.py"
+
+REQUIRED_KINDS = (
+    "reminder",
+    "reminder_today",
+    "reminder_tomorrow",
+    "reminder_upcoming",
+    "reminder_list",
+    "reminder_reschedule",
+    "reminder_done",
+    "reminder_delete",
+)
+
+
+def _functions(tree):
+    return {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+
+def _parse_file(path: Path) -> ast.AST | None:
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError as exc:
+        print(f"FAILED: {path.name} Python構文エラー: {exc}")
+        return None
+
+
+def main() -> int:
+    required_files = (AGENT, ROUTER, PARSER, REMINDERS, REMINDER_TEST)
+    for path in required_files:
+        if not path.exists():
+            print(f"FAILED: {path.name} が見つかりません")
+            return 1
+
+    trees = {}
+    for path in required_files:
+        tree = _parse_file(path)
+        if tree is None:
+            return 1
+        trees[path] = tree
+
+    agent_text = AGENT.read_text(encoding="utf-8")
+    router_text = ROUTER.read_text(encoding="utf-8")
+    agent_funcs = _functions(trees[AGENT])
+
+    if "execute_routed_command" not in agent_funcs or "_execute_routed_command_base" not in agent_funcs:
+        print("FAILED: 通常のルーティング関数が見つかりません")
+        return 1
+
+    missing_router = [
+        kind for kind in REQUIRED_KINDS
+        if f'"kind": "{kind}"' not in router_text
+    ]
+    missing_agent = [
+        kind for kind in REQUIRED_KINDS
+        if (
+            f'kind == "{kind}"' not in agent_text
+            and f'kind in ("reminder_done", "reminder_delete")' not in agent_text
+        )
+    ]
+    if missing_router:
+        print("FAILED: command_router に不足:", ", ".join(missing_router))
+        return 1
+    if missing_agent:
+        print("FAILED: meina_agent に不足:", ", ".join(missing_agent))
+        return 1
+
+    final = ROOT / "upgrade_meina_reminder_secretary_final.py"
+    if final.exists():
+        final_text = final.read_text(encoding="utf-8")
+        forbidden = (
+            "upgrade_meina_reminders_v3.py",
+            "upgrade_meina_reminders_v4.py",
+            "upgrade_meina_reminders_v5.py",
+            "upgrade_meina_reminders_v7.py",
+        )
+        bad = [name for name in forbidden if name in final_text]
+        if bad:
+            print(
+                "FAILED: 旧アップグレーダーを最終配線から実行しています:",
+                ", ".join(bad),
+            )
+            return 1
+
+    result = subprocess.run(
+        [sys.executable, str(REMINDER_TEST)],
+        cwd=str(ROOT),
+        check=False,
+    )
+    if result.returncode != 0:
+        print(f"FAILED: reminder self-test (exit={result.returncode})")
+        return result.returncode
+
+    print("Reminder secretary safe wiring self-test: PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
