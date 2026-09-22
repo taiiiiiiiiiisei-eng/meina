@@ -237,11 +237,19 @@ def route_command(text, frame):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
         return {"kind": "reminder_today", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in (
+        "重要な予定",
+        "大事な予定",
+        "優先予定",
+        "重要なリマインダー",
+    )):
+        return {"kind": "reminder_important", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("リマインダー一覧", "リマインド一覧", "リマインダーを教えて", "リマインドを教えて")):
         return {"kind": "reminder_list", "target": "local", "query": None, "confidence": 1.0}
     if text:
         from meina_reminder_parser import (
             parse_reminder_action_request,
+            parse_reminder_importance_command,
             parse_reminder_pause_command,
             parse_reminder_pre_notify_clear_command,
             parse_reminder_pre_notify_set_command,
@@ -252,6 +260,15 @@ def route_command(text, frame):
             parse_reminder_reschedule_command,
             parse_reminder_snooze_command,
         )
+
+        importance = parse_reminder_importance_command(text)
+        if importance is not None:
+            return {
+                "kind": "reminder_importance",
+                "target": "local",
+                "query": importance,
+                "confidence": 1.0,
+            }
 
         pre_notify_set = parse_reminder_pre_notify_set_command(text)
         if pre_notify_set is not None:
