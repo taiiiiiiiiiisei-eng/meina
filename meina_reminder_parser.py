@@ -161,8 +161,9 @@ def _extract_text(raw: str, spans: list[tuple[int, int]]) -> str:
     text = _COMMAND_WORDS.sub("", text)
     text = _TRAILING.sub("", text)
 
+    # 時刻・日付部分を空白置換した後に、助詞除去より先に空白を整える。
+    text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"^(?:に|へ|を|の|って)\s*", "", text)
     text = re.sub(r"(?:に|へ|を|の|って)\s*$", "", text)
-    text = re.sub(r"\s+", " ", text)
     text = text.replace("予定", "")
     return text.strip(" 、。！？?")
