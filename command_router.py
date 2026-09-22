@@ -117,6 +117,7 @@ def route_command(text, frame):
     if text:
         from meina_reminder_parser import (
             parse_reminder_action_target,
+            parse_reminder_rename_command,
             parse_reminder_reschedule_command,
         )
 
@@ -126,6 +127,15 @@ def route_command(text, frame):
                 "kind": "reminder_reschedule",
                 "target": "local",
                 "query": reschedule,
+                "confidence": 1.0,
+            }
+
+        rename = parse_reminder_rename_command(text)
+        if rename is not None:
+            return {
+                "kind": "reminder_rename",
+                "target": "local",
+                "query": rename,
                 "confidence": 1.0,
             }
 
