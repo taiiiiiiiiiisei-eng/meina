@@ -90,6 +90,52 @@ def main() -> int:
         is None
     )
 
+    reschedule_cases = (
+        (
+            "宿題の予定を明日20時に変更して",
+            "宿題",
+            "2026-09-13T20:00:00+00:00",
+        ),
+        (
+            "リマインダーの配信を午後6時に変えて",
+            "配信",
+            "2026-09-12T18:00:00+00:00",
+        ),
+        (
+            "勉強の予定を30分後にずらして",
+            "勉強",
+            "2026-09-12T10:30:00+00:00",
+        ),
+        (
+            "予定を明日20時に変更して",
+            "",
+            "2026-09-13T20:00:00+00:00",
+        ),
+    )
+    for command, expected_target, expected_due in reschedule_cases:
+        parsed_reschedule = meina_reminder_parser.parse_reminder_reschedule_command(
+            command,
+            now,
+        )
+        assert parsed_reschedule is not None, command
+        assert parsed_reschedule["target"] == expected_target, command
+        assert parsed_reschedule["due_at"] == expected_due, command
+
+    assert (
+        meina_reminder_parser.parse_reminder_reschedule_command(
+            "宿題の予定を明日20時に変更していい？",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_reschedule_command(
+            "宿題の予定を25時に変更して",
+            now,
+        )
+        is None
+    )
+
     cases = {
         "10分後に宿題をリマインドして": ("reminder", "10分後に宿題をリマインドして"),
         "明日18時に配信予定を追加して": ("reminder", "明日18時に配信予定を追加して"),
@@ -113,6 +159,16 @@ def main() -> int:
         assert route["kind"] == kind
         assert route["confidence"] == 1.0
         assert route["query"] == expected_query
+
+    reschedule_route = route_command(
+        "宿題の予定を明日20時に変更して",
+        {"confidence": 0.10},
+    )
+    assert reschedule_route is not None
+    assert reschedule_route["kind"] == "reminder_reschedule"
+    assert reschedule_route["confidence"] == 1.0
+    assert reschedule_route["query"]["target"] == "宿題"
+    assert "T20:00:00" in reschedule_route["query"]["due_at"]
 
     original = meina_reminders.REMINDER_PATH
     try:
@@ -179,6 +235,34 @@ def main() -> int:
             duplicate_ids = {item["id"] for item in duplicate_matches}
             assert duplicate_ids == {exact["id"], duplicate["id"]}
             assert partial["id"] not in duplicate_ids
+
+            rescheduled = meina_reminders.add_reminder(
+                "配信準備",
+                "2030-01-04T18:00:00+09:00",
+            )
+            updated = meina_reminders.reschedule_reminder(
+                rescheduled["id"],
+                "2030-01-04T20:30:00+09:00",
+            )
+            assert updated is not None
+            assert updated["id"] == rescheduled["id"]
+            assert updated["text"] == "配信準備"
+            assert updated["due_at"] == "2030-01-04T20:30:00+09:00"
+
+            assert (
+                meina_reminders.reschedule_reminder(
+                    "missing-id",
+                    "2030-01-04T21:00:00+09:00",
+                )
+                is None
+            )
+            assert (
+                meina_reminders.reschedule_reminder(
+                    rescheduled["id"],
+                    "not-a-date",
+                )
+                is None
+            )
     finally:
         meina_reminders.REMINDER_PATH = original
 
