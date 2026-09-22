@@ -418,6 +418,38 @@ def main() -> int:
         is None
     )
 
+    important_set = meina_reminder_parser.parse_reminder_importance_command(
+        "宿題の予定を重要にして",
+        now,
+    )
+    assert important_set is not None
+    assert important_set["target"] == "宿題"
+    assert important_set["important"] is True
+
+    important_at_time = meina_reminder_parser.parse_reminder_importance_command(
+        "18時の宿題の予定を重要にして",
+        now,
+    )
+    assert important_at_time is not None
+    assert important_at_time["target"] == "宿題"
+    assert important_at_time["hour"] == 18
+
+    important_clear = meina_reminder_parser.parse_reminder_importance_command(
+        "宿題の予定の重要設定を解除して",
+        now,
+    )
+    assert important_clear is not None
+    assert important_clear["target"] == "宿題"
+    assert important_clear["important"] is False
+
+    assert (
+        meina_reminder_parser.parse_reminder_importance_command(
+            "宿題の予定を重要にしていい？",
+            now,
+        )
+        is None
+    )
+
     snooze_cases = (
         (
             "宿題を10分後に回して",
@@ -684,6 +716,30 @@ def main() -> int:
         assert route["kind"] == kind
         assert route["confidence"] == 1.0
         assert route["query"] == expected_query
+
+    important_list_route = route_command(
+        "重要な予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert important_list_route is not None
+    assert important_list_route["kind"] == "reminder_important"
+
+    important_set_route = route_command(
+        "宿題の予定を重要にして",
+        {"confidence": 0.10},
+    )
+    assert important_set_route is not None
+    assert important_set_route["kind"] == "reminder_importance"
+    assert important_set_route["query"]["target"] == "宿題"
+    assert important_set_route["query"]["important"] is True
+
+    important_clear_route = route_command(
+        "宿題の予定の重要設定を解除して",
+        {"confidence": 0.10},
+    )
+    assert important_clear_route is not None
+    assert important_clear_route["kind"] == "reminder_importance"
+    assert important_clear_route["query"]["important"] is False
 
     conflict_route = route_command(
         "予定かぶってる？",
@@ -1504,6 +1560,32 @@ def main() -> int:
             assert same_with_duration is not None
             assert same_with_duration["id"] == duration_item["id"]
 
+            important_item = meina_reminders.add_reminder(
+                "重要テスト",
+                "2050-01-02T16:00:00+09:00",
+            )
+            marked_important = meina_reminders.set_reminder_importance(
+                important_item["id"],
+                True,
+            )
+            assert marked_important is not None
+            assert marked_important["important"] is True
+            assert meina_reminders.format_reminder_importance(marked_important) == "重要"
+            assert important_item["id"] in {
+                item["id"] for item in meina_reminders.important_reminders()
+            }
+
+            unmarked = meina_reminders.set_reminder_importance(
+                important_item["id"],
+                False,
+            )
+            assert unmarked is not None
+            assert "important" not in unmarked
+            assert important_item["id"] not in {
+                item["id"] for item in meina_reminders.important_reminders()
+            }
+            assert meina_reminders.set_reminder_importance("missing-id", True) is None
+
             conflict_a = meina_reminders.add_reminder(
                 "重なりA",
                 "2050-01-02T18:00:00+09:00",
@@ -1530,6 +1612,13 @@ def main() -> int:
             assert frozenset((conflict_a["id"], conflict_b["id"])) in conflict_ids
             assert all(no_conflict["id"] not in pair for pair in conflict_ids)
 
+            direct_conflicts = meina_reminders.find_conflicting_reminders(
+                conflict_a["id"],
+                now=datetime.fromisoformat("2050-01-02T17:00:00+09:00"),
+            )
+            assert conflict_b["id"] in {item["id"] for item in direct_conflicts}
+            assert no_conflict["id"] not in {item["id"] for item in direct_conflicts}
+
             paused_conflict = meina_reminders.add_reminder(
                 "停止中重なり",
                 "2050-01-02T18:15:00+09:00",
@@ -1544,6 +1633,13 @@ def main() -> int:
                 paused_conflict["id"] not in {first["id"], second["id"]}
                 for first, second in conflicts_after_pause
             )
+            direct_after_pause = meina_reminders.find_conflicting_reminders(
+                conflict_a["id"],
+                now=datetime.fromisoformat("2050-01-02T17:00:00+09:00"),
+            )
+            assert paused_conflict["id"] not in {
+                item["id"] for item in direct_after_pause
+            }
 
             free_slots = meina_reminders.find_free_time_slots(
                 datetime.fromisoformat("2050-01-02T18:00:00+09:00"),
