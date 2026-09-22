@@ -18,6 +18,66 @@ _TRAILING = re.compile(
 )
 
 
+_ACTION_NOUN = r"(?:リマインダー|リマインド|予定|スケジュール)"
+_DONE_ACTION = (
+    r"(?:完了(?:して|してください|にして|にしてください)?|"
+    r"済み(?:にして|にしてください)?|"
+    r"終わった(?:ことにして|扱いにして)?|"
+    r"終わり(?:にして|にしてください)?)"
+)
+_DELETE_ACTION = (
+    r"(?:削除(?:して|してください)?|"
+    r"消して|消してください|"
+    r"取り消して|取り消してください|"
+    r"キャンセルして|キャンセルしてください)"
+)
+
+
+def parse_reminder_action_target(text: str, action: str) -> str | None:
+    """完了/削除命令から対象名を安全に取り出す。
+
+    None はそのactionの命令ではないことを表す。
+    空文字は命令だが対象名が指定されていないことを表す。
+    """
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    action_pattern = {
+        "done": _DONE_ACTION,
+        "delete": _DELETE_ACTION,
+    }.get(str(action or "").lower())
+    if action_pattern is None:
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    if not compact or not re.search(_ACTION_NOUN, compact):
+        return None
+
+    patterns = (
+        # 「宿題のリマインダーを完了して」「宿題の予定を消して」
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?{action_pattern}$",
+        # 「リマインダーの宿題を完了して」「リマインダーから宿題を消して」
+        rf"^{_ACTION_NOUN}(?:の|から)?(?P<target>.+?)(?:を|は)?{action_pattern}$",
+        # 既存形式: 「リマインダーを完了して宿題」
+        rf"^{_ACTION_NOUN}(?:を|は)?{action_pattern}(?P<target>.+)$",
+    )
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        target = match.group("target")
+        target = re.sub(r"^(?:を|の|から|は|って)+", "", target)
+        target = re.sub(r"(?:を|の|は|って)+$", "", target)
+        return target.strip()
+
+    # 命令自体は明確だが名前がない場合は、実行側に追加指定を求めさせる。
+    if re.fullmatch(rf"^{_ACTION_NOUN}(?:を|は)?{action_pattern}$", compact):
+        return ""
+
+    return None
+
+
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
     """相対時間・曜日語・年月日指定から予定/リマインダーを解析する。"""
     raw = str(text or "").strip()
