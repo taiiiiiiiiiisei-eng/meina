@@ -562,7 +562,9 @@ def _execute_routed_command_base(route):
         if kind == "help":
             result = (
                 "めいなは、会話、天気、現在時刻、PC状態、リマインダー、"
-                "Google・YouTube検索、アプリ起動、配信準備、Twitch切り抜き、Twitch投稿準備、配信中の見どころ監視・見どころ一覧・AIおすすめ選定に対応しています。"
+                "毎日・平日・毎週・毎月の繰り返し予定、Google・YouTube検索、"
+                "アプリ起動、配信準備、Twitch切り抜き、Twitch投稿準備、"
+                "配信中の見どころ監視・見どころ一覧・AIおすすめ選定に対応しています。"
             )
         elif kind == "self_status":
             from meina_reminder_worker import is_reminder_worker_running
@@ -633,6 +635,7 @@ def _execute_routed_command_base(route):
                     parsed["text"],
                     parsed["due_at"],
                     repeat_rule=parsed.get("repeat_rule"),
+                    repeat_day=parsed.get("repeat_day"),
                 )
                 repeat = format_reminder_repeat(item)
                 repeat_text = f"、{repeat}" if repeat else ""
