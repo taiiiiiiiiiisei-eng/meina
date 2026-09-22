@@ -520,6 +520,56 @@ def parse_reminder_repeat_clear_command(
 
 
 
+
+_IMPORTANT_SET_ACTION = (
+    r"(?:重要(?:にして|にしてください|設定して|設定してください)|"
+    r"大事(?:にして|にしてください|設定して|設定してください)|"
+    r"優先(?:にして|にしてください|設定して|設定してください))"
+)
+_IMPORTANT_CLEAR_ACTION = (
+    r"(?:解除(?:して|してください)?|"
+    r"外して|外してください|"
+    r"取り消して|取り消してください)"
+)
+
+
+def parse_reminder_importance_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定の重要フラグ変更命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    set_patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?{_IMPORTANT_SET_ACTION}$",
+        rf"^(?P<target>.+?)(?:を|は)?(?:重要な予定|大事な予定)(?:にして|にしてください)$",
+    )
+    clear_patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"(?:重要設定|重要|優先設定)(?:を|は)?{_IMPORTANT_CLEAR_ACTION}$",
+    )
+
+    for important, patterns in ((True, set_patterns), (False, clear_patterns)):
+        for pattern in patterns:
+            match = re.fullmatch(pattern, compact)
+            if not match:
+                continue
+            selector = parse_reminder_selector_text(match.group("target"), now)
+            if not selector.get("valid", False):
+                return None
+            return {
+                "target": selector["target"],
+                "date": selector["date"],
+                "hour": selector["hour"],
+                "minute": selector["minute"],
+                "important": important,
+            }
+    return None
+
+
 _SNOOZE_ACTION = (
     r"(?:回して|回してください|"
     r"延長して|延長してください|"
