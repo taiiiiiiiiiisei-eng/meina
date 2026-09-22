@@ -14,6 +14,7 @@ ROUTER = ROOT / "command_router.py"
 PARSER = ROOT / "meina_reminder_parser.py"
 REMINDERS = ROOT / "meina_reminders.py"
 WORKER = ROOT / "meina_reminder_worker.py"
+LEGACY_WORKER_UPGRADER = ROOT / "upgrade_meina_reminder_worker.py"
 REMINDER_TEST = ROOT / "meina_reminders_self_test.py"
 
 REQUIRED_KINDS = (
@@ -46,7 +47,15 @@ def _parse_file(path: Path) -> ast.AST | None:
 
 
 def main() -> int:
-    required_files = (AGENT, ROUTER, PARSER, REMINDERS, WORKER, REMINDER_TEST)
+    required_files = (
+        AGENT,
+        ROUTER,
+        PARSER,
+        REMINDERS,
+        WORKER,
+        LEGACY_WORKER_UPGRADER,
+        REMINDER_TEST,
+    )
     for path in required_files:
         if not path.exists():
             print(f"FAILED: {path.name} が見つかりません")
@@ -68,11 +77,26 @@ def main() -> int:
         return 1
 
     worker_funcs = _functions(trees[WORKER])
-    if "start_reminder_worker" not in worker_funcs or "process_due_reminders" not in worker_funcs:
-        print("FAILED: リマインダー監視関数が見つかりません")
+    required_worker_funcs = {
+        "process_due_reminders",
+        "start_reminder_worker",
+        "stop_reminder_worker",
+        "is_reminder_worker_running",
+    }
+    if not required_worker_funcs.issubset(worker_funcs):
+        print("FAILED: リマインダー監視関数が不足しています")
         return 1
     if "start_reminder_worker" not in agent_text:
         print("FAILED: meina_agent からリマインダー監視が起動されません")
+        return 1
+    if "stop_reminder_worker" not in agent_text:
+        print("FAILED: meina_agent の終了時に監視停止処理がありません")
+        return 1
+
+    legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
+    forbidden_worker_mutations = ("copy2(", "AGENT.write_text(", "write_text(text")
+    if any(token in legacy_worker_text for token in forbidden_worker_mutations):
+        print("FAILED: 旧リマインダー監視アップグレーダーが本体を書き換えます")
         return 1
 
     missing_router = [
