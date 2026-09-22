@@ -24,6 +24,36 @@ def _save(items: list[dict[str, Any]]) -> None:
     REMINDER_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def format_reminder_due(due_at: str, now: datetime | None = None) -> str:
+    """予定日時を音声で読みやすい日本語へ整形する。"""
+    raw = str(due_at or "").strip()
+    try:
+        due = datetime.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return raw or "日時不明"
+
+    current = now or datetime.now().astimezone()
+    if due.tzinfo is None and current.tzinfo is not None:
+        due = due.replace(tzinfo=current.tzinfo)
+    elif due.tzinfo is not None and current.tzinfo is not None:
+        due = due.astimezone(current.tzinfo)
+
+    if due.date() == current.date():
+        date_text = "今日"
+    elif due.date() == (current + timedelta(days=1)).date():
+        date_text = "明日"
+    elif due.year == current.year:
+        date_text = f"{due.month}月{due.day}日"
+    else:
+        date_text = f"{due.year}年{due.month}月{due.day}日"
+
+    if due.minute:
+        time_text = f"{due.hour}時{due.minute}分"
+    else:
+        time_text = f"{due.hour}時"
+    return f"{date_text}{time_text}"
+
+
 def add_reminder(text: str, due_at: str) -> dict[str, Any]:
     due = datetime.fromisoformat(due_at)
     item = {
