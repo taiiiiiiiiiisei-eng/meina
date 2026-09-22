@@ -6,7 +6,12 @@ from datetime import datetime
 from pathlib import Path
 
 import meina_reminders
-from meina_reminder_worker import process_due_reminders
+from meina_reminder_worker import (
+    is_reminder_worker_running,
+    process_due_reminders,
+    start_reminder_worker,
+    stop_reminder_worker,
+)
 
 
 def main() -> int:
@@ -50,6 +55,13 @@ def main() -> int:
             # 同じ現在時刻でもう一度処理しても二重通知しない。
             assert process_due_reminders(spoken.append, now=now) == 0
             assert len(spoken) == 3
+
+            assert is_reminder_worker_running() is False
+            assert start_reminder_worker(spoken.append, interval_seconds=60.0) is True
+            assert is_reminder_worker_running() is True
+            assert start_reminder_worker(spoken.append, interval_seconds=60.0) is False
+            assert stop_reminder_worker() is True
+            assert is_reminder_worker_running() is False
     finally:
         meina_reminders.REMINDER_PATH = original
 
