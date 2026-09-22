@@ -35,14 +35,27 @@ def main() -> int:
                 "2030-01-05T09:00:00+09:00",
                 repeat_rule="weekly",
             )
+            weekdays = meina_reminders.add_reminder(
+                "平日の確認",
+                "2030-01-04T09:00:00+09:00",
+                repeat_rule="weekdays",
+            )
+            monthly = meina_reminders.add_reminder(
+                "月末の確認",
+                "2029-12-31T09:00:00+09:00",
+                repeat_rule="monthly",
+                repeat_day=31,
+            )
 
             spoken: list[str] = []
             delivered = process_due_reminders(spoken.append, now=now)
-            assert delivered == 3
-            assert len(spoken) == 3
+            assert delivered == 5
+            assert len(spoken) == 5
             assert any("一回だけ" in message for message in spoken)
             assert any("毎日の確認" in message for message in spoken)
             assert any("毎週の確認" in message for message in spoken)
+            assert any("平日の確認" in message for message in spoken)
+            assert any("月末の確認" in message for message in spoken)
 
             all_items = meina_reminders.list_reminders(include_done=True)
             by_id = {item["id"]: item for item in all_items}
@@ -51,10 +64,15 @@ def main() -> int:
             assert by_id[daily["id"]]["due_at"] == "2030-01-06T10:00:00+09:00"
             assert by_id[weekly["id"]]["done"] is False
             assert by_id[weekly["id"]]["due_at"] == "2030-01-12T09:00:00+09:00"
+            assert by_id[weekdays["id"]]["done"] is False
+            assert by_id[weekdays["id"]]["due_at"] == "2030-01-07T09:00:00+09:00"
+            assert by_id[monthly["id"]]["done"] is False
+            assert by_id[monthly["id"]]["due_at"] == "2030-01-31T09:00:00+09:00"
+            assert by_id[monthly["id"]]["repeat_day"] == 31
 
             # 同じ現在時刻でもう一度処理しても二重通知しない。
             assert process_due_reminders(spoken.append, now=now) == 0
-            assert len(spoken) == 3
+            assert len(spoken) == 5
 
             assert is_reminder_worker_running() is False
             assert start_reminder_worker(spoken.append, interval_seconds=60.0) is True
