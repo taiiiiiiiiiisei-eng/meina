@@ -78,6 +78,91 @@ def parse_reminder_action_target(text: str, action: str) -> str | None:
     return None
 
 
+def parse_reminder_action_request(
+    text: str,
+    action: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """完了/削除命令を対象名と任意の日時絞り込みへ変換する。"""
+    target = parse_reminder_action_target(text, action)
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    action_pattern = {
+        "done": _DONE_ACTION,
+        "delete": _DELETE_ACTION,
+    }.get(str(action or "").lower())
+    if action_pattern is None:
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+
+    # 「18時の宿題を完了して」「明日の宿題を削除して」のように
+    # 予定という語を省略した形は、日時指定がある場合だけ安全に受け付ける。
+    if target is None:
+        has_due_hint = bool(
+            _DAY_WORDS.search(compact)
+            or _CALENDAR_DATE.search(compact)
+            or _CLOCK.search(compact)
+        )
+        if not has_due_hint:
+            return None
+        match = re.fullmatch(
+            rf"(?P<target>.+?)(?:を|は)?{action_pattern}",
+            compact,
+        )
+        if not match:
+            return None
+        target = match.group("target")
+
+    current = now or datetime.now().astimezone()
+    target_text = str(target or "")
+
+    date_value = None
+    calendar_match = _CALENDAR_DATE.search(target_text)
+    day_match = _DAY_WORDS.search(target_text)
+    if calendar_match:
+        year_text = calendar_match.group("year")
+        year = int(year_text) if year_text else current.year
+        month = int(calendar_match.group("month"))
+        day = int(calendar_match.group("day"))
+        try:
+            date_value = current.replace(
+                year=year,
+                month=month,
+                day=day,
+            ).date().isoformat()
+        except ValueError:
+            return None
+    elif day_match:
+        day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_match.group("day")]
+        date_value = (current + timedelta(days=day_offset)).date().isoformat()
+
+    hour = None
+    minute = None
+    clock_match = _CLOCK.search(target_text)
+    if clock_match:
+        parsed_clock = _parse_clock(clock_match)
+        if parsed_clock is None:
+            return None
+        hour, minute = parsed_clock
+
+    clean_target = _CALENDAR_DATE.sub("", target_text)
+    clean_target = _DAY_WORDS.sub("", clean_target)
+    clean_target = _CLOCK.sub("", clean_target)
+    clean_target = re.sub(r"^(?:の|を|は|から|って)+", "", clean_target)
+    clean_target = re.sub(r"(?:の|を|は|って)+$", "", clean_target)
+    clean_target = clean_target.strip(" 、。！？?")
+
+    return {
+        "target": clean_target,
+        "date": date_value,
+        "hour": hour,
+        "minute": minute,
+    }
+
+
 _RESCHEDULE_ACTION = (
     r"(?:変更(?:して|してください)?|"
     r"変えて|変えてください|"
