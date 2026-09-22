@@ -21,6 +21,9 @@ REQUIRED_KINDS = (
     "reminder",
     "reminder_today",
     "reminder_tomorrow",
+    "reminder_week",
+    "reminder_month",
+    "reminder_overdue",
     "reminder_upcoming",
     "reminder_brief",
     "reminder_next",
@@ -32,6 +35,7 @@ REQUIRED_KINDS = (
     "reminder_resume",
     "reminder_repeat_set",
     "reminder_repeat_clear",
+    "reminder_snooze",
     "reminder_reschedule",
     "reminder_rename",
     "reminder_done",
@@ -113,6 +117,12 @@ def main() -> int:
         return 1
     if "notify_before_minutes" not in agent_text:
         print("FAILED: 事前通知設定の表示・実行配線がありません")
+        return 1
+    if "snooze_reminder" not in agent_text:
+        print("FAILED: スヌーズ実行配線がありません")
+        return 1
+    if "week_reminders" not in agent_text or "month_reminders" not in agent_text:
+        print("FAILED: 暦週・暦月の予定表示配線がありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
