@@ -234,6 +234,8 @@ def due_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
     current = now or datetime.now().astimezone()
     result = []
     for item in list_reminders():
+        if item.get("paused"):
+            continue
         try:
             due = datetime.fromisoformat(str(item["due_at"]))
             if due <= current:
@@ -363,6 +365,56 @@ def set_reminder_repeat(
         _save(items)
         return item
     return None
+
+
+
+def pause_reminder(reminder_id: str) -> dict[str, Any] | None:
+    """予定の通知だけを一時停止する。予定内容と繰り返し設定は保持する。"""
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item["paused"] = True
+        _save(items)
+        return item
+    return None
+
+
+def resume_reminder(
+    reminder_id: str,
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """一時停止を解除し、期限切れの定期予定は次回の未来日時へ進める。"""
+    current = now or datetime.now().astimezone()
+    items = _load()
+    target = None
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        item.pop("paused", None)
+        target = item
+        _save(items)
+        break
+
+    if target is None:
+        return None
+
+    try:
+        due = datetime.fromisoformat(str(target.get("due_at", "")))
+        if due.tzinfo is None and current.tzinfo is not None:
+            due = due.replace(tzinfo=current.tzinfo)
+        elif due.tzinfo is not None and current.tzinfo is not None:
+            due = due.astimezone(current.tzinfo)
+    except (TypeError, ValueError):
+        return target
+
+    if (
+        due <= current
+        and target.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly")
+    ):
+        advanced = advance_recurring_reminder(reminder_id, now=current)
+        return advanced or target
+    return target
 
 
 def clear_reminder_repeat(reminder_id: str) -> dict[str, Any] | None:
