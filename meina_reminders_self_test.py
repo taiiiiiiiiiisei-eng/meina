@@ -117,6 +117,29 @@ def main() -> int:
             )
             assert meina_reminders.delete_reminder(deleted["id"])
             assert meina_reminders.list_reminders() == []
+
+            exact = meina_reminders.add_reminder(
+                "宿題",
+                "2030-01-03T10:00:00+09:00",
+            )
+            partial = meina_reminders.add_reminder(
+                "数学の宿題",
+                "2030-01-03T11:00:00+09:00",
+            )
+
+            exact_matches = meina_reminders.find_reminders("宿題")
+            assert [item["id"] for item in exact_matches] == [exact["id"]]
+            assert meina_reminders.find_reminders("宿 題")[0]["id"] == exact["id"]
+            assert meina_reminders.find_reminders("数学")[0]["id"] == partial["id"]
+
+            duplicate = meina_reminders.add_reminder(
+                "宿題",
+                "2030-01-03T12:00:00+09:00",
+            )
+            duplicate_matches = meina_reminders.find_reminders("宿題")
+            duplicate_ids = {item["id"] for item in duplicate_matches}
+            assert duplicate_ids == {exact["id"], duplicate["id"]}
+            assert partial["id"] not in duplicate_ids
     finally:
         meina_reminders.REMINDER_PATH = original
 
