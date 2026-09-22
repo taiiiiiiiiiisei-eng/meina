@@ -9,6 +9,11 @@ _RELATIVE = re.compile(r"(?:あと\s*)?(?P<num>\d+)\s*(?P<unit>秒|分|時間|�
 _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
 _DAY_WORDS = re.compile(r"(?P<day>今日|明日|明後日)")
 _CALENDAR_DATE = re.compile(r"(?:(?P<year>\d{4})\s*年\s*)?(?P<month>\d{1,2})\s*月\s*(?P<day>\d{1,2})\s*日")
+_REPEAT_DAILY = re.compile(r"毎日")
+_REPEAT_WEEKLY = re.compile(
+    r"毎週\s*(?P<weekday>月|火|水|木|金|土|日)(?:曜(?:日)?)?"
+)
+_WEEKDAY_INDEX = {"月": 0, "火": 1, "水": 2, "木": 3, "金": 4, "土": 5, "日": 6}
 _COMMAND_WORDS = re.compile(
     r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて|追加|登録|設定)"
 )
@@ -243,6 +248,40 @@ def _parse_due_at_text(text: str, now: datetime | None = None) -> datetime | Non
         return None
 
     current = now or datetime.now().astimezone()
+
+    daily_match = _REPEAT_DAILY.search(raw)
+    weekly_match = _REPEAT_WEEKLY.search(raw)
+    if daily_match or weekly_match:
+        clock = _CLOCK.search(raw)
+        if not clock:
+            return None
+
+        parsed_clock = _parse_clock(clock)
+        if parsed_clock is None:
+            return None
+        hour, minute = parsed_clock
+
+        due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        repeat_rule = "daily"
+        repeat_span = daily_match.span() if daily_match else weekly_match.span()
+
+        if weekly_match:
+            repeat_rule = "weekly"
+            target_weekday = _WEEKDAY_INDEX[weekly_match.group("weekday")]
+            days_ahead = (target_weekday - current.weekday()) % 7
+            due += timedelta(days=days_ahead)
+            if due <= current:
+                due += timedelta(days=7)
+        elif due <= current:
+            due += timedelta(days=1)
+
+        text_part = _extract_text(raw, [clock.span(), repeat_span])
+        return _build_result(
+            raw,
+            text_part,
+            due,
+            repeat_rule=repeat_rule,
+        )
 
     relative = _RELATIVE.search(raw)
     if relative:
@@ -544,13 +583,23 @@ def _make_explicit_date(
     return due
 
 
-def _build_result(raw: str, text_part: str, due: datetime) -> dict | None:
+def _build_result(
+    raw: str,
+    text_part: str,
+    due: datetime,
+    repeat_rule: str | None = None,
+) -> dict | None:
     if text_part:
-        return {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
-    fallback = _default_direct_notice_text(raw)
-    if fallback:
-        return {"text": fallback, "due_at": due.isoformat(timespec="seconds")}
-    return None
+        result = {"text": text_part, "due_at": due.isoformat(timespec="seconds")}
+    else:
+        fallback = _default_direct_notice_text(raw)
+        if not fallback:
+            return None
+        result = {"text": fallback, "due_at": due.isoformat(timespec="seconds")}
+
+    if repeat_rule:
+        result["repeat_rule"] = repeat_rule
+    return result
 
 
 def _default_direct_notice_text(raw: str) -> str | None:
@@ -574,6 +623,8 @@ def _extract_text(raw: str, spans: list[tuple[int, int]]) -> str:
 
     text = _DAY_WORDS.sub("", text)
     text = _CALENDAR_DATE.sub("", text)
+    text = _REPEAT_DAILY.sub("", text)
+    text = _REPEAT_WEEKLY.sub("", text)
     text = _COMMAND_WORDS.sub("", text)
     text = _TRAILING.sub("", text)
 
