@@ -26,6 +26,8 @@ REQUIRED_KINDS = (
     "reminder_next",
     "reminder_soon",
     "reminder_list",
+    "reminder_pre_notify_set",
+    "reminder_pre_notify_clear",
     "reminder_pause",
     "reminder_resume",
     "reminder_repeat_set",
@@ -86,6 +88,7 @@ def main() -> int:
     worker_funcs = _functions(trees[WORKER])
     required_worker_funcs = {
         "process_due_reminders",
+        "process_pre_due_reminders",
         "start_reminder_worker",
         "stop_reminder_worker",
         "is_reminder_worker_running",
@@ -107,6 +110,9 @@ def main() -> int:
         return 1
     if "next_reminder" not in agent_text:
         print("FAILED: 次の予定案内がありません")
+        return 1
+    if "notify_before_minutes" not in agent_text:
+        print("FAILED: 事前通知設定の表示・実行配線がありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
