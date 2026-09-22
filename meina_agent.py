@@ -676,6 +676,7 @@ def _execute_routed_command_base(route):
             from meina_reminders import (
                 format_reminder_due,
                 next_reminder,
+                overdue_reminders,
                 today_reminders,
             )
 
@@ -683,6 +684,7 @@ def _execute_routed_command_base(route):
             active = [item for item in items if not item.get("paused")]
             paused = [item for item in items if item.get("paused")]
             next_item = next_reminder()
+            overdue = overdue_reminders()
 
             if not items:
                 result = "今日の予定はありません。"
@@ -692,6 +694,8 @@ def _execute_routed_command_base(route):
                     parts.append(f"通知中は{len(active)}件です。")
                 if paused:
                     parts.append(f"一時停止中が{len(paused)}件あります。")
+                if overdue:
+                    parts.append(f"期限切れが{len(overdue)}件あります。")
                 if next_item and next_item in items:
                     parts.append(
                         f"次は「{next_item['text']}」で、"
@@ -738,6 +742,31 @@ def _execute_routed_command_base(route):
             from meina_reminders import tomorrow_reminders
             items = tomorrow_reminders()
             result = "明日の予定はありません。" if not items else "明日の予定です。\n" + _format_reminders(items)
+        elif kind == "reminder_week":
+            from meina_reminders import week_reminders
+            items = week_reminders()
+            result = (
+                "今週の予定はありません。"
+                if not items
+                else "今週の予定です。\n" + _format_reminders(items)
+            )
+        elif kind == "reminder_month":
+            from meina_reminders import month_reminders
+            items = month_reminders()
+            result = (
+                "今月の予定はありません。"
+                if not items
+                else "今月の予定です。\n" + _format_reminders(items)
+            )
+        elif kind == "reminder_overdue":
+            from meina_reminders import overdue_reminders
+            items = overdue_reminders()
+            result = (
+                "期限切れの予定はありません。"
+                if not items
+                else f"期限切れの予定が{len(items)}件あります。\n"
+                + _format_reminders(items)
+            )
         elif kind == "reminder_upcoming":
             from meina_reminders import upcoming_reminders
             items = upcoming_reminders()
@@ -1009,6 +1038,70 @@ def _execute_routed_command_base(route):
                             if cleared
                             else f"「{query_text}」の繰り返しを解除できませんでした。"
                         )
+        elif kind == "reminder_snooze":
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                snooze_reminder,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            delay_minutes = request.get("delay_minutes")
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "後ろに回す予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時のスヌーズ対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "後ろに回す予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = snooze_reminder(
+                        matches[0]["id"],
+                        delay_minutes,
+                    )
+                    if item:
+                        repeat_note = (
+                            "今回はこの時間に回し、次回の繰り返し時刻は元のままです。"
+                            if item.get("repeat_rule")
+                            else ""
+                        )
+                        result = (
+                            f"「{item['text']}」を{delay_minutes}分後に回しました。"
+                            f"新しい時間は{format_reminder_due(item['due_at'])}です。"
+                            f"{repeat_note}"
+                        )
+                    else:
+                        result = f"「{query_text}」を後ろに回せませんでした。"
         elif kind == "reminder_reschedule":
             from meina_reminders import (
                 filter_reminders_by_due,
