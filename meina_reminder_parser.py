@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 _RELATIVE = re.compile(r"(?:あと\s*)?(?P<num>\d+)\s*(?P<unit>秒|分|時間|時|日)\s*(?:後|で)")
 _CLOCK = re.compile(r"(?:(?P<ampm>午前|午後)\s*)?(?P<hour>\d{1,2})\s*時(?:\s*(?P<minute>\d{1,2})\s*分?)?")
 _COMMAND_WORDS = re.compile(
-    r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて)"
+    r"(?:リマインド|リマインダー|予定|スケジュール|起こして|知らせて|思い出させて|教えて|追加|登録|設定)"
     r"(?:を)?(?:追加|登録|設定|リマインド)?"
     r"(?:して|してね|してください|して下さい|お願い|お願いします)?"
 )
@@ -25,7 +25,10 @@ def parse_reminder_command(text: str, now: datetime | None = None) -> dict | Non
     if not raw:
         return None
     direct_notice = bool(re.search(r"(?:起こして|知らせて|思い出させて|教えて)", raw))
-    if not _COMMAND_WORDS.search(raw) and not direct_notice:
+    has_schedule_intent = bool(
+        re.search(r"(?:リマインド|リマインダー|予定|スケジュール|追加|登録|設定)", raw)
+    )
+    if not has_schedule_intent and not direct_notice:
         return None
 
     current = now or datetime.now().astimezone()
@@ -100,10 +103,12 @@ def _extract_text(raw: str, time_span: tuple[int, int]) -> str:
     after = raw[time_span[1] :]
     text = after or before
     text = _DAY_WORDS.sub("", text)
+    text = re.sub(r"^(?:に|へ|を|の|って)\s*", "", text)
     text = _COMMAND_WORDS.sub("", text)
     text = text.replace("予定", "")
     text = _TRAILING_COMMAND.sub("", text)
     text = re.sub(r"^[、。！？?\s]+", "", text)
-    text = re.sub(r"^(?:に|へ|を|の|って)\s*", "", text)
     text = re.sub(r"[、。！？?\s]+$", "", text)
     return text.strip(" 、。！？?")
+
+
