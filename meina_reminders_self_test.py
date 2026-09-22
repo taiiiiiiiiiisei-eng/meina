@@ -383,6 +383,72 @@ def main() -> int:
         is None
     )
 
+    pre_notify_cases = (
+        (
+            "薬を10分前にも知らせて",
+            "薬",
+            10,
+            None,
+        ),
+        (
+            "薬の事前通知を10分前に設定して",
+            "薬",
+            10,
+            None,
+        ),
+        (
+            "18時の薬の予定を15分前に通知して",
+            "薬",
+            15,
+            18,
+        ),
+    )
+    for command, target, minutes, hour in pre_notify_cases:
+        parsed_pre = meina_reminder_parser.parse_reminder_pre_notify_set_command(
+            command,
+            now,
+        )
+        assert parsed_pre is not None, command
+        assert parsed_pre["target"] == target, command
+        assert parsed_pre["notify_before_minutes"] == minutes, command
+        assert parsed_pre["hour"] == hour, command
+
+    clear_pre = meina_reminder_parser.parse_reminder_pre_notify_clear_command(
+        "薬の事前通知を解除して",
+        now,
+    )
+    assert clear_pre is not None
+    assert clear_pre["target"] == "薬"
+
+    assert (
+        meina_reminder_parser.parse_reminder_pre_notify_set_command(
+            "薬を0分前にも知らせて",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_pre_notify_set_command(
+            "薬を1441分前にも知らせて",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_pre_notify_set_command(
+            "薬を10分前にも知らせていい？",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_pre_notify_clear_command(
+            "薬の事前通知を解除していい？",
+            now,
+        )
+        is None
+    )
+
     pause_command = meina_reminder_parser.parse_reminder_pause_command(
         "薬の予定を一時停止して",
         now,
@@ -589,6 +655,25 @@ def main() -> int:
     assert rename_route["query"]["date"] is None
     assert rename_route["query"]["hour"] is None
     assert rename_route["query"]["minute"] is None
+
+    pre_notify_route = route_command(
+        "薬を10分前にも知らせて",
+        {"confidence": 0.10},
+    )
+    assert pre_notify_route is not None
+    assert pre_notify_route["kind"] == "reminder_pre_notify_set"
+    assert pre_notify_route["confidence"] == 1.0
+    assert pre_notify_route["query"]["target"] == "薬"
+    assert pre_notify_route["query"]["notify_before_minutes"] == 10
+
+    pre_notify_clear_route = route_command(
+        "薬の事前通知を解除して",
+        {"confidence": 0.10},
+    )
+    assert pre_notify_clear_route is not None
+    assert pre_notify_clear_route["kind"] == "reminder_pre_notify_clear"
+    assert pre_notify_clear_route["confidence"] == 1.0
+    assert pre_notify_clear_route["query"]["target"] == "薬"
 
     pause_route = route_command(
         "薬の予定を一時停止して",
@@ -1137,6 +1222,79 @@ def main() -> int:
                 soon_15["id"],
                 soon_45["id"],
             ]
+
+            pre_item = meina_reminders.add_reminder(
+                "事前通知テスト",
+                "2040-01-04T10:00:00+09:00",
+            )
+            configured_pre = meina_reminders.set_reminder_pre_notify(
+                pre_item["id"],
+                10,
+            )
+            assert configured_pre is not None
+            assert configured_pre["notify_before_minutes"] == 10
+
+            before_window = meina_reminders.pre_due_reminders(
+                datetime.fromisoformat("2040-01-04T09:49:00+09:00")
+            )
+            assert pre_item["id"] not in {item["id"] for item in before_window}
+
+            in_window = meina_reminders.pre_due_reminders(
+                datetime.fromisoformat("2040-01-04T09:50:00+09:00")
+            )
+            assert [item["id"] for item in in_window] == [pre_item["id"]]
+
+            assert meina_reminders.mark_reminder_pre_notified(
+                pre_item["id"],
+                pre_item["due_at"],
+            )
+            assert (
+                meina_reminders.pre_due_reminders(
+                    datetime.fromisoformat("2040-01-04T09:55:00+09:00")
+                )
+                == []
+            )
+
+            cleared_pre = meina_reminders.clear_reminder_pre_notify(pre_item["id"])
+            assert cleared_pre is not None
+            assert "notify_before_minutes" not in cleared_pre
+            assert "pre_notified_due_at" not in cleared_pre
+            assert meina_reminders.set_reminder_pre_notify(pre_item["id"], 0) is None
+            assert meina_reminders.set_reminder_pre_notify(pre_item["id"], 1441) is None
+
+            paused_pre = meina_reminders.add_reminder(
+                "停止中事前通知",
+                "2040-01-04T11:00:00+09:00",
+            )
+            assert meina_reminders.set_reminder_pre_notify(paused_pre["id"], 15)
+            assert meina_reminders.pause_reminder(paused_pre["id"])
+            paused_window = meina_reminders.pre_due_reminders(
+                datetime.fromisoformat("2040-01-04T10:50:00+09:00")
+            )
+            assert paused_pre["id"] not in {item["id"] for item in paused_window}
+
+            recurring_pre = meina_reminders.add_reminder(
+                "毎回事前通知",
+                "2040-01-05T18:00:00+09:00",
+                repeat_rule="daily",
+            )
+            assert meina_reminders.set_reminder_pre_notify(recurring_pre["id"], 10)
+            first_pre = meina_reminders.pre_due_reminders(
+                datetime.fromisoformat("2040-01-05T17:50:00+09:00")
+            )
+            assert recurring_pre["id"] in {item["id"] for item in first_pre}
+            assert meina_reminders.mark_reminder_pre_notified(
+                recurring_pre["id"],
+                recurring_pre["due_at"],
+            )
+            assert meina_reminders.complete_reminder(
+                recurring_pre["id"],
+                now=datetime.fromisoformat("2040-01-05T18:01:00+09:00"),
+            )
+            next_pre = meina_reminders.pre_due_reminders(
+                datetime.fromisoformat("2040-01-06T17:50:00+09:00")
+            )
+            assert recurring_pre["id"] in {item["id"] for item in next_pre}
     finally:
         meina_reminders.REMINDER_PATH = original
 
