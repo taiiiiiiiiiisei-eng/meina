@@ -114,10 +114,16 @@ def route_command(text, frame):
         return {"kind": "reminder_today", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("リマインダー一覧", "リマインド一覧", "リマインダーを教えて", "リマインドを教えて")):
         return {"kind": "reminder_list", "target": "local", "query": None, "confidence": 1.0}
-    if text and any(p in compact for p in ("リマインダーを完了", "リマインドを完了", "リマインダー完了")):
-        return {"kind": "reminder_done", "target": "local", "query": str(text).strip(), "confidence": 1.0}
-    if text and any(p in compact for p in ("リマインダーを削除", "リマインドを削除", "リマインダー削除")):
-        return {"kind": "reminder_delete", "target": "local", "query": str(text).strip(), "confidence": 1.0}
+    if text:
+        from meina_reminder_parser import parse_reminder_action_target
+
+        done_target = parse_reminder_action_target(text, "done")
+        if done_target is not None:
+            return {"kind": "reminder_done", "target": "local", "query": done_target, "confidence": 1.0}
+
+        delete_target = parse_reminder_action_target(text, "delete")
+        if delete_target is not None:
+            return {"kind": "reminder_delete", "target": "local", "query": delete_target, "confidence": 1.0}
     if text and any(p in compact for p in (
         "予定を追加",
         "予定に追加",
