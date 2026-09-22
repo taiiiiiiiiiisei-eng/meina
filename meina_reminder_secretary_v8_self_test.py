@@ -23,6 +23,8 @@ REQUIRED_KINDS = (
     "reminder_tomorrow",
     "reminder_upcoming",
     "reminder_list",
+    "reminder_pause",
+    "reminder_resume",
     "reminder_repeat_set",
     "reminder_repeat_clear",
     "reminder_reschedule",
