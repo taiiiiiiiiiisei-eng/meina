@@ -78,6 +78,102 @@ def parse_reminder_action_target(text: str, action: str) -> str | None:
     return None
 
 
+_RESCHEDULE_ACTION = (
+    r"(?:変更(?:して|してください)?|"
+    r"変えて|変えてください|"
+    r"ずらして|ずらしてください|"
+    r"移動して|移動してください)"
+)
+
+
+def _parse_due_at_text(text: str, now: datetime | None = None) -> datetime | None:
+    """日時だけを安全に解析する。予定追加と日時変更で同じ規則を使う。"""
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+
+    current = now or datetime.now().astimezone()
+
+    relative = _RELATIVE.search(raw)
+    if relative:
+        amount = int(relative.group("num"))
+        unit = relative.group("unit")
+        delta = {
+            "秒": timedelta(seconds=amount),
+            "分": timedelta(minutes=amount),
+            "時間": timedelta(hours=amount),
+            "時": timedelta(hours=amount),
+            "日": timedelta(days=amount),
+        }[unit]
+        return current + delta
+
+    clock = _CLOCK.search(raw)
+    if not clock:
+        return None
+
+    parsed_clock = _parse_clock(clock)
+    if parsed_clock is None:
+        return None
+    hour, minute = parsed_clock
+
+    explicit_date = _CALENDAR_DATE.search(raw)
+    if explicit_date:
+        return _make_explicit_date(current, explicit_date, hour, minute)
+
+    day_match = _DAY_WORDS.search(raw)
+    day_name = day_match.group("day") if day_match else "今日"
+    day_offset = {"今日": 0, "明日": 1, "明後日": 2}[day_name]
+    due = current.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    due += timedelta(days=day_offset)
+    if day_offset == 0 and due <= current:
+        due += timedelta(days=1)
+    return due
+
+
+def parse_reminder_reschedule_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """「宿題の予定を明日20時に変更して」の対象名と新日時を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    if not re.search(_ACTION_NOUN, compact):
+        return None
+
+    patterns = (
+        # 「宿題の予定を明日20時に変更して」
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
+        rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+        # 「予定を明日20時に変更して」: 対象名が未指定
+        rf"^{_ACTION_NOUN}(?:を|は)?(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+        # 「予定の宿題を明日20時に変更して」
+        rf"^{_ACTION_NOUN}(?:の|から)(?P<target>.+?)(?:を|は)?"
+        rf"(?P<when>.+?)(?:に)?{_RESCHEDULE_ACTION}$",
+    )
+
+    for index, pattern in enumerate(patterns):
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+
+        target = "" if index == 1 else match.groupdict().get("target", "")
+        target = re.sub(r"^(?:を|の|から|は|って)+", "", target)
+        target = re.sub(r"(?:を|の|は|って)+$", "", target).strip()
+
+        due = _parse_due_at_text(match.group("when"), now)
+        if due is None:
+            return None
+        return {
+            "target": target,
+            "due_at": due.isoformat(timespec="seconds"),
+        }
+
+    return None
+
+
 def parse_reminder_command(text: str, now: datetime | None = None) -> dict | None:
     """相対時間・曜日語・年月日指定から予定/リマインダーを解析する。"""
     raw = str(text or "").strip()
