@@ -4,10 +4,38 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from meina_reminders import complete_reminder, due_reminders
+from meina_reminders import (
+    complete_reminder,
+    due_reminders,
+    mark_reminder_pre_notified,
+    pre_due_reminders,
+)
 
 _worker_thread: threading.Thread | None = None
 _worker_stop: threading.Event | None = None
+
+
+
+def process_pre_due_reminders(
+    speak_func: Callable[[str], None],
+    now=None,
+) -> int:
+    """事前通知の時間帯に入った予定を、各予定時刻につき一度だけ通知する。"""
+    delivered = 0
+    for item in pre_due_reminders(now):
+        reminder_id = str(item.get("id") or "")
+        due_at = str(item.get("due_at") or "")
+        if not reminder_id or not due_at:
+            continue
+
+        message = (
+            f"事前のお知らせです。{item.get('text', '')}の時間が近づいています。"
+        )
+        speak_func(message)
+
+        if mark_reminder_pre_notified(reminder_id, due_at):
+            delivered += 1
+    return delivered
 
 
 def process_due_reminders(
@@ -45,6 +73,7 @@ def start_reminder_worker(
     def worker() -> None:
         while not stop_event.is_set():
             try:
+                process_pre_due_reminders(speak_func)
                 process_due_reminders(speak_func)
             except Exception as exc:
                 print("❌ リマインダー監視エラー:", exc)
