@@ -116,7 +116,7 @@ def route_command(text, frame):
         return {"kind": "reminder_list", "target": "local", "query": None, "confidence": 1.0}
     if text:
         from meina_reminder_parser import (
-            parse_reminder_action_target,
+            parse_reminder_action_request,
             parse_reminder_rename_command,
             parse_reminder_reschedule_command,
         )
@@ -139,13 +139,31 @@ def route_command(text, frame):
                 "confidence": 1.0,
             }
 
-        done_target = parse_reminder_action_target(text, "done")
-        if done_target is not None:
-            return {"kind": "reminder_done", "target": "local", "query": done_target, "confidence": 1.0}
+        done_request = parse_reminder_action_request(text, "done")
+        if done_request is not None:
+            has_due_filter = any(
+                done_request.get(key) is not None
+                for key in ("date", "hour", "minute")
+            )
+            return {
+                "kind": "reminder_done",
+                "target": "local",
+                "query": done_request if has_due_filter else done_request.get("target", ""),
+                "confidence": 1.0,
+            }
 
-        delete_target = parse_reminder_action_target(text, "delete")
-        if delete_target is not None:
-            return {"kind": "reminder_delete", "target": "local", "query": delete_target, "confidence": 1.0}
+        delete_request = parse_reminder_action_request(text, "delete")
+        if delete_request is not None:
+            has_due_filter = any(
+                delete_request.get(key) is not None
+                for key in ("date", "hour", "minute")
+            )
+            return {
+                "kind": "reminder_delete",
+                "target": "local",
+                "query": delete_request if has_due_filter else delete_request.get("target", ""),
+                "confidence": 1.0,
+            }
     if text and any(p in compact for p in (
         "予定を追加",
         "予定に追加",
