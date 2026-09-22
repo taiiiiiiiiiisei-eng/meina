@@ -149,6 +149,26 @@ def route_command(text, frame):
         "次は何の予定",
     )):
         return {"kind": "reminder_next", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in (
+        "期限切れの予定",
+        "期限切れ予定",
+        "期限を過ぎた予定",
+        "過ぎた予定",
+        "遅れている予定",
+    )):
+        return {"kind": "reminder_overdue", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in (
+        "今月の予定",
+        "今月のリマインダー",
+        "今月のスケジュール",
+    )):
+        return {"kind": "reminder_month", "target": "local", "query": None, "confidence": 1.0}
+    if text and any(p in compact for p in (
+        "今週の予定",
+        "今週のリマインダー",
+        "今週のスケジュール",
+    )):
+        return {"kind": "reminder_week", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("明日の予定", "明日のリマインダー", "明日のリマインド")):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
@@ -166,6 +186,7 @@ def route_command(text, frame):
             parse_reminder_repeat_clear_command,
             parse_reminder_resume_command,
             parse_reminder_reschedule_command,
+            parse_reminder_snooze_command,
         )
 
         pre_notify_set = parse_reminder_pre_notify_set_command(text)
@@ -219,6 +240,15 @@ def route_command(text, frame):
                 "kind": "reminder_repeat_clear",
                 "target": "local",
                 "query": repeat_clear,
+                "confidence": 1.0,
+            }
+
+        snooze = parse_reminder_snooze_command(text)
+        if snooze is not None:
+            return {
+                "kind": "reminder_snooze",
+                "target": "local",
+                "query": snooze,
                 "confidence": 1.0,
             }
 
@@ -279,7 +309,7 @@ def route_command(text, frame):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
     if text and any(p in compact for p in ("リマインド", "リマインダー")):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
-    if text and any(p in compact for p in ("今後の予定", "予定表", "今週の予定", "これからの予定")):
+    if text and any(p in compact for p in ("今後の予定", "予定表", "これからの予定")):
         return {"kind": "reminder_upcoming", "target": "local", "query": None, "confidence": 1.0}
 
     # めいなのヘルプ・自己診断は固定応答にして、AIのconfidenceに依存させない。
