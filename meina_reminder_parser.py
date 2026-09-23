@@ -794,6 +794,117 @@ def parse_reminder_restore_completed_command(
     return None
 
 
+
+_NOTE_CLEAR_ACTION = (
+    r"(?:消して|消してください|"
+    r"削除して|削除してください|"
+    r"解除して|解除してください|"
+    r"なしにして|なしにしてください)"
+)
+_NOTE_GET_ACTION = (
+    r"(?:教えて|見せて|確認して|確認してください|"
+    r"読んで|読んでください)"
+)
+
+
+def _clean_reminder_note_text(value: str) -> str:
+    note = str(value or "").strip()
+    for left, right in (
+        ("「", "」"),
+        ("『", "』"),
+        ('"', '"'),
+        ("“", "”"),
+        ("'", "'"),
+    ):
+        if len(note) >= 2 and note.startswith(left) and note.endswith(right):
+            note = note[len(left):-len(right)].strip()
+            break
+    return note
+
+
+def parse_reminder_note_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定メモの設定・確認・解除命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+
+    set_patterns = (
+        (
+            rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:に|の)?"
+            rf"メモ(?:を)?(?:追加して|追加してください|残して|残してください)"
+            rf"(?P<note>.+)$"
+        ),
+        (
+            rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+            rf"メモ(?:を|は)?(?P<note>.+?)(?:に)?"
+            rf"(?:して|してください|設定して|設定してください|"
+            rf"変更して|変更してください|変えて|変えてください)$"
+        ),
+    )
+    get_pattern = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"メモ(?:を|は)?{_NOTE_GET_ACTION}$"
+    )
+    clear_pattern = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"メモ(?:を|は)?{_NOTE_CLEAR_ACTION}$"
+    )
+
+    for pattern in set_patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        note = _clean_reminder_note_text(match.group("note"))
+        if not note or len(note) > 500:
+            return None
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "operation": "set",
+            "note": note,
+        }
+
+    match = re.fullmatch(get_pattern, compact)
+    if match:
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "operation": "get",
+            "note": None,
+        }
+
+    match = re.fullmatch(clear_pattern, compact)
+    if match:
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "operation": "clear",
+            "note": None,
+        }
+
+    return None
+
+
 _CATEGORY_SET_ACTION = (
     r"(?:にして|にしてください|"
     r"設定して|設定してください|"
