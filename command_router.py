@@ -106,6 +106,18 @@ def route_command(text, frame):
             "query": mode,
             "confidence": 1.0,
         }
+    if text:
+        from meina_reminder_parser import parse_reminder_detail_command
+
+        detail_request = parse_reminder_detail_command(text)
+        if detail_request is not None:
+            return {
+                "kind": "reminder_detail",
+                "target": "local",
+                "query": detail_request,
+                "confidence": 1.0,
+            }
+
     if (
         text
         and re.search(
