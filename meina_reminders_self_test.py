@@ -2068,7 +2068,7 @@ def main() -> int:
             }
 
             priority_original_path = meina_reminders.REMINDER_PATH
-            meina_reminders.REMINDER_PATH = Path(tmp_dir) / "priority_reminders.json"
+            meina_reminders.REMINDER_PATH = Path(tmp) / "priority_reminders.json"
             try:
                 priority_now = datetime.fromisoformat(
                     "2070-01-01T12:00:00+09:00"
