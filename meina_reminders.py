@@ -1154,6 +1154,43 @@ def remaining_scope_reminders(
     return remaining
 
 
+def scope_reminders_including_paused(
+    now: datetime | None = None,
+    *,
+    scope: str = "today",
+) -> list[dict[str, Any]]:
+    """今日・明日・今週・今月の予定を一時停止中も含めて投影する。"""
+    current = now or datetime.now().astimezone()
+    normalized = str(scope or "today").strip().lower()
+
+    if normalized == "all":
+        items = list_reminders()
+        items.sort(key=lambda item: str(item.get("due_at", "")))
+        return items
+
+    if normalized == "today":
+        start_date = end_date = current.date()
+    elif normalized == "tomorrow":
+        start_date = end_date = current.date() + timedelta(days=1)
+    elif normalized == "week":
+        start_date = current.date() - timedelta(days=current.weekday())
+        end_date = start_date + timedelta(days=6)
+    elif normalized == "month":
+        start_date = current.date().replace(day=1)
+        end_date = current.date().replace(
+            day=calendar.monthrange(current.year, current.month)[1]
+        )
+    else:
+        return []
+
+    return project_reminder_occurrences(
+        start_date,
+        end_date,
+        current,
+        include_paused=True,
+    )
+
+
 def reminder_category_counts(
     items: list[dict[str, Any]],
 ) -> dict[str, int]:
