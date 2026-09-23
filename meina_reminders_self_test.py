@@ -1135,6 +1135,22 @@ def main() -> int:
     assert category_summary_route["kind"] == "reminder_category_summary"
     assert category_summary_route["query"] == "today"
 
+    weekly_category_summary_route = route_command(
+        "今週のカテゴリ別件数",
+        {"confidence": 0.10},
+    )
+    assert weekly_category_summary_route is not None
+    assert weekly_category_summary_route["kind"] == "reminder_category_summary"
+    assert weekly_category_summary_route["query"] == "week"
+
+    weekly_location_summary_route = route_command(
+        "今週の場所別件数",
+        {"confidence": 0.10},
+    )
+    assert weekly_location_summary_route is not None
+    assert weekly_location_summary_route["kind"] == "reminder_location_summary"
+    assert weekly_location_summary_route["query"] == "week"
+
     deleted_list_route = route_command(
         "最近削除した予定を教えて",
         {"confidence": 0.10},
@@ -3177,6 +3193,23 @@ def main() -> int:
                 }
                 assert weekly_category_progress["未分類"]["completed"] == 0
                 assert weekly_category_progress["未分類"]["remaining"] >= 1
+
+                weekly_remaining = meina_reminders.remaining_scope_reminders(
+                    history_now,
+                    scope="week",
+                )
+                weekly_category_counts = meina_reminders.reminder_category_counts(
+                    weekly_remaining
+                )
+                assert weekly_category_counts["学校"] == 7
+                assert weekly_category_counts["未分類"] >= 1
+
+                weekly_location_counts = meina_reminders.reminder_location_counts(
+                    weekly_remaining
+                )
+                assert weekly_location_counts["自習室"] == 1
+                assert weekly_location_counts["教室"] == 6
+                assert weekly_location_counts["場所未設定"] >= 1
 
                 weekly_location_progress = (
                     meina_reminders.completion_location_progress(
