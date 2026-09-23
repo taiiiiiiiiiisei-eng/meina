@@ -961,6 +961,21 @@ def set_reminder_note(
     return None
 
 
+def filter_reminders_by_note_presence(
+    items: list[dict[str, Any]],
+    *,
+    has_note: bool,
+) -> list[dict[str, Any]]:
+    """予定群をメモ有無で絞り込み、時刻順で返す。"""
+    result = [
+        item
+        for item in items
+        if bool(str(item.get("note") or "").strip()) is bool(has_note)
+    ]
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
 def set_reminder_location(
     reminder_id: str,
     location: str | None,
