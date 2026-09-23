@@ -454,6 +454,224 @@ def reminders_missing_duration() -> list[dict[str, Any]]:
     return result
 
 
+def _next_projected_repeat_due(
+    due: datetime,
+    item: dict[str, Any],
+) -> datetime | None:
+    """保存状態を変更せず、繰り返し予定の次回日時を1回分だけ計算する。"""
+    rule = item.get("repeat_rule")
+    if rule == "daily":
+        return due + timedelta(days=1)
+    if rule == "weekdays":
+        candidate = due + timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate += timedelta(days=1)
+        return candidate
+    if rule == "weekly":
+        return due + timedelta(days=7)
+    if rule == "monthly":
+        try:
+            repeat_day = int(item.get("repeat_day") or due.day)
+        except (TypeError, ValueError):
+            return None
+        if not 1 <= repeat_day <= 31:
+            return None
+        year = due.year + (1 if due.month == 12 else 0)
+        month = 1 if due.month == 12 else due.month + 1
+        last_day = calendar.monthrange(year, month)[1]
+        return due.replace(
+            year=year,
+            month=month,
+            day=min(repeat_day, last_day),
+        )
+    return None
+
+
+def project_reminder_occurrences(
+    start_date,
+    end_date,
+    now: datetime | None = None,
+    *,
+    include_paused: bool = False,
+) -> list[dict[str, Any]]:
+    """現在の未完了予定を、指定日付範囲へ安全に投影して返す。"""
+    current = now or datetime.now().astimezone()
+    if end_date < start_date:
+        return []
+
+    projected: list[dict[str, Any]] = []
+    for item in list_reminders():
+        if item.get("paused") and not include_paused:
+            continue
+
+        try:
+            actual_due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if actual_due.tzinfo is None and current.tzinfo is not None:
+                actual_due = actual_due.replace(tzinfo=current.tzinfo)
+            elif actual_due.tzinfo is not None and current.tzinfo is not None:
+                actual_due = actual_due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+
+        if start_date <= actual_due.date() <= end_date:
+            occurrence = dict(item)
+            occurrence["due_at"] = actual_due.isoformat(timespec="seconds")
+            projected.append(occurrence)
+
+        if item.get("repeat_rule") not in (
+            "daily",
+            "weekdays",
+            "weekly",
+            "monthly",
+        ):
+            continue
+
+        anchor_raw = item.get("snooze_original_due_at") or item.get("due_at")
+        try:
+            anchor = datetime.fromisoformat(str(anchor_raw))
+            if anchor.tzinfo is None and current.tzinfo is not None:
+                anchor = anchor.replace(tzinfo=current.tzinfo)
+            elif anchor.tzinfo is not None and current.tzinfo is not None:
+                anchor = anchor.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+
+        candidate = anchor
+        while candidate <= actual_due:
+            candidate = _next_projected_repeat_due(candidate, item)
+            if candidate is None:
+                break
+
+        while candidate is not None and candidate.date() <= end_date:
+            if candidate.date() >= start_date:
+                occurrence = dict(item)
+                occurrence["due_at"] = candidate.isoformat(timespec="seconds")
+                occurrence.pop("snooze_original_due_at", None)
+                projected.append(occurrence)
+            candidate = _next_projected_repeat_due(candidate, item)
+
+    projected.sort(key=lambda item: str(item.get("due_at", "")))
+    return projected
+
+
+def schedule_items_window_stats(
+    items: list[dict[str, Any]],
+    start_at: datetime,
+    end_at: datetime,
+) -> dict[str, int]:
+    """与えられた予定群だけを使って指定時間帯の占有状況を集計する。"""
+    if end_at <= start_at:
+        return {
+            "window_minutes": 0,
+            "free_minutes": 0,
+            "busy_minutes": 0,
+            "longest_free_minutes": 0,
+        }
+
+    busy: list[tuple[datetime, datetime]] = []
+    for item in items:
+        if item.get("paused"):
+            continue
+        interval = _reminder_interval(item, start_at)
+        if interval is None:
+            continue
+        busy_start, busy_end = interval
+        if busy_end <= start_at or busy_start >= end_at:
+            continue
+        busy.append((max(busy_start, start_at), min(busy_end, end_at)))
+
+    busy.sort(key=lambda row: row[0])
+    merged: list[list[datetime]] = []
+    for busy_start, busy_end in busy:
+        if not merged or busy_start > merged[-1][1]:
+            merged.append([busy_start, busy_end])
+        elif busy_end > merged[-1][1]:
+            merged[-1][1] = busy_end
+
+    window_minutes = int((end_at - start_at).total_seconds() // 60)
+    busy_minutes = sum(
+        int((busy_end - busy_start).total_seconds() // 60)
+        for busy_start, busy_end in merged
+    )
+
+    free_ranges: list[tuple[datetime, datetime]] = []
+    cursor = start_at
+    for busy_start, busy_end in merged:
+        if busy_start > cursor:
+            free_ranges.append((cursor, busy_start))
+        if busy_end > cursor:
+            cursor = busy_end
+    if cursor < end_at:
+        free_ranges.append((cursor, end_at))
+
+    longest_free = max(
+        (
+            int((free_end - free_start).total_seconds() // 60)
+            for free_start, free_end in free_ranges
+        ),
+        default=0,
+    )
+    return {
+        "window_minutes": window_minutes,
+        "free_minutes": max(0, window_minutes - busy_minutes),
+        "busy_minutes": max(0, busy_minutes),
+        "longest_free_minutes": longest_free,
+    }
+
+
+def day_schedule_summary(
+    target_date,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """指定日の投影予定について件数・所要時間・重なりを要約する。"""
+    current = now or datetime.now().astimezone()
+    items = project_reminder_occurrences(
+        target_date,
+        target_date,
+        current,
+    )
+    duration_summary = reminder_duration_summary(items)
+    important_count = sum(1 for item in items if item.get("important"))
+
+    intervals: list[tuple[datetime, datetime]] = []
+    for item in items:
+        interval = _reminder_interval(item, current)
+        if interval is not None:
+            intervals.append(interval)
+    intervals.sort(key=lambda pair: pair[0])
+    conflicts = 0
+    for index, (start, finish) in enumerate(intervals):
+        for other_start, other_finish in intervals[index + 1:]:
+            if other_start >= finish:
+                break
+            if start < other_finish and other_start < finish:
+                conflicts += 1
+
+    return {
+        "date": target_date.isoformat(),
+        "count": len(items),
+        "total_minutes": duration_summary["total_minutes"],
+        "timed_count": duration_summary["timed_count"],
+        "missing_count": duration_summary["missing_count"],
+        "important_count": important_count,
+        "conflict_pairs": conflicts,
+    }
+
+
+def remaining_week_schedule_summary(
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """今日から今週日曜までの日別予定要約を返す。"""
+    current = now or datetime.now().astimezone()
+    sunday = current.date() + timedelta(days=6 - current.weekday())
+    result: list[dict[str, Any]] = []
+    target = current.date()
+    while target <= sunday:
+        result.append(day_schedule_summary(target, current))
+        target += timedelta(days=1)
+    return result
+
+
 def find_first_free_slot(
     start_at: datetime,
     end_at: datetime,
