@@ -858,6 +858,83 @@ def _execute_routed_command_base(route):
                             "最長の連続した空きは"
                             f"{_format_minutes(stats['longest_free_minutes'])}です。"
                         )
+        elif kind == "reminder_focus_slot":
+            from datetime import datetime, timedelta
+            from meina_reminders import find_first_free_slot
+
+            request = query if isinstance(query, dict) else {}
+            current = datetime.now().astimezone()
+            day_offset = 1 if request.get("day") == "明日" else 0
+            target_date = (current + timedelta(days=day_offset)).date()
+
+            try:
+                required = max(
+                    1,
+                    min(int(request.get("duration_minutes", 60)), 1440),
+                )
+            except (TypeError, ValueError):
+                required = 60
+
+            if day_offset == 0:
+                start_at = current.replace(second=0, microsecond=0)
+                if start_at < current:
+                    start_at += timedelta(minutes=1)
+            else:
+                start_at = current.replace(
+                    year=target_date.year,
+                    month=target_date.month,
+                    day=target_date.day,
+                    hour=0,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
+                )
+
+            end_at = (
+                current.replace(
+                    year=target_date.year,
+                    month=target_date.month,
+                    day=target_date.day,
+                    hour=0,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
+                )
+                + timedelta(days=1)
+            )
+
+            slot = (
+                find_first_free_slot(
+                    start_at,
+                    end_at,
+                    required_minutes=required,
+                )
+                if start_at < end_at
+                else None
+            )
+
+            if slot is None:
+                result = (
+                    f"{request.get('day') or '今日'}は"
+                    f"{_format_minutes(required)}まとまって空いている時間が"
+                    "見つかりませんでした。"
+                )
+            else:
+                slot_start, slot_end = slot
+
+                def _clock_text(value):
+                    return (
+                        f"{value.hour}時{value.minute}分"
+                        if value.minute
+                        else f"{value.hour}時"
+                    )
+
+                result = (
+                    f"{request.get('day') or '今日'}の最初の"
+                    f"{_format_minutes(required)}の集中候補は、"
+                    f"{_clock_text(slot_start)}から"
+                    f"{_clock_text(slot_end)}です。"
+                )
         elif kind == "reminder_free_time":
             from datetime import datetime, timedelta
             from meina_reminders import find_free_time_slots
@@ -1130,6 +1207,67 @@ def _execute_routed_command_base(route):
                 else f"所要時間が未設定の予定が{len(items)}件あります。\n"
                 + _format_reminders(items)
             )
+        elif kind == "reminder_next_action":
+            from datetime import datetime
+            from meina_reminders import (
+                format_reminder_due,
+                format_reminder_duration,
+                next_priority_reminder,
+            )
+
+            current = datetime.now().astimezone()
+            item = next_priority_reminder(current)
+            if not item:
+                result = "優先候補にできる未完了予定はありません。"
+            else:
+                try:
+                    due = datetime.fromisoformat(str(item.get("due_at", "")))
+                    if due.tzinfo is None and current.tzinfo is not None:
+                        due = due.replace(tzinfo=current.tzinfo)
+                    elif due.tzinfo is not None and current.tzinfo is not None:
+                        due = due.astimezone(current.tzinfo)
+                    overdue = due < current
+                except (TypeError, ValueError):
+                    overdue = False
+
+                if overdue and item.get("important"):
+                    reason = "期限を過ぎていて、重要設定も付いています"
+                elif overdue:
+                    reason = "期限を過ぎています"
+                elif item.get("important"):
+                    reason = "重要設定が付いています"
+                else:
+                    reason = "次に近い予定です"
+
+                duration = format_reminder_duration(item)
+                duration_text = f"、所要{duration}" if duration else ""
+                result = (
+                    f"次の優先候補は「{item['text']}」です。"
+                    f"{format_reminder_due(item.get('due_at', ''))}"
+                    f"{duration_text}。{reason}。"
+                )
+        elif kind == "reminder_priority_today":
+            from datetime import datetime
+            from meina_reminders import prioritized_reminders
+
+            current = datetime.now().astimezone()
+            items = prioritized_reminders(
+                current,
+                target_date=current.date(),
+            )
+            if not items:
+                result = "今日の優先候補にできる予定はありません。"
+            else:
+                top_items = items[:5]
+                result = (
+                    "今日の優先候補です。"
+                    "期限切れ、重要設定、時刻の順で並べています。\n"
+                    + _format_reminders(top_items)
+                )
+                if len(items) > len(top_items):
+                    result += (
+                        f"\nほかに{len(items) - len(top_items)}件あります。"
+                    )
         elif kind == "reminder_brief":
             from meina_reminders import (
                 format_reminder_due,
