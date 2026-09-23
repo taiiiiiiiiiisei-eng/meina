@@ -68,6 +68,8 @@ REQUIRED_KINDS = (
     "reminder_setup_gap_summary",
     "reminder_setup_complete",
     "reminder_setup_status",
+    "reminder_important_setup_gaps",
+    "reminder_important_setup_status",
     "reminder_importance",
     "reminder_next",
     "reminder_soon",
@@ -288,6 +290,15 @@ def main() -> int:
         or "completion_percent" not in agent_text
     ):
         print("FAILED: 予定準備状況サマリーの配線がありません")
+        return 1
+    if (
+        "important_setup_gap_list_match" not in router_text
+        or "important_setup_status_match" not in router_text
+        or 'elif kind == "reminder_important_setup_gaps"' not in agent_text
+        or 'elif kind == "reminder_important_setup_status"' not in agent_text
+        or "important_items" not in agent_text
+    ):
+        print("FAILED: 重要予定の設定不足・準備状況配線がありません")
         return 1
     if "set_reminder_category" not in agent_text or "reminders_by_category" not in agent_text:
         print("FAILED: 予定カテゴリの設定・一覧配線がありません")
