@@ -487,6 +487,31 @@ def route_command(text, frame):
                     "confidence": 1.0,
                 }
 
+        location_completed_match = re.fullmatch(
+            r"(?:場所(?:が|は))?(?P<location>.+?)で"
+            r"(?P<scope>今日|今週)"
+            r"(?:終わった|完了した|済ませた)"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if location_completed_match:
+            location = location_completed_match.group("location").strip()
+            if location and len(location) <= 100:
+                return {
+                    "kind": "reminder_completed_period",
+                    "target": "local",
+                    "query": {
+                        "scope": (
+                            "week"
+                            if location_completed_match.group("scope") == "今週"
+                            else "today"
+                        ),
+                        "location": location,
+                    },
+                    "confidence": 1.0,
+                }
+
     if text and any(p in compact for p in (
         "今週終わった予定",
         "今週完了した予定",
@@ -541,6 +566,19 @@ def route_command(text, frame):
             "kind": "reminder_completion_summary",
             "target": "local",
             "query": "week",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日の場所別進捗",
+        "今日の場所ごとの進捗",
+        "今日場所別にどれくらい終わった",
+        "今日場所ごとにどれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_location_progress",
+            "target": "local",
+            "query": "today",
             "confidence": 1.0,
         }
 
