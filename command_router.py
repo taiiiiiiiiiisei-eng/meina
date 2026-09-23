@@ -615,13 +615,21 @@ def route_command(text, frame):
         }
 
     if text:
-        location_list_match = re.fullmatch(
-            r"(?:場所(?:が|は))?(?P<location>.+?)(?:で|の場所の|にある)"
+        location_list_patterns = (
+            r"場所(?:が|は)(?P<location>.+?)の"
             r"(?:予定|リマインダー|リマインド)"
             r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
-            str(text).strip(),
+            r"(?P<location>.+?)での"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            r"(?P<location>.+?)にある"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
         )
-        if location_list_match:
+        for pattern in location_list_patterns:
+            location_list_match = re.fullmatch(pattern, str(text).strip())
+            if not location_list_match:
+                continue
             location = location_list_match.group("location").strip()
             if location and len(location) <= 100:
                 return {
