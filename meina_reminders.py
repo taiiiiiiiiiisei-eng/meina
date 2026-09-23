@@ -1912,14 +1912,62 @@ def completion_progress_summary(
     }
 
 
+def _completion_group_progress_items(
+    target_date,
+    current: datetime,
+    scope: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """今日/今週のグループ別進捗に使う完了・残り予定を返す。"""
+    normalized = str(scope or "today").strip().lower()
+    if normalized == "today":
+        return (
+            completion_events_for_date(target_date, current),
+            _date_reminders(target_date, current),
+        )
+    if normalized != "week":
+        return [], []
+
+    monday = current.date() - timedelta(days=current.weekday())
+    sunday = monday + timedelta(days=6)
+    completed = completion_events(
+        monday,
+        current.date(),
+        current,
+    )
+    remaining = project_reminder_occurrences(
+        current.date(),
+        sunday,
+        current,
+    )
+
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+        if monday <= due.date() < current.date():
+            remaining.append(dict(item))
+
+    return completed, remaining
+
+
 def completion_category_progress(
     target_date,
     now: datetime | None = None,
+    *,
+    scope: str = "today",
 ) -> dict[str, dict[str, int]]:
-    """指定日のカテゴリ別に完了件数と未完了件数を返す。"""
+    """今日または今週のカテゴリ別に完了件数と未完了件数を返す。"""
     current = now or datetime.now().astimezone()
-    completed = completion_events_for_date(target_date, current)
-    remaining = _date_reminders(target_date, current)
+    completed, remaining = _completion_group_progress_items(
+        target_date,
+        current,
+        scope,
+    )
 
     progress: dict[str, dict[str, int]] = {}
     for event in completed:
@@ -1945,11 +1993,16 @@ def completion_category_progress(
 def completion_location_progress(
     target_date,
     now: datetime | None = None,
+    *,
+    scope: str = "today",
 ) -> dict[str, dict[str, int]]:
-    """指定日の場所別に完了件数と未完了件数を返す。"""
+    """今日または今週の場所別に完了件数と未完了件数を返す。"""
     current = now or datetime.now().astimezone()
-    completed = completion_events_for_date(target_date, current)
-    remaining = _date_reminders(target_date, current)
+    completed, remaining = _completion_group_progress_items(
+        target_date,
+        current,
+        scope,
+    )
 
     progress: dict[str, dict[str, int]] = {}
     for event in completed:
