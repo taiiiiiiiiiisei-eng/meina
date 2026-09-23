@@ -449,6 +449,46 @@ def route_command(text, frame):
         return {"kind": "reminder_tomorrow", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
         return {"kind": "reminder_today", "target": "local", "query": None, "confidence": 1.0}
+    if text:
+        category_completed_match = re.fullmatch(
+            r"(?P<category>.+?)カテゴリ(?:で|の)?"
+            r"(?P<scope>今日|今週)"
+            r"(?:終わった|完了した|済ませた)"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if category_completed_match:
+            category = category_completed_match.group("category").strip()
+            if category and len(category) <= 32:
+                return {
+                    "kind": "reminder_completed_period",
+                    "target": "local",
+                    "query": {
+                        "scope": (
+                            "week"
+                            if category_completed_match.group("scope") == "今週"
+                            else "today"
+                        ),
+                        "category": category,
+                    },
+                    "confidence": 1.0,
+                }
+
+    if text and any(p in compact for p in (
+        "今週終わった予定",
+        "今週完了した予定",
+        "今週済ませた予定",
+        "今週終わったリマインダー",
+        "今週完了したリマインダー",
+    )):
+        return {
+            "kind": "reminder_completed_period",
+            "target": "local",
+            "query": {"scope": "week", "category": None},
+            "confidence": 1.0,
+        }
+
     if text and any(p in compact for p in (
         "今日終わった予定",
         "今日完了した予定",
@@ -557,10 +597,20 @@ def route_command(text, frame):
             parse_reminder_rename_command,
             parse_reminder_repeat_change_command,
             parse_reminder_repeat_clear_command,
+            parse_reminder_restore_completed_command,
             parse_reminder_resume_command,
             parse_reminder_reschedule_command,
             parse_reminder_snooze_command,
         )
+
+        restore_completed = parse_reminder_restore_completed_command(text)
+        if restore_completed is not None:
+            return {
+                "kind": "reminder_restore_completed",
+                "target": "local",
+                "query": restore_completed,
+                "confidence": 1.0,
+            }
 
         category_change = parse_reminder_category_command(text)
         if category_change is not None:
