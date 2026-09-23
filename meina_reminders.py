@@ -108,6 +108,11 @@ def format_reminder_category(item: dict[str, Any]) -> str:
     return str(item.get("category") or "").strip()
 
 
+def format_reminder_note(item: dict[str, Any]) -> str:
+    """予定メモの表示文字列を返す。"""
+    return str(item.get("note") or "").strip()
+
+
 def format_reminder_repeat(item: dict[str, Any]) -> str:
     """繰り返し設定を読み上げやすい日本語へ整形する。"""
     rule = item.get("repeat_rule")
@@ -851,6 +856,34 @@ def important_reminders() -> list[dict[str, Any]]:
     items = [item for item in list_reminders() if item.get("important")]
     items.sort(key=lambda item: str(item.get("due_at", "")))
     return items
+
+
+def set_reminder_note(
+    reminder_id: str,
+    note: str | None,
+) -> dict[str, Any] | None:
+    """予定のメモだけを設定・解除する。"""
+    clean = None
+    if note is not None:
+        clean = str(note).strip()
+        if (
+            not clean
+            or len(clean) > 500
+            or any(ord(ch) < 32 for ch in clean)
+        ):
+            return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        if clean is None:
+            item.pop("note", None)
+        else:
+            item["note"] = clean
+        _save(items)
+        return item
+    return None
 
 
 def set_reminder_category(
