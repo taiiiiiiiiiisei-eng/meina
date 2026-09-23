@@ -177,6 +177,13 @@ def main() -> int:
     if "reminder_duration_summary" not in agent_text:
         print("FAILED: 予定時間合計の分析配線がありません")
         return 1
+    if (
+        "今週の予定時間合計" not in router_text
+        or "今月の予定時間合計" not in router_text
+        or "remaining_scope_reminders" not in agent_text
+    ):
+        print("FAILED: 今週/今月の予定時間合計配線がありません")
+        return 1
     if "reminders_missing_duration" not in agent_text:
         print("FAILED: 所要時間未設定一覧の配線がありません")
         return 1
