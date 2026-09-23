@@ -539,6 +539,33 @@ def main() -> int:
         is None
     )
 
+    restore_deleted = (
+        meina_reminder_parser.parse_reminder_restore_deleted_command(
+            "宿題の予定の削除を取り消して",
+            now,
+        )
+    )
+    assert restore_deleted is not None
+    assert restore_deleted["target"] == "宿題"
+
+    restore_deleted_at_time = (
+        meina_reminder_parser.parse_reminder_restore_deleted_command(
+            "18時の宿題の予定をゴミ箱から戻して",
+            now,
+        )
+    )
+    assert restore_deleted_at_time is not None
+    assert restore_deleted_at_time["target"] == "宿題"
+    assert restore_deleted_at_time["hour"] == 18
+
+    assert (
+        meina_reminder_parser.parse_reminder_restore_deleted_command(
+            "宿題の予定の削除を取り消していい？",
+            now,
+        )
+        is None
+    )
+
     category_set = meina_reminder_parser.parse_reminder_category_command(
         "宿題の予定を学校カテゴリにして",
         now,
@@ -931,6 +958,22 @@ def main() -> int:
     assert category_summary_route is not None
     assert category_summary_route["kind"] == "reminder_category_summary"
     assert category_summary_route["query"] == "today"
+
+    deleted_list_route = route_command(
+        "最近削除した予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert deleted_list_route is not None
+    assert deleted_list_route["kind"] == "reminder_deleted_list"
+
+    restore_deleted_route = route_command(
+        "18時の宿題の予定をゴミ箱から戻して",
+        {"confidence": 0.10},
+    )
+    assert restore_deleted_route is not None
+    assert restore_deleted_route["kind"] == "reminder_restore_deleted"
+    assert restore_deleted_route["query"]["target"] == "宿題"
+    assert restore_deleted_route["query"]["hour"] == 18
 
     completed_week_route = route_command(
         "今週終わった予定を教えて",
@@ -1451,8 +1494,47 @@ def main() -> int:
             deleted = meina_reminders.add_reminder(
                 "削除テスト",
                 "2030-01-02T10:00:00+09:00",
+                duration_minutes=45,
             )
-            assert meina_reminders.delete_reminder(deleted["id"])
+            assert meina_reminders.set_reminder_category(
+                deleted["id"],
+                "学校",
+            )
+            assert meina_reminders.set_reminder_importance(
+                deleted["id"],
+                True,
+            )
+            assert meina_reminders.delete_reminder(
+                deleted["id"],
+                now=datetime.fromisoformat("2030-01-02T09:00:00+09:00"),
+            )
+            assert meina_reminders.list_reminders() == []
+
+            deleted_items = meina_reminders.list_deleted_reminders()
+            assert [item["id"] for item in deleted_items] == [deleted["id"]]
+            assert deleted_items[0]["deleted_at"] == "2030-01-02T09:00:00+09:00"
+            assert deleted_items[0]["category"] == "学校"
+            assert deleted_items[0]["important"] is True
+            assert deleted_items[0]["duration_minutes"] == 45
+            assert meina_reminders.find_deleted_reminders("削 除 テスト")[0]["id"] == deleted["id"]
+
+            restored_deleted = meina_reminders.restore_deleted_reminder(
+                deleted["id"]
+            )
+            assert restored_deleted is not None
+            assert restored_deleted["id"] == deleted["id"]
+            assert restored_deleted["category"] == "学校"
+            assert restored_deleted["important"] is True
+            assert restored_deleted["duration_minutes"] == 45
+            assert "deleted_at" not in restored_deleted
+            assert meina_reminders.list_deleted_reminders() == []
+            assert meina_reminders.find_reminders("削除テスト")[0]["id"] == deleted["id"]
+            assert meina_reminders.restore_deleted_reminder(deleted["id"]) is None
+
+            assert meina_reminders.delete_reminder(
+                deleted["id"],
+                now=datetime.fromisoformat("2030-01-02T09:05:00+09:00"),
+            )
             assert meina_reminders.list_reminders() == []
 
             exact = meina_reminders.add_reminder(
