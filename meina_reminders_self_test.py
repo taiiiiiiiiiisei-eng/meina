@@ -1044,6 +1044,15 @@ def main() -> int:
     assert note_get_route["kind"] == "reminder_note"
     assert note_get_route["query"]["operation"] == "get"
 
+    note_get_at_time_route = route_command(
+        "18時の宿題の予定のメモを教えて",
+        {"confidence": 0.10},
+    )
+    assert note_get_at_time_route is not None
+    assert note_get_at_time_route["kind"] == "reminder_note"
+    assert note_get_at_time_route["query"]["operation"] == "get"
+    assert note_get_at_time_route["query"]["hour"] == 18
+
     note_clear_route = route_command(
         "18時の宿題の予定のメモを消して",
         {"confidence": 0.10},
