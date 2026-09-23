@@ -230,6 +230,14 @@ def main() -> int:
     if "reminders_by_location" not in agent_text or "reminders_missing_location" not in agent_text:
         print("FAILED: 予定場所の検索・未設定一覧配線がありません")
         return 1
+    if (
+        "scoped_category_list_patterns" not in router_text
+        or "scoped_location_list_patterns" not in router_text
+        or "remaining_scope_reminders(scope=scope)" not in agent_text
+        or "filter_reminders_by_metadata" not in agent_text
+    ):
+        print("FAILED: 期間指定カテゴリ・場所一覧の配線がありません")
+        return 1
     if "reminder_location_counts" not in agent_text:
         print("FAILED: 予定場所集計の配線がありません")
         return 1
