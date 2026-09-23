@@ -1532,6 +1532,22 @@ def main() -> int:
     assert duration_total_tomorrow_route["kind"] == "reminder_duration_total"
     assert duration_total_tomorrow_route["query"] == "tomorrow"
 
+    duration_total_week_route = route_command(
+        "今週の予定時間合計",
+        {"confidence": 0.10},
+    )
+    assert duration_total_week_route is not None
+    assert duration_total_week_route["kind"] == "reminder_duration_total"
+    assert duration_total_week_route["query"] == "week"
+
+    duration_total_month_route = route_command(
+        "今月何時間予定入ってる？",
+        {"confidence": 0.10},
+    )
+    assert duration_total_month_route is not None
+    assert duration_total_month_route["kind"] == "reminder_duration_total"
+    assert duration_total_month_route["query"] == "month"
+
     missing_duration_route = route_command(
         "所要時間未設定の予定を教えて",
         {"confidence": 0.10},
@@ -2418,6 +2434,60 @@ def main() -> int:
                 )
             )
             assert duration_summary_with_paused["total_minutes"] == 90
+
+            duration_scope_original_path = meina_reminders.REMINDER_PATH
+            meina_reminders.REMINDER_PATH = Path(tmp) / "duration_scope.json"
+            try:
+                duration_scope_now = datetime.fromisoformat(
+                    "2051-03-15T12:00:00+09:00"
+                )
+                meina_reminders.add_reminder(
+                    "今日の単発",
+                    "2051-03-15T18:30:00+09:00",
+                    duration_minutes=60,
+                )
+                meina_reminders.add_reminder(
+                    "毎日の時間あり",
+                    "2051-03-15T19:00:00+09:00",
+                    repeat_rule="daily",
+                    duration_minutes=30,
+                )
+                meina_reminders.add_reminder(
+                    "毎日の時間なし",
+                    "2051-03-15T20:00:00+09:00",
+                    repeat_rule="daily",
+                )
+                meina_reminders.add_reminder(
+                    "今月だけの単発",
+                    "2051-03-20T18:00:00+09:00",
+                    duration_minutes=90,
+                )
+
+                weekly_duration = meina_reminders.reminder_duration_summary(
+                    meina_reminders.remaining_scope_reminders(
+                        duration_scope_now,
+                        scope="week",
+                    )
+                )
+                assert weekly_duration == {
+                    "total_minutes": 210,
+                    "timed_count": 6,
+                    "missing_count": 5,
+                }
+
+                monthly_duration = meina_reminders.reminder_duration_summary(
+                    meina_reminders.remaining_scope_reminders(
+                        duration_scope_now,
+                        scope="month",
+                    )
+                )
+                assert monthly_duration == {
+                    "total_minutes": 660,
+                    "timed_count": 19,
+                    "missing_count": 17,
+                }
+            finally:
+                meina_reminders.REMINDER_PATH = duration_scope_original_path
 
             changed_duration = meina_reminders.set_reminder_duration(
                 duration_item["id"],
