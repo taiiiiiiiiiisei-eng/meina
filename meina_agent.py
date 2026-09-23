@@ -592,6 +592,31 @@ def _format_minutes(minutes):
     return f"{remain}分"
 
 
+def _format_completion_events(events):
+    if not events:
+        return "完了履歴はありません。"
+
+    from meina_reminders import (
+        format_reminder_due,
+        format_reminder_duration,
+    )
+
+    lines = []
+    for event in events:
+        completed = format_reminder_due(event.get("completed_at", ""))
+        due = format_reminder_due(event.get("due_at", ""))
+        duration = format_reminder_duration(event)
+        duration_text = f"、所要{duration}" if duration else ""
+        category = str(event.get("category") or "").strip()
+        category_text = f"、カテゴリ:{category}" if category else ""
+        important_text = "、重要" if event.get("important") else ""
+        lines.append(
+            f"・{event.get('text', '')}、完了:{completed}、予定:{due}"
+            f"{duration_text}{category_text}{important_text}"
+        )
+    return "\n".join(lines)
+
+
 def _execute_routed_command_base(route):
     """command_router が許可した固定コマンドだけを実行する。"""
     kind = route["kind"]
@@ -1273,6 +1298,7 @@ def _execute_routed_command_base(route):
                     )
         elif kind == "reminder_brief":
             from meina_reminders import (
+                completion_progress_summary,
                 format_reminder_due,
                 next_reminder,
                 overdue_reminders,
@@ -1287,6 +1313,7 @@ def _execute_routed_command_base(route):
             next_item = next_reminder()
             overdue = overdue_reminders()
             duration_summary = reminder_duration_summary(items)
+            completion_summary = completion_progress_summary(scope="today")
 
             if not items:
                 result = "今日の予定はありません。"
@@ -1298,6 +1325,10 @@ def _execute_routed_command_base(route):
                     parts.append(f"一時停止中が{len(paused)}件あります。")
                 if important:
                     parts.append(f"重要予定が{len(important)}件あります。")
+                if completion_summary["completed_count"]:
+                    parts.append(
+                        f"今日はすでに{completion_summary['completed_count']}件完了しています。"
+                    )
                 if overdue:
                     parts.append(f"期限切れが{len(overdue)}件あります。")
                 if duration_summary["timed_count"]:
@@ -1385,6 +1416,46 @@ def _execute_routed_command_base(route):
             from meina_reminders import upcoming_reminders
             items = upcoming_reminders()
             result = "今後の予定はありません。" if not items else "今後の予定です。\n" + _format_reminders(items)
+        elif kind == "reminder_completed_today":
+            from datetime import datetime
+            from meina_reminders import completion_events_for_date
+
+            current = datetime.now().astimezone()
+            events = completion_events_for_date(current.date(), current)
+            result = (
+                "今日完了した予定の履歴はありません。"
+                if not events
+                else f"今日完了した予定は{len(events)}件です。\n"
+                + _format_completion_events(events)
+            )
+        elif kind == "reminder_completion_summary":
+            from meina_reminders import completion_progress_summary
+
+            scope = "week" if str(query or "") == "week" else "today"
+            summary = completion_progress_summary(scope=scope)
+            label = "今週" if scope == "week" else "今日"
+            completed_count = summary["completed_count"]
+            remaining_count = summary["remaining_count"]
+            result = (
+                f"{label}は完了{completed_count}件、"
+                f"残り{remaining_count}件です。"
+            )
+            if completed_count == 0 and remaining_count == 0:
+                result = f"{label}は完了・未完了ともに記録対象の予定がありません。"
+        elif kind == "reminder_category_progress":
+            from datetime import datetime
+            from meina_reminders import completion_category_progress
+
+            current = datetime.now().astimezone()
+            progress = completion_category_progress(current.date(), current)
+            if not progress:
+                result = "今日のカテゴリ別進捗に表示できる予定はありません。"
+            else:
+                parts = [
+                    f"{category}は完了{counts['completed']}件、残り{counts['remaining']}件"
+                    for category, counts in progress.items()
+                ]
+                result = "今日のカテゴリ別進捗は、" + "。".join(parts) + "です。"
         elif kind == "reminder_category_summary":
             from meina_reminders import (
                 reminder_category_counts,
