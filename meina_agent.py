@@ -1534,35 +1534,39 @@ def _execute_routed_command_base(route):
         elif kind == "reminder_category_summary":
             from meina_reminders import (
                 reminder_category_counts,
-                today_reminders,
+                remaining_scope_reminders,
             )
 
-            items = today_reminders()
+            scope = "week" if str(query or "") == "week" else "today"
+            label = "今週" if scope == "week" else "今日"
+            items = remaining_scope_reminders(scope=scope)
             counts = reminder_category_counts(items)
             if not counts:
-                result = "今日の未完了予定はありません。"
+                result = f"{label}の未完了予定はありません。"
             else:
                 parts = [
                     f"{category}が{count}件"
                     for category, count in counts.items()
                 ]
-                result = "今日のカテゴリ別件数は、" + "、".join(parts) + "です。"
+                result = f"{label}のカテゴリ別件数は、" + "、".join(parts) + "です。"
         elif kind == "reminder_location_summary":
             from meina_reminders import (
                 reminder_location_counts,
-                today_reminders,
+                remaining_scope_reminders,
             )
 
-            items = today_reminders()
+            scope = "week" if str(query or "") == "week" else "today"
+            label = "今週" if scope == "week" else "今日"
+            items = remaining_scope_reminders(scope=scope)
             counts = reminder_location_counts(items)
             if not counts:
-                result = "今日の未完了予定はありません。"
+                result = f"{label}の未完了予定はありません。"
             else:
                 parts = [
                     f"{location}が{count}件"
                     for location, count in counts.items()
                 ]
-                result = "今日の場所別件数は、" + "、".join(parts) + "です。"
+                result = f"{label}の場所別件数は、" + "、".join(parts) + "です。"
         elif kind == "reminder_missing_location":
             from meina_reminders import reminders_missing_location
 
