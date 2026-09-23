@@ -113,6 +113,11 @@ def format_reminder_note(item: dict[str, Any]) -> str:
     return str(item.get("note") or "").strip()
 
 
+def format_reminder_location(item: dict[str, Any]) -> str:
+    """予定場所の表示文字列を返す。"""
+    return str(item.get("location") or "").strip()
+
+
 def format_reminder_repeat(item: dict[str, Any]) -> str:
     """繰り返し設定を読み上げやすい日本語へ整形する。"""
     rule = item.get("repeat_rule")
@@ -886,6 +891,34 @@ def set_reminder_note(
     return None
 
 
+def set_reminder_location(
+    reminder_id: str,
+    location: str | None,
+) -> dict[str, Any] | None:
+    """予定の場所だけを設定・解除する。"""
+    clean = None
+    if location is not None:
+        clean = str(location).strip()
+        if (
+            not clean
+            or len(clean) > 100
+            or any(ord(ch) < 32 for ch in clean)
+        ):
+            return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        if clean is None:
+            item.pop("location", None)
+        else:
+            item["location"] = clean
+        _save(items)
+        return item
+    return None
+
+
 def set_reminder_category(
     reminder_id: str,
     category: str | None,
@@ -1584,6 +1617,7 @@ def advance_recurring_reminder(
                 "duration_minutes",
                 "important",
                 "note",
+                "location",
                 "repeat_rule",
                 "repeat_day",
             ):
@@ -1724,7 +1758,7 @@ def completion_events(
                 "due_at": str(item.get("due_at") or ""),
                 "completed_at": str(completed_at),
             }
-            for key in ("category", "duration_minutes", "important", "note"):
+            for key in ("category", "duration_minutes", "important", "note", "location"):
                 if key in item:
                     event[key] = item[key]
             if _category_matches(event):
