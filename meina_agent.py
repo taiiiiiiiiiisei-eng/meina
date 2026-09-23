@@ -1496,29 +1496,41 @@ def _execute_routed_command_base(route):
             from meina_reminders import completion_location_progress
 
             current = datetime.now().astimezone()
-            progress = completion_location_progress(current.date(), current)
+            scope = "week" if str(query or "") == "week" else "today"
+            label = "今週" if scope == "week" else "今日"
+            progress = completion_location_progress(
+                current.date(),
+                current,
+                scope=scope,
+            )
             if not progress:
-                result = "今日の場所別進捗に表示できる予定はありません。"
+                result = f"{label}の場所別進捗に表示できる予定はありません。"
             else:
                 parts = [
                     f"{location}は完了{counts['completed']}件、残り{counts['remaining']}件"
                     for location, counts in progress.items()
                 ]
-                result = "今日の場所別進捗は、" + "。".join(parts) + "です。"
+                result = f"{label}の場所別進捗は、" + "。".join(parts) + "です。"
         elif kind == "reminder_category_progress":
             from datetime import datetime
             from meina_reminders import completion_category_progress
 
             current = datetime.now().astimezone()
-            progress = completion_category_progress(current.date(), current)
+            scope = "week" if str(query or "") == "week" else "today"
+            label = "今週" if scope == "week" else "今日"
+            progress = completion_category_progress(
+                current.date(),
+                current,
+                scope=scope,
+            )
             if not progress:
-                result = "今日のカテゴリ別進捗に表示できる予定はありません。"
+                result = f"{label}のカテゴリ別進捗に表示できる予定はありません。"
             else:
                 parts = [
                     f"{category}は完了{counts['completed']}件、残り{counts['remaining']}件"
                     for category, counts in progress.items()
                 ]
-                result = "今日のカテゴリ別進捗は、" + "。".join(parts) + "です。"
+                result = f"{label}のカテゴリ別進捗は、" + "。".join(parts) + "です。"
         elif kind == "reminder_category_summary":
             from meina_reminders import (
                 reminder_category_counts,
