@@ -32,6 +32,9 @@ REQUIRED_KINDS = (
     "reminder_schedule_free",
     "reminder_duration_total",
     "reminder_missing_duration",
+    "reminder_remaining_today",
+    "reminder_day_load",
+    "reminder_week_peak",
     "reminder_move_free",
     "reminder_duration",
     "reminder_important",
@@ -157,6 +160,12 @@ def main() -> int:
         return 1
     if "reminders_missing_duration" not in agent_text:
         print("FAILED: 所要時間未設定一覧の配線がありません")
+        return 1
+    if "day_schedule_summary" not in agent_text:
+        print("FAILED: 日別予定負荷の分析配線がありません")
+        return 1
+    if "remaining_week_schedule_summary" not in agent_text:
+        print("FAILED: 今週ピーク日の分析配線がありません")
         return 1
     if "move_reminder_occurrence" not in agent_text:
         print("FAILED: 既存予定の空き枠移動配線がありません")
