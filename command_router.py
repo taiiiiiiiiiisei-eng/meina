@@ -576,6 +576,20 @@ def route_command(text, frame):
                 }
 
     if text and any(p in compact for p in (
+        "最近削除した予定",
+        "削除した予定を教えて",
+        "削除した予定一覧",
+        "ゴミ箱の予定",
+        "ゴミ箱の予定を教えて",
+    )):
+        return {
+            "kind": "reminder_deleted_list",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "重要な予定",
         "大事な予定",
         "優先予定",
@@ -598,10 +612,20 @@ def route_command(text, frame):
             parse_reminder_repeat_change_command,
             parse_reminder_repeat_clear_command,
             parse_reminder_restore_completed_command,
+            parse_reminder_restore_deleted_command,
             parse_reminder_resume_command,
             parse_reminder_reschedule_command,
             parse_reminder_snooze_command,
         )
+
+        restore_deleted = parse_reminder_restore_deleted_command(text)
+        if restore_deleted is not None:
+            return {
+                "kind": "reminder_restore_deleted",
+                "target": "local",
+                "query": restore_deleted,
+                "confidence": 1.0,
+            }
 
         restore_completed = parse_reminder_restore_completed_command(text)
         if restore_completed is not None:
