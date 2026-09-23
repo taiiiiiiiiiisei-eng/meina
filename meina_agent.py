@@ -543,6 +543,7 @@ def _format_reminders(items):
     if not items:
         return "予定はありません。"
     from meina_reminders import (
+        format_reminder_category,
         format_reminder_due,
         format_reminder_duration,
         format_reminder_importance,
@@ -555,6 +556,7 @@ def _format_reminders(items):
         repeat = format_reminder_repeat(item)
         duration = format_reminder_duration(item)
         importance = format_reminder_importance(item)
+        category = format_reminder_category(item)
         if item.get("done"):
             status = "完了"
         elif item.get("paused"):
@@ -564,13 +566,14 @@ def _format_reminders(items):
         repeat_text = f"、{repeat}" if repeat else ""
         duration_text = f"、所要{duration}" if duration else ""
         importance_text = "、重要" if importance else ""
+        category_text = f"、カテゴリ:{category}" if category else ""
         try:
             pre_minutes = int(item.get("notify_before_minutes") or 0)
         except (TypeError, ValueError):
             pre_minutes = 0
         pre_text = f"、{pre_minutes}分前通知" if pre_minutes > 0 else ""
         lines.append(
-            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{importance_text}{pre_text}、{status}"
+            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{importance_text}{category_text}{pre_text}、{status}"
         )
     return "\n".join(lines)
 
@@ -1382,6 +1385,33 @@ def _execute_routed_command_base(route):
             from meina_reminders import upcoming_reminders
             items = upcoming_reminders()
             result = "今後の予定はありません。" if not items else "今後の予定です。\n" + _format_reminders(items)
+        elif kind == "reminder_category_summary":
+            from meina_reminders import (
+                reminder_category_counts,
+                today_reminders,
+            )
+
+            items = today_reminders()
+            counts = reminder_category_counts(items)
+            if not counts:
+                result = "今日の未完了予定はありません。"
+            else:
+                parts = [
+                    f"{category}が{count}件"
+                    for category, count in counts.items()
+                ]
+                result = "今日のカテゴリ別件数は、" + "、".join(parts) + "です。"
+        elif kind == "reminder_category_list":
+            from meina_reminders import reminders_by_category
+
+            category = str(query or "").strip()
+            items = reminders_by_category(category)
+            result = (
+                f"「{category}」カテゴリの予定はありません。"
+                if not items
+                else f"「{category}」カテゴリの予定です。\n"
+                + _format_reminders(items)
+            )
         elif kind == "reminder_important":
             from meina_reminders import important_reminders
             items = important_reminders()
@@ -1587,6 +1617,66 @@ def _execute_routed_command_base(route):
                                 for other in overlaps[:3]
                             )
                             result += f" 変更後は{names}と時間が重なっています。"
+        elif kind == "reminder_category":
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                set_reminder_category,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            category = request.get("category")
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "カテゴリを変更する予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時のカテゴリ変更対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "カテゴリを変更する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    changed = set_reminder_category(
+                        matches[0]["id"],
+                        category,
+                    )
+                    if changed:
+                        result = (
+                            f"「{changed['text']}」を"
+                            f"「{changed.get('category')}」カテゴリにしました。"
+                            if category is not None
+                            else f"「{changed['text']}」のカテゴリを解除しました。"
+                        )
+                    else:
+                        result = f"「{query_text}」のカテゴリを変更できませんでした。"
         elif kind == "reminder_importance":
             from meina_reminders import (
                 filter_reminders_by_due,
