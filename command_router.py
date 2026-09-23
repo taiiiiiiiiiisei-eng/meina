@@ -332,6 +332,59 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "次に何やればいい",
+        "次何すればいい",
+        "今何やればいい",
+        "次にやること",
+        "次にやる予定",
+        "次に何する",
+    )):
+        return {
+            "kind": "reminder_next_action",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日の優先予定",
+        "今日優先する予定",
+        "今日の予定の優先順位",
+        "今日やること優先順",
+        "今日のやること優先順",
+    )):
+        return {
+            "kind": "reminder_priority_today",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text:
+        focus_match = re.search(
+            r"(?:(?P<day>今日|明日)\s*)?"
+            r"(?P<num>\d{1,4})\s*(?P<unit>分|時間)"
+            r"(?:くらい|以上)?\s*"
+            r"(?:集中できる(?:時間|空き時間)?|"
+            r"まとまって空いてる(?:時間)?|"
+            r"まとまった空き時間)",
+            str(text),
+        )
+        if focus_match:
+            amount = int(focus_match.group("num"))
+            minutes = amount * (60 if focus_match.group("unit") == "時間" else 1)
+            if 1 <= minutes <= 1440:
+                return {
+                    "kind": "reminder_focus_slot",
+                    "target": "local",
+                    "query": {
+                        "day": focus_match.group("day") or "今日",
+                        "duration_minutes": minutes,
+                    },
+                    "confidence": 1.0,
+                }
+
+    if text and any(p in compact for p in (
         "今日の予定まとめ",
         "今日の予定をまとめて",
         "今日の予定をまとめて教えて",
