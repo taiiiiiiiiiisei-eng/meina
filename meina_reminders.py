@@ -1004,6 +1004,41 @@ def reminders_by_category(category: str) -> list[dict[str, Any]]:
     return result
 
 
+def remaining_scope_reminders(
+    now: datetime | None = None,
+    *,
+    scope: str = "today",
+) -> list[dict[str, Any]]:
+    """今日または今週の未完了予定を返す。今週は定期予定を投影する。"""
+    current = now or datetime.now().astimezone()
+    normalized = str(scope or "today").strip().lower()
+    if normalized == "today":
+        return _date_reminders(current.date(), current)
+    if normalized != "week":
+        return []
+
+    monday = current.date() - timedelta(days=current.weekday())
+    sunday = monday + timedelta(days=6)
+    remaining = project_reminder_occurrences(
+        current.date(),
+        sunday,
+        current,
+    )
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+        if monday <= due.date() < current.date():
+            remaining.append(dict(item))
+    remaining.sort(key=lambda item: str(item.get("due_at", "")))
+    return remaining
+
+
 def reminder_category_counts(
     items: list[dict[str, Any]],
 ) -> dict[str, int]:
