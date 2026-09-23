@@ -904,6 +904,37 @@ def main() -> int:
     assert category_summary_route["kind"] == "reminder_category_summary"
     assert category_summary_route["query"] == "today"
 
+    completed_today_route = route_command(
+        "今日終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert completed_today_route is not None
+    assert completed_today_route["kind"] == "reminder_completed_today"
+
+    completion_today_route = route_command(
+        "今日何個終わった？",
+        {"confidence": 0.10},
+    )
+    assert completion_today_route is not None
+    assert completion_today_route["kind"] == "reminder_completion_summary"
+    assert completion_today_route["query"] == "today"
+
+    completion_week_route = route_command(
+        "今週何個終わった？",
+        {"confidence": 0.10},
+    )
+    assert completion_week_route is not None
+    assert completion_week_route["kind"] == "reminder_completion_summary"
+    assert completion_week_route["query"] == "week"
+
+    category_progress_route = route_command(
+        "今日のカテゴリ別進捗",
+        {"confidence": 0.10},
+    )
+    assert category_progress_route is not None
+    assert category_progress_route["kind"] == "reminder_category_progress"
+    assert category_progress_route["query"] == "today"
+
     category_set_route = route_command(
         "宿題の予定を学校カテゴリにして",
         {"confidence": 0.10},
@@ -2384,6 +2415,166 @@ def main() -> int:
                 raise AssertionError("invalid duration should fail")
             except ValueError:
                 pass
+
+            main_test_path = meina_reminders.REMINDER_PATH
+            meina_reminders.REMINDER_PATH = Path(tmp) / "completion_history.json"
+            try:
+                history_now = datetime.fromisoformat(
+                    "2030-01-07T12:00:00+09:00"
+                )
+
+                school_done = meina_reminders.add_reminder(
+                    "学校宿題完了",
+                    "2030-01-07T10:00:00+09:00",
+                    duration_minutes=60,
+                )
+                assert meina_reminders.set_reminder_category(
+                    school_done["id"],
+                    "学校",
+                )
+                stream_done = meina_reminders.add_reminder(
+                    "配信準備完了",
+                    "2030-01-07T11:00:00+09:00",
+                    duration_minutes=30,
+                )
+                assert meina_reminders.set_reminder_category(
+                    stream_done["id"],
+                    "配信",
+                )
+                school_remaining = meina_reminders.add_reminder(
+                    "学校の残り",
+                    "2030-01-07T16:00:00+09:00",
+                    duration_minutes=45,
+                )
+                assert meina_reminders.set_reminder_category(
+                    school_remaining["id"],
+                    "学校",
+                )
+                meina_reminders.add_reminder(
+                    "明日の予定",
+                    "2030-01-08T17:00:00+09:00",
+                    duration_minutes=30,
+                )
+
+                assert meina_reminders.complete_reminder(
+                    school_done["id"],
+                    now=datetime.fromisoformat("2030-01-07T10:30:00+09:00"),
+                )
+                assert meina_reminders.complete_reminder(
+                    stream_done["id"],
+                    now=datetime.fromisoformat("2030-01-07T11:10:00+09:00"),
+                )
+                assert (
+                    meina_reminders.complete_reminder(
+                        school_done["id"],
+                        now=datetime.fromisoformat("2030-01-07T11:30:00+09:00"),
+                    )
+                    is False
+                )
+
+                stored_all = meina_reminders.list_reminders(include_done=True)
+                stored_school = next(
+                    item for item in stored_all
+                    if item["id"] == school_done["id"]
+                )
+                assert stored_school["done"] is True
+                assert stored_school["completed_at"] == (
+                    "2030-01-07T10:30:00+09:00"
+                )
+
+                daily_history = meina_reminders.add_reminder(
+                    "毎日の学校確認",
+                    "2030-01-07T09:00:00+09:00",
+                    repeat_rule="daily",
+                    duration_minutes=15,
+                )
+                assert meina_reminders.set_reminder_category(
+                    daily_history["id"],
+                    "学校",
+                )
+                assert meina_reminders.complete_reminder(
+                    daily_history["id"],
+                    now=datetime.fromisoformat("2030-01-07T09:05:00+09:00"),
+                )
+                daily_after_history = meina_reminders.find_reminders(
+                    "毎日の学校確認"
+                )[0]
+                assert daily_after_history["due_at"] == (
+                    "2030-01-08T09:00:00+09:00"
+                )
+                assert len(daily_after_history["completion_history"]) == 1
+                recurring_event = daily_after_history["completion_history"][0]
+                assert recurring_event["due_at"] == (
+                    "2030-01-07T09:00:00+09:00"
+                )
+                assert recurring_event["completed_at"] == (
+                    "2030-01-07T09:05:00+09:00"
+                )
+                assert recurring_event["category"] == "学校"
+
+                resumed_without_completion = meina_reminders.add_reminder(
+                    "再開だけの定期",
+                    "2030-01-06T08:00:00+09:00",
+                    repeat_rule="daily",
+                )
+                assert meina_reminders.pause_reminder(
+                    resumed_without_completion["id"]
+                )
+                resumed_item = meina_reminders.resume_reminder(
+                    resumed_without_completion["id"],
+                    now=history_now,
+                )
+                assert resumed_item is not None
+                assert "completion_history" not in resumed_item
+
+                today_events = meina_reminders.completion_events_for_date(
+                    history_now.date(),
+                    history_now,
+                )
+                assert len(today_events) == 3
+                assert {event["text"] for event in today_events} == {
+                    "学校宿題完了",
+                    "配信準備完了",
+                    "毎日の学校確認",
+                }
+
+                today_progress = meina_reminders.completion_progress_summary(
+                    history_now,
+                    scope="today",
+                )
+                assert today_progress == {
+                    "completed_count": 3,
+                    "remaining_count": 1,
+                }
+
+                category_progress = meina_reminders.completion_category_progress(
+                    history_now.date(),
+                    history_now,
+                )
+                assert category_progress["学校"] == {
+                    "completed": 2,
+                    "remaining": 1,
+                }
+                assert category_progress["配信"] == {
+                    "completed": 1,
+                    "remaining": 0,
+                }
+
+                week_progress = meina_reminders.completion_progress_summary(
+                    history_now,
+                    scope="week",
+                )
+                assert week_progress["completed_count"] == 3
+                assert week_progress["remaining_count"] >= 1
+
+                no_old_events = meina_reminders.completion_events(
+                    datetime.fromisoformat("2029-12-01T00:00:00+09:00").date(),
+                    datetime.fromisoformat("2029-12-31T00:00:00+09:00").date(),
+                    history_now,
+                )
+                assert no_old_events == []
+            finally:
+                meina_reminders.REMINDER_PATH = main_test_path
 
             pre_item = meina_reminders.add_reminder(
                 "事前通知テスト",
