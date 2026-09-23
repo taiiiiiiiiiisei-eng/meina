@@ -654,6 +654,97 @@ def route_command(text, frame):
             }
 
     if text:
+        state_scope_map = {
+            None: "all",
+            "今日": "today",
+            "明日": "tomorrow",
+            "今週": "week",
+            "今月": "month",
+        }
+
+        important_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:(?:重要|大事|優先)(?:な)?)"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if important_summary_match:
+            return {
+                "kind": "reminder_important",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        important_summary_match.group("scope")
+                    ],
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        important_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:(?:重要|大事|優先)(?:な)?)"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if important_list_match:
+            return {
+                "kind": "reminder_important",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        important_list_match.group("scope")
+                    ],
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
+        paused_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>一時停止中|停止中|保留中)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if paused_summary_match:
+            return {
+                "kind": "reminder_paused_list",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        paused_summary_match.group("scope")
+                    ],
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        paused_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>一時停止中|停止中|保留中)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if paused_list_match:
+            return {
+                "kind": "reminder_paused_list",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        paused_list_match.group("scope")
+                    ],
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
+    if text:
         scoped_list_scope_map = {
             "今日": "today",
             "明日": "tomorrow",
