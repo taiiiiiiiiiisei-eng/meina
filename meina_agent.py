@@ -546,6 +546,7 @@ def _format_reminders(items):
         format_reminder_category,
         format_reminder_due,
         format_reminder_duration,
+        format_reminder_note,
         format_reminder_importance,
         format_reminder_repeat,
     )
@@ -557,6 +558,7 @@ def _format_reminders(items):
         duration = format_reminder_duration(item)
         importance = format_reminder_importance(item)
         category = format_reminder_category(item)
+        note = format_reminder_note(item)
         if item.get("done"):
             status = "完了"
         elif item.get("paused"):
@@ -567,13 +569,14 @@ def _format_reminders(items):
         duration_text = f"、所要{duration}" if duration else ""
         importance_text = "、重要" if importance else ""
         category_text = f"、カテゴリ:{category}" if category else ""
+        note_text = "、メモあり" if note else ""
         try:
             pre_minutes = int(item.get("notify_before_minutes") or 0)
         except (TypeError, ValueError):
             pre_minutes = 0
         pre_text = f"、{pre_minutes}分前通知" if pre_minutes > 0 else ""
         lines.append(
-            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{importance_text}{category_text}{pre_text}、{status}"
+            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{importance_text}{category_text}{note_text}{pre_text}、{status}"
         )
     return "\n".join(lines)
 
@@ -599,6 +602,7 @@ def _format_completion_events(events):
     from meina_reminders import (
         format_reminder_due,
         format_reminder_duration,
+        format_reminder_note,
     )
 
     lines = []
@@ -607,12 +611,14 @@ def _format_completion_events(events):
         due = format_reminder_due(event.get("due_at", ""))
         duration = format_reminder_duration(event)
         duration_text = f"、所要{duration}" if duration else ""
+        note = format_reminder_note(event)
+        note_text = "、メモあり" if note else ""
         category = str(event.get("category") or "").strip()
         category_text = f"、カテゴリ:{category}" if category else ""
         important_text = "、重要" if event.get("important") else ""
         lines.append(
             f"・{event.get('text', '')}、完了:{completed}、予定:{due}"
-            f"{duration_text}{category_text}{important_text}"
+            f"{duration_text}{category_text}{important_text}{note_text}"
         )
     return "\n".join(lines)
 
@@ -1741,6 +1747,78 @@ def _execute_routed_command_base(route):
                                 for other in overlaps[:3]
                             )
                             result += f" 変更後は{names}と時間が重なっています。"
+        elif kind == "reminder_note":
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                set_reminder_note,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            operation = str(request.get("operation") or "").strip().lower()
+            note = request.get("note")
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "メモを確認・変更する予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時のメモ対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "メモを確認・変更する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    if operation == "get":
+                        saved_note = str(item.get("note") or "").strip()
+                        result = (
+                            f"「{item['text']}」のメモは「{saved_note}」です。"
+                            if saved_note
+                            else f"「{item['text']}」にはメモがありません。"
+                        )
+                    elif operation == "set":
+                        changed = set_reminder_note(item["id"], note)
+                        result = (
+                            f"「{changed['text']}」にメモを保存しました。"
+                            if changed
+                            else f"「{query_text}」のメモを保存できませんでした。"
+                        )
+                    elif operation == "clear":
+                        changed = set_reminder_note(item["id"], None)
+                        result = (
+                            f"「{changed['text']}」のメモを削除しました。"
+                            if changed
+                            else f"「{query_text}」のメモを削除できませんでした。"
+                        )
+                    else:
+                        result = "メモの操作内容を読み取れませんでした。"
         elif kind == "reminder_category":
             from meina_reminders import (
                 filter_reminders_by_due,
