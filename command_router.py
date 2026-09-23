@@ -302,6 +302,80 @@ def route_command(text, frame):
             "confidence": 1.0,
         }
 
+    if text:
+        category_duration_match = re.fullmatch(
+            r"(?P<category>.+?)カテゴリ(?:の|で)?"
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?:予定時間合計|予定の時間合計|何時間予定(?:入ってる)?)"
+            r"[?？]?",
+            str(text).strip(),
+        )
+        if category_duration_match:
+            scope_text = category_duration_match.group("scope")
+            scope_map = {
+                "今日": "today",
+                "明日": "tomorrow",
+                "今週": "week",
+                "今月": "month",
+            }
+            category = category_duration_match.group("category").strip()
+            if category and len(category) <= 32:
+                return {
+                    "kind": "reminder_duration_total",
+                    "target": "local",
+                    "query": {
+                        "scope": scope_map[scope_text],
+                        "category": category,
+                    },
+                    "confidence": 1.0,
+                }
+
+        location_duration_match = re.fullmatch(
+            r"(?:場所(?:が|は))?(?P<location>.+?)で"
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?:予定時間合計|予定の時間合計|何時間予定(?:入ってる)?)"
+            r"[?？]?",
+            str(text).strip(),
+        )
+        if location_duration_match:
+            scope_text = location_duration_match.group("scope")
+            scope_map = {
+                "今日": "today",
+                "明日": "tomorrow",
+                "今週": "week",
+                "今月": "month",
+            }
+            location = location_duration_match.group("location").strip()
+            if location and len(location) <= 100:
+                return {
+                    "kind": "reminder_duration_total",
+                    "target": "local",
+                    "query": {
+                        "scope": scope_map[scope_text],
+                        "location": location,
+                    },
+                    "confidence": 1.0,
+                }
+
+    scoped_missing_duration_phrases = {
+        "今日の所要時間未設定の予定": "today",
+        "今日の所要時間がない予定": "today",
+        "明日の所要時間未設定の予定": "tomorrow",
+        "明日の所要時間がない予定": "tomorrow",
+        "今週の所要時間未設定の予定": "week",
+        "今週の所要時間がない予定": "week",
+        "今月の所要時間未設定の予定": "month",
+        "今月の所要時間がない予定": "month",
+    }
+    for phrase, scope in scoped_missing_duration_phrases.items():
+        if phrase in compact:
+            return {
+                "kind": "reminder_missing_duration",
+                "target": "local",
+                "query": scope,
+                "confidence": 1.0,
+            }
+
     if text and any(p in compact for p in (
         "所要時間未設定の予定",
         "所要時間がない予定",
