@@ -61,6 +61,7 @@ REQUIRED_KINDS = (
     "reminder_location_progress",
     "reminder_category",
     "reminder_important",
+    "reminder_paused_list",
     "reminder_importance",
     "reminder_next",
     "reminder_soon",
@@ -237,6 +238,14 @@ def main() -> int:
         return 1
     if "set_reminder_importance" not in agent_text or "important_reminders" not in agent_text:
         print("FAILED: 重要予定の設定・一覧配線がありません")
+        return 1
+    if (
+        "important_summary_match" not in router_text
+        or "paused_list_match" not in router_text
+        or "scope_reminders_including_paused" not in agent_text
+        or 'elif kind == "reminder_paused_list"' not in agent_text
+    ):
+        print("FAILED: 期間指定の重要予定・一時停止中予定配線がありません")
         return 1
     if "set_reminder_category" not in agent_text or "reminders_by_category" not in agent_text:
         print("FAILED: 予定カテゴリの設定・一覧配線がありません")
