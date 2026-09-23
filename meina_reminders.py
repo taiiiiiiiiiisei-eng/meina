@@ -1009,7 +1009,7 @@ def remaining_scope_reminders(
     *,
     scope: str = "today",
 ) -> list[dict[str, Any]]:
-    """今日・明日・今週の未完了予定を返す。未来分は定期予定を投影する。"""
+    """今日・明日・今週・今月の未完了予定を返す。未来分は定期予定を投影する。"""
     current = now or datetime.now().astimezone()
     normalized = str(scope or "today").strip().lower()
     if normalized == "today":
@@ -1021,6 +1021,29 @@ def remaining_scope_reminders(
             tomorrow,
             current,
         )
+    if normalized == "month":
+        month_start = current.date().replace(day=1)
+        month_end = current.date().replace(
+            day=calendar.monthrange(current.year, current.month)[1]
+        )
+        remaining = project_reminder_occurrences(
+            current.date(),
+            month_end,
+            current,
+        )
+        for item in list_reminders():
+            try:
+                due = datetime.fromisoformat(str(item.get("due_at", "")))
+                if due.tzinfo is None and current.tzinfo is not None:
+                    due = due.replace(tzinfo=current.tzinfo)
+                elif due.tzinfo is not None and current.tzinfo is not None:
+                    due = due.astimezone(current.tzinfo)
+            except (TypeError, ValueError):
+                continue
+            if month_start <= due.date() < current.date():
+                remaining.append(dict(item))
+        remaining.sort(key=lambda item: str(item.get("due_at", "")))
+        return remaining
     if normalized != "week":
         return []
 
@@ -1913,6 +1936,22 @@ def completion_progress_summary(
             "remaining_count": len(remaining),
         }
 
+    if normalized == "month":
+        month_start = current.date().replace(day=1)
+        completed = completion_events(
+            month_start,
+            current.date(),
+            current,
+        )
+        remaining = remaining_scope_reminders(
+            current,
+            scope="month",
+        )
+        return {
+            "completed_count": len(completed),
+            "remaining_count": len(remaining),
+        }
+
     if normalized != "week":
         return {
             "completed_count": 0,
@@ -1959,7 +1998,7 @@ def _completion_group_progress_items(
     current: datetime,
     scope: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """今日/明日/今週のグループ別進捗に使う完了・残り予定を返す。"""
+    """今日/明日/今週/今月のグループ別進捗に使う完了・残り予定を返す。"""
     normalized = str(scope or "today").strip().lower()
     if normalized == "today":
         return (
@@ -1974,6 +2013,19 @@ def _completion_group_progress_items(
                 tomorrow,
                 tomorrow,
                 current,
+            ),
+        )
+    if normalized == "month":
+        month_start = current.date().replace(day=1)
+        return (
+            completion_events(
+                month_start,
+                current.date(),
+                current,
+            ),
+            remaining_scope_reminders(
+                current,
+                scope="month",
             ),
         )
     if normalized != "week":
@@ -2013,7 +2065,7 @@ def completion_category_progress(
     *,
     scope: str = "today",
 ) -> dict[str, dict[str, int]]:
-    """今日・明日・今週のカテゴリ別に完了件数と未完了件数を返す。"""
+    """今日・明日・今週・今月のカテゴリ別に完了件数と未完了件数を返す。"""
     current = now or datetime.now().astimezone()
     completed, remaining = _completion_group_progress_items(
         target_date,
@@ -2048,7 +2100,7 @@ def completion_location_progress(
     *,
     scope: str = "today",
 ) -> dict[str, dict[str, int]]:
-    """今日・明日・今週の場所別に完了件数と未完了件数を返す。"""
+    """今日・明日・今週・今月の場所別に完了件数と未完了件数を返す。"""
     current = now or datetime.now().astimezone()
     completed, remaining = _completion_group_progress_items(
         target_date,
