@@ -1758,8 +1758,9 @@ def completion_events(
     now: datetime | None = None,
     *,
     category: str | None = None,
+    location: str | None = None,
 ) -> list[dict[str, Any]]:
-    """保存済みの完了履歴を指定日付範囲で返す。"""
+    """保存済みの完了履歴を指定日付範囲・カテゴリ・場所で返す。"""
     current = now or datetime.now().astimezone()
     events: list[dict[str, Any]] = []
     category_needle = (
@@ -1767,14 +1768,24 @@ def completion_events(
         if category is not None
         else ""
     )
+    location_needle = (
+        _normalize_reminder_text(location)
+        if location is not None
+        else ""
+    )
 
-    def _category_matches(event: dict[str, Any]) -> bool:
-        if category is None:
-            return True
-        return (
+    def _metadata_matches(event: dict[str, Any]) -> bool:
+        if category is not None and (
             _normalize_reminder_text(event.get("category", ""))
-            == category_needle
-        )
+            != category_needle
+        ):
+            return False
+        if location is not None and (
+            _normalize_reminder_text(event.get("location", ""))
+            != location_needle
+        ):
+            return False
+        return True
 
     def _in_range(completed_at: str) -> bool:
         try:
@@ -1803,7 +1814,7 @@ def completion_events(
             for key in ("category", "duration_minutes", "important", "note", "location"):
                 if key in item:
                     event[key] = item[key]
-            if _category_matches(event):
+            if _metadata_matches(event):
                 events.append(event)
 
         history = item.get("completion_history")
@@ -1818,7 +1829,7 @@ def completion_events(
             event = dict(raw_event)
             event.setdefault("reminder_id", item.get("id"))
             event.setdefault("text", str(item.get("text") or ""))
-            if _category_matches(event):
+            if _metadata_matches(event):
                 events.append(event)
 
     events.sort(key=lambda event: str(event.get("completed_at", "")))
@@ -1830,13 +1841,15 @@ def completion_events_for_date(
     now: datetime | None = None,
     *,
     category: str | None = None,
+    location: str | None = None,
 ) -> list[dict[str, Any]]:
-    """指定日に完了した予定履歴を返す。"""
+    """指定日に完了した予定履歴をカテゴリ・場所で絞って返す。"""
     return completion_events(
         target_date,
         target_date,
         now,
         category=category,
+        location=location,
     )
 
 
@@ -1916,6 +1929,36 @@ def completion_category_progress(
     for item in remaining:
         category = str(item.get("category") or "").strip() or "未分類"
         bucket = progress.setdefault(category, {"completed": 0, "remaining": 0})
+        bucket["remaining"] += 1
+
+    return dict(
+        sorted(
+            progress.items(),
+            key=lambda pair: (
+                -(pair[1]["completed"] + pair[1]["remaining"]),
+                pair[0],
+            ),
+        )
+    )
+
+
+def completion_location_progress(
+    target_date,
+    now: datetime | None = None,
+) -> dict[str, dict[str, int]]:
+    """指定日の場所別に完了件数と未完了件数を返す。"""
+    current = now or datetime.now().astimezone()
+    completed = completion_events_for_date(target_date, current)
+    remaining = _date_reminders(target_date, current)
+
+    progress: dict[str, dict[str, int]] = {}
+    for event in completed:
+        location = str(event.get("location") or "").strip() or "場所未設定"
+        bucket = progress.setdefault(location, {"completed": 0, "remaining": 0})
+        bucket["completed"] += 1
+    for item in remaining:
+        location = str(item.get("location") or "").strip() or "場所未設定"
+        bucket = progress.setdefault(location, {"completed": 0, "remaining": 0})
         bucket["remaining"] += 1
 
     return dict(
