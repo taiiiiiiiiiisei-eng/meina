@@ -25,6 +25,29 @@ def _save(items: list[dict[str, Any]]) -> None:
     REMINDER_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _trash_path() -> Path:
+    """現在のリマインダー保存先に対応する削除履歴JSONを返す。"""
+    return REMINDER_PATH.with_name(f"{REMINDER_PATH.stem}_trash.json")
+
+
+def _load_trash() -> list[dict[str, Any]]:
+    path = _trash_path()
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, list) else []
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _save_trash(items: list[dict[str, Any]]) -> None:
+    _trash_path().write_text(
+        json.dumps(items, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 def format_reminder_due(due_at: str, now: datetime | None = None) -> str:
     """予定日時を音声で読みやすい日本語へ整形する。"""
     raw = str(due_at or "").strip()
@@ -1796,10 +1819,82 @@ def completion_category_progress(
     )
 
 
-def delete_reminder(reminder_id: str) -> bool:
+def list_deleted_reminders(limit: int = 20) -> list[dict[str, Any]]:
+    """最近削除した予定を新しい順で返す。"""
+    try:
+        safe_limit = max(1, min(int(limit), 200))
+    except (TypeError, ValueError):
+        safe_limit = 20
+    items = _load_trash()
+    items.sort(key=lambda item: str(item.get("deleted_at", "")), reverse=True)
+    return items[:safe_limit]
+
+
+def find_deleted_reminders(query: str) -> list[dict[str, Any]]:
+    """削除履歴を予定名で完全一致優先検索する。"""
+    needle = _normalize_reminder_text(query)
+    if not needle:
+        return []
+
+    items = _load_trash()
+    exact = [
+        item
+        for item in items
+        if _normalize_reminder_text(item.get("text", "")) == needle
+    ]
+    if exact:
+        return exact
+    return [
+        item
+        for item in items
+        if needle in _normalize_reminder_text(item.get("text", ""))
+    ]
+
+
+def restore_deleted_reminder(reminder_id: str) -> dict[str, Any] | None:
+    """削除履歴から予定を元の内容のまま復元する。"""
     items = _load()
-    remaining = [item for item in items if item.get("id") != reminder_id]
-    if len(remaining) == len(items):
+    if any(item.get("id") == reminder_id for item in items):
+        return None
+
+    trash = _load_trash()
+    for index, deleted in enumerate(trash):
+        if deleted.get("id") != reminder_id:
+            continue
+        restored = dict(deleted)
+        restored.pop("deleted_at", None)
+        items.append(restored)
+        del trash[index]
+        _save(items)
+        _save_trash(trash)
+        return restored
+    return None
+
+
+def delete_reminder(
+    reminder_id: str,
+    now: datetime | None = None,
+) -> bool:
+    """予定を削除し、復元できるよう削除履歴へ最大200件保存する。"""
+    current = now or datetime.now().astimezone()
+    items = _load()
+    deleted = None
+    remaining: list[dict[str, Any]] = []
+    for item in items:
+        if item.get("id") == reminder_id and deleted is None:
+            deleted = dict(item)
+            continue
+        remaining.append(item)
+
+    if deleted is None:
         return False
+
+    deleted["deleted_at"] = current.isoformat(timespec="seconds")
+    trash = _load_trash()
+    trash.append(deleted)
+    trash.sort(key=lambda item: str(item.get("deleted_at", "")))
+    trash = trash[-200:]
+
     _save(remaining)
+    _save_trash(trash)
     return True
