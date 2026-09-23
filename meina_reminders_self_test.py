@@ -566,6 +566,58 @@ def main() -> int:
         is None
     )
 
+    note_set = meina_reminder_parser.parse_reminder_note_command(
+        "宿題の予定にメモを追加して「英語のワーク30ページ」",
+        now,
+    )
+    assert note_set is not None
+    assert note_set["target"] == "宿題"
+    assert note_set["operation"] == "set"
+    assert note_set["note"] == "英語のワーク30ページ"
+
+    note_set_at_time = meina_reminder_parser.parse_reminder_note_command(
+        "18時の宿題の予定のメモを数学プリントにして",
+        now,
+    )
+    assert note_set_at_time is not None
+    assert note_set_at_time["target"] == "宿題"
+    assert note_set_at_time["hour"] == 18
+    assert note_set_at_time["operation"] == "set"
+    assert note_set_at_time["note"] == "数学プリント"
+
+    note_get = meina_reminder_parser.parse_reminder_note_command(
+        "宿題の予定のメモを教えて",
+        now,
+    )
+    assert note_get is not None
+    assert note_get["operation"] == "get"
+    assert note_get["target"] == "宿題"
+
+    note_clear = meina_reminder_parser.parse_reminder_note_command(
+        "宿題の予定のメモを消して",
+        now,
+    )
+    assert note_clear is not None
+    assert note_clear["operation"] == "clear"
+    assert note_clear["target"] == "宿題"
+
+    assert (
+        meina_reminder_parser.parse_reminder_note_command(
+            "宿題の予定のメモを消していい？",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_note_command(
+            "宿題の予定のメモを"
+            + ("a" * 501)
+            + "にして",
+            now,
+        )
+        is None
+    )
+
     category_set = meina_reminder_parser.parse_reminder_category_command(
         "宿題の予定を学校カテゴリにして",
         now,
@@ -942,6 +994,32 @@ def main() -> int:
     assert move_free_selected_route["kind"] == "reminder_move_free"
     assert move_free_selected_route["query"]["hour"] == 18
     assert move_free_selected_route["query"]["day"] == "明日"
+
+    note_set_route = route_command(
+        "宿題の予定にメモを追加して「英語のワーク30ページ」",
+        {"confidence": 0.10},
+    )
+    assert note_set_route is not None
+    assert note_set_route["kind"] == "reminder_note"
+    assert note_set_route["query"]["operation"] == "set"
+    assert note_set_route["query"]["note"] == "英語のワーク30ページ"
+
+    note_get_route = route_command(
+        "宿題の予定のメモを教えて",
+        {"confidence": 0.10},
+    )
+    assert note_get_route is not None
+    assert note_get_route["kind"] == "reminder_note"
+    assert note_get_route["query"]["operation"] == "get"
+
+    note_clear_route = route_command(
+        "18時の宿題の予定のメモを消して",
+        {"confidence": 0.10},
+    )
+    assert note_clear_route is not None
+    assert note_clear_route["kind"] == "reminder_note"
+    assert note_clear_route["query"]["operation"] == "clear"
+    assert note_clear_route["query"]["hour"] == 18
 
     category_list_route = route_command(
         "学校カテゴリの予定を教えて",
@@ -2112,6 +2190,41 @@ def main() -> int:
             assert same_with_duration is not None
             assert same_with_duration["id"] == duration_item["id"]
 
+            note_item = meina_reminders.add_reminder(
+                "メモテスト",
+                "2050-01-02T14:00:00+09:00",
+            )
+            noted = meina_reminders.set_reminder_note(
+                note_item["id"],
+                "英語のワーク30ページ",
+            )
+            assert noted is not None
+            assert noted["note"] == "英語のワーク30ページ"
+            assert (
+                meina_reminders.format_reminder_note(noted)
+                == "英語のワーク30ページ"
+            )
+            assert meina_reminders.set_reminder_note(
+                note_item["id"],
+                "a" * 501,
+            ) is None
+            assert meina_reminders.set_reminder_note(
+                note_item["id"],
+                "改行\n入り",
+            ) is None
+            unchanged_note = meina_reminders.find_reminders("メモテスト")
+            assert unchanged_note[0]["note"] == "英語のワーク30ページ"
+            cleared_note = meina_reminders.set_reminder_note(
+                note_item["id"],
+                None,
+            )
+            assert cleared_note is not None
+            assert "note" not in cleared_note
+            assert meina_reminders.set_reminder_note(
+                "missing-id",
+                "メモ",
+            ) is None
+
             category_item = meina_reminders.add_reminder(
                 "カテゴリテスト",
                 "2050-01-02T15:00:00+09:00",
@@ -2573,6 +2686,10 @@ def main() -> int:
                     school_done["id"],
                     "学校",
                 )
+                assert meina_reminders.set_reminder_note(
+                    school_done["id"],
+                    "提出前に見直す",
+                )
                 stream_done = meina_reminders.add_reminder(
                     "配信準備完了",
                     "2030-01-07T11:00:00+09:00",
@@ -2651,6 +2768,7 @@ def main() -> int:
                 assert stored_school["completed_at"] == (
                     "2030-01-07T10:30:00+09:00"
                 )
+                assert stored_school["note"] == "提出前に見直す"
 
                 daily_history = meina_reminders.add_reminder(
                     "毎日の学校確認",
@@ -2661,6 +2779,10 @@ def main() -> int:
                 assert meina_reminders.set_reminder_category(
                     daily_history["id"],
                     "学校",
+                )
+                assert meina_reminders.set_reminder_note(
+                    daily_history["id"],
+                    "毎回の確認メモ",
                 )
                 assert meina_reminders.complete_reminder(
                     daily_history["id"],
@@ -2681,6 +2803,7 @@ def main() -> int:
                     "2030-01-07T09:05:00+09:00"
                 )
                 assert recurring_event["category"] == "学校"
+                assert recurring_event["note"] == "毎回の確認メモ"
                 assert (
                     meina_reminders.restore_completed_reminder(
                         daily_history["id"]
