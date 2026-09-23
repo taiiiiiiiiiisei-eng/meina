@@ -575,6 +575,20 @@ def _format_reminders(items):
     return "\n".join(lines)
 
 
+def _format_minutes(minutes):
+    """分数を読み上げやすい時間表現へ変換する。"""
+    try:
+        value = max(0, int(minutes))
+    except (TypeError, ValueError):
+        value = 0
+    hours, remain = divmod(value, 60)
+    if hours and remain:
+        return f"{hours}時間{remain}分"
+    if hours:
+        return f"{hours}時間"
+    return f"{remain}分"
+
+
 def _execute_routed_command_base(route):
     """command_router が許可した固定コマンドだけを実行する。"""
     kind = route["kind"]
@@ -793,6 +807,57 @@ def _execute_routed_command_base(route):
                         f"{format_reminder_due(item['due_at'])}から"
                         f"{format_reminder_duration(item)}です。"
                     )
+        elif kind == "reminder_free_total":
+            from datetime import datetime, timedelta
+            from meina_reminders import schedule_window_stats
+
+            request = query if isinstance(query, dict) else {}
+            current = datetime.now().astimezone()
+            day_offset = 1 if request.get("day") == "明日" else 0
+            target_date = (current + timedelta(days=day_offset)).date()
+            try:
+                start_at = current.replace(
+                    year=target_date.year,
+                    month=target_date.month,
+                    day=target_date.day,
+                    hour=int(request.get("start_hour", 0)),
+                    minute=int(request.get("start_minute", 0)),
+                    second=0,
+                    microsecond=0,
+                )
+                end_at = current.replace(
+                    year=target_date.year,
+                    month=target_date.month,
+                    day=target_date.day,
+                    hour=int(request.get("end_hour", 0)),
+                    minute=int(request.get("end_minute", 0)),
+                    second=0,
+                    microsecond=0,
+                )
+            except (TypeError, ValueError):
+                result = "空き時間の範囲を読み取れませんでした。"
+            else:
+                if day_offset == 0 and start_at < current:
+                    start_at = current.replace(second=0, microsecond=0)
+                    if start_at < current:
+                        start_at += timedelta(minutes=1)
+
+                if start_at >= end_at:
+                    result = "指定した時間帯はすでに終了しています。"
+                else:
+                    stats = schedule_window_stats(start_at, end_at)
+                    result = (
+                        f"指定した時間帯は全部で"
+                        f"{_format_minutes(stats['window_minutes'])}です。"
+                        f"空きは{_format_minutes(stats['free_minutes'])}、"
+                        f"予定で埋まっているのは"
+                        f"{_format_minutes(stats['busy_minutes'])}です。"
+                    )
+                    if stats["longest_free_minutes"] > 0:
+                        result += (
+                            "最長の連続した空きは"
+                            f"{_format_minutes(stats['longest_free_minutes'])}です。"
+                        )
         elif kind == "reminder_free_time":
             from datetime import datetime, timedelta
             from meina_reminders import find_free_time_slots
@@ -863,11 +928,56 @@ def _execute_routed_command_base(route):
                         f"{minimum_minutes}分以上の空き時間は、"
                         f"{slot_text}です。"
                     )
+        elif kind == "reminder_duration_total":
+            from meina_reminders import (
+                reminder_duration_summary,
+                today_reminders,
+                tomorrow_reminders,
+            )
+
+            is_tomorrow = str(query or "") == "tomorrow"
+            items = (
+                tomorrow_reminders()
+                if is_tomorrow
+                else today_reminders()
+            )
+            label = "明日" if is_tomorrow else "今日"
+            summary = reminder_duration_summary(items)
+
+            if not items:
+                result = f"{label}の予定はありません。"
+            elif summary["timed_count"] == 0:
+                result = (
+                    f"{label}は予定が{len(items)}件ありますが、"
+                    "所要時間が設定されている予定はありません。"
+                )
+            else:
+                result = (
+                    f"{label}は所要時間が設定されている予定が"
+                    f"{summary['timed_count']}件あり、合計"
+                    f"{_format_minutes(summary['total_minutes'])}です。"
+                )
+                if summary["missing_count"]:
+                    result += (
+                        f"所要時間未設定の予定が"
+                        f"{summary['missing_count']}件あります。"
+                    )
+        elif kind == "reminder_missing_duration":
+            from meina_reminders import reminders_missing_duration
+
+            items = reminders_missing_duration()
+            result = (
+                "所要時間が未設定の予定はありません。"
+                if not items
+                else f"所要時間が未設定の予定が{len(items)}件あります。\n"
+                + _format_reminders(items)
+            )
         elif kind == "reminder_brief":
             from meina_reminders import (
                 format_reminder_due,
                 next_reminder,
                 overdue_reminders,
+                reminder_duration_summary,
                 today_reminders,
             )
 
@@ -877,6 +987,7 @@ def _execute_routed_command_base(route):
             important = [item for item in items if item.get("important")]
             next_item = next_reminder()
             overdue = overdue_reminders()
+            duration_summary = reminder_duration_summary(items)
 
             if not items:
                 result = "今日の予定はありません。"
@@ -890,6 +1001,16 @@ def _execute_routed_command_base(route):
                     parts.append(f"重要予定が{len(important)}件あります。")
                 if overdue:
                     parts.append(f"期限切れが{len(overdue)}件あります。")
+                if duration_summary["timed_count"]:
+                    parts.append(
+                        "所要時間設定済みの予定は合計"
+                        f"{_format_minutes(duration_summary['total_minutes'])}です。"
+                    )
+                if duration_summary["missing_count"]:
+                    parts.append(
+                        f"所要時間未設定が"
+                        f"{duration_summary['missing_count']}件あります。"
+                    )
                 if next_item and next_item in items:
                     parts.append(
                         f"次は「{next_item['text']}」で、"
