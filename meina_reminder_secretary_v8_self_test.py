@@ -64,6 +64,7 @@ REQUIRED_KINDS = (
     "reminder_paused_list",
     "reminder_pre_notify_presence",
     "reminder_recurring_list",
+    "reminder_setup_gaps",
     "reminder_importance",
     "reminder_next",
     "reminder_soon",
@@ -258,6 +259,14 @@ def main() -> int:
         or "filter_recurring_reminders" not in agent_text
     ):
         print("FAILED: 事前通知有無・繰り返し予定確認の配線がありません")
+        return 1
+    if (
+        "setup_gap_list_match" not in router_text
+        or "setup_gap_summary_match" not in router_text
+        or 'elif kind == "reminder_setup_gaps"' not in agent_text
+        or "reminder_setup_gaps" not in agent_text
+    ):
+        print("FAILED: 予定設定不足チェックの配線がありません")
         return 1
     if "set_reminder_category" not in agent_text or "reminders_by_category" not in agent_text:
         print("FAILED: 予定カテゴリの設定・一覧配線がありません")
