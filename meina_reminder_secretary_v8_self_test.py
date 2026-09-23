@@ -40,6 +40,9 @@ REQUIRED_KINDS = (
     "reminder_focus_slot",
     "reminder_move_free",
     "reminder_duration",
+    "reminder_category_summary",
+    "reminder_category_list",
+    "reminder_category",
     "reminder_important",
     "reminder_importance",
     "reminder_next",
@@ -178,6 +181,12 @@ def main() -> int:
         return 1
     if "set_reminder_importance" not in agent_text or "important_reminders" not in agent_text:
         print("FAILED: 重要予定の設定・一覧配線がありません")
+        return 1
+    if "set_reminder_category" not in agent_text or "reminders_by_category" not in agent_text:
+        print("FAILED: 予定カテゴリの設定・一覧配線がありません")
+        return 1
+    if "reminder_category_counts" not in agent_text:
+        print("FAILED: 予定カテゴリ集計の配線がありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
