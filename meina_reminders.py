@@ -328,6 +328,7 @@ def find_free_time_slots(
     end_at: datetime,
     *,
     minimum_minutes: int = 15,
+    exclude_reminder_id: str | None = None,
 ) -> list[tuple[datetime, datetime]]:
     """指定時間帯の空き枠を返す。一時停止中の予定は占有しない。"""
     if end_at <= start_at:
@@ -339,6 +340,8 @@ def find_free_time_slots(
 
     for item in list_reminders():
         if item.get("paused"):
+            continue
+        if exclude_reminder_id and item.get("id") == exclude_reminder_id:
             continue
         interval = _reminder_interval(item, start_at)
         if interval is None:
@@ -373,6 +376,7 @@ def find_first_free_slot(
     end_at: datetime,
     *,
     required_minutes: int,
+    exclude_reminder_id: str | None = None,
 ) -> tuple[datetime, datetime] | None:
     """必要時間を満たす最初の空き枠を返す。"""
     try:
@@ -386,6 +390,7 @@ def find_first_free_slot(
         start_at,
         end_at,
         minimum_minutes=required,
+        exclude_reminder_id=exclude_reminder_id,
     )
     if not slots:
         return None
@@ -754,6 +759,41 @@ def due_reminders(now: datetime | None = None) -> list[dict[str, Any]]:
         except (KeyError, TypeError, ValueError):
             continue
     return result
+
+
+def move_reminder_occurrence(
+    reminder_id: str,
+    due_at: str,
+) -> dict[str, Any] | None:
+    """予定を指定時刻へ移す。定期予定は今回分だけ移し、次回周期は元の時刻を維持する。"""
+    try:
+        due = datetime.fromisoformat(str(due_at))
+    except (TypeError, ValueError):
+        return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+
+        try:
+            old_due = datetime.fromisoformat(str(item.get("due_at", "")))
+        except (TypeError, ValueError):
+            return None
+
+        if item.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly"):
+            item.setdefault(
+                "snooze_original_due_at",
+                old_due.isoformat(timespec="seconds"),
+            )
+        else:
+            item.pop("snooze_original_due_at", None)
+
+        item["due_at"] = due.isoformat(timespec="seconds")
+        item.pop("pre_notified_due_at", None)
+        _save(items)
+        return item
+    return None
 
 
 def snooze_reminder(
