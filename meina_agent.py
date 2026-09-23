@@ -1480,9 +1480,14 @@ def _execute_routed_command_base(route):
         elif kind == "reminder_completion_summary":
             from meina_reminders import completion_progress_summary
 
-            scope = "week" if str(query or "") == "week" else "today"
+            requested_scope = str(query or "")
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
+                scope, label = "week", "今週"
+            else:
+                scope, label = "today", "今日"
             summary = completion_progress_summary(scope=scope)
-            label = "今週" if scope == "week" else "今日"
             completed_count = summary["completed_count"]
             remaining_count = summary["remaining_count"]
             result = (
@@ -1497,7 +1502,9 @@ def _execute_routed_command_base(route):
 
             current = datetime.now().astimezone()
             requested_scope = str(query or "")
-            if requested_scope == "week":
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
                 scope, label = "week", "今週"
             elif requested_scope == "tomorrow":
                 scope, label = "tomorrow", "明日"
@@ -1522,7 +1529,9 @@ def _execute_routed_command_base(route):
 
             current = datetime.now().astimezone()
             requested_scope = str(query or "")
-            if requested_scope == "week":
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
                 scope, label = "week", "今週"
             elif requested_scope == "tomorrow":
                 scope, label = "tomorrow", "明日"
@@ -1548,7 +1557,9 @@ def _execute_routed_command_base(route):
             )
 
             requested_scope = str(query or "")
-            if requested_scope == "week":
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
                 scope, label = "week", "今週"
             elif requested_scope == "tomorrow":
                 scope, label = "tomorrow", "明日"
@@ -1571,7 +1582,9 @@ def _execute_routed_command_base(route):
             )
 
             requested_scope = str(query or "")
-            if requested_scope == "week":
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
                 scope, label = "week", "今週"
             elif requested_scope == "tomorrow":
                 scope, label = "tomorrow", "明日"
