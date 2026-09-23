@@ -622,6 +622,20 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "今週のカテゴリ別件数",
+        "今週のカテゴリ別予定数",
+        "今週のカテゴリ内訳",
+    )):
+        return {"kind":"reminder_category_summary","target":"local","query":"week","confidence":1.0}
+
+    if text and any(p in compact for p in (
+        "今週の場所別件数",
+        "今週の場所別予定数",
+        "今週の場所内訳",
+    )):
+        return {"kind":"reminder_location_summary","target":"local","query":"week","confidence":1.0}
+
+    if text and any(p in compact for p in (
         "今日のカテゴリ別件数",
         "今日のカテゴリ別予定数",
         "今日のカテゴリ内訳",
