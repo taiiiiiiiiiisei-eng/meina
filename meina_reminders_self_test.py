@@ -1659,6 +1659,38 @@ def main() -> int:
         "summary": False,
     }
 
+    setup_gap_breakdown_route = route_command(
+        "今週の設定不足内訳を教えて",
+        {"confidence": 0.10},
+    )
+    assert setup_gap_breakdown_route is not None
+    assert setup_gap_breakdown_route["kind"] == "reminder_setup_gap_summary"
+    assert setup_gap_breakdown_route["query"] == {
+        "scope": "week",
+    }
+
+    setup_complete_week_route = route_command(
+        "今週の完全設定済み予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert setup_complete_week_route is not None
+    assert setup_complete_week_route["kind"] == "reminder_setup_complete"
+    assert setup_complete_week_route["query"] == {
+        "scope": "week",
+        "summary": False,
+    }
+
+    setup_complete_month_count_route = route_command(
+        "今月の設定完了予定は何件？",
+        {"confidence": 0.10},
+    )
+    assert setup_complete_month_count_route is not None
+    assert setup_complete_month_count_route["kind"] == "reminder_setup_complete"
+    assert setup_complete_month_count_route["query"] == {
+        "scope": "month",
+        "summary": True,
+    }
+
     important_set_route = route_command(
         "宿題の予定を重要にして",
         {"confidence": 0.10},
@@ -3204,6 +3236,38 @@ def main() -> int:
                     for entry in monthly_setup_gaps
                 }
                 assert monthly_gap_map == weekly_gap_map
+
+                assert meina_reminders.reminder_setup_gap_counts(
+                    weekly_state_items
+                ) == {
+                    "所要時間": 1,
+                    "メモ": 2,
+                    "事前通知": 2,
+                }
+                assert meina_reminders.reminder_setup_gap_counts(
+                    monthly_state_items
+                ) == {
+                    "所要時間": 1,
+                    "メモ": 2,
+                    "事前通知": 2,
+                }
+
+                weekly_complete = meina_reminders.reminders_fully_configured(
+                    weekly_state_items
+                )
+                assert len(weekly_complete) == 1
+                assert weekly_complete[0]["text"] == "毎日の時間あり"
+
+                monthly_complete = meina_reminders.reminders_fully_configured(
+                    monthly_state_items
+                )
+                assert len(monthly_complete) == 2
+                assert {
+                    item["text"] for item in monthly_complete
+                } == {
+                    "毎日の時間あり",
+                    "今月だけの単発",
+                }
 
                 invalid_pre_notify_gap = meina_reminders.reminder_setup_gaps([
                     {
