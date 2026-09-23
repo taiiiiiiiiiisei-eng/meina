@@ -1119,6 +1119,14 @@ def main() -> int:
     assert location_summary_route["kind"] == "reminder_location_summary"
     assert location_summary_route["query"] == "today"
 
+    tomorrow_location_summary_route = route_command(
+        "明日の場所別件数",
+        {"confidence": 0.10},
+    )
+    assert tomorrow_location_summary_route is not None
+    assert tomorrow_location_summary_route["kind"] == "reminder_location_summary"
+    assert tomorrow_location_summary_route["query"] == "tomorrow"
+
     category_list_route = route_command(
         "学校カテゴリの予定を教えて",
         {"confidence": 0.10},
@@ -1134,6 +1142,14 @@ def main() -> int:
     assert category_summary_route is not None
     assert category_summary_route["kind"] == "reminder_category_summary"
     assert category_summary_route["query"] == "today"
+
+    tomorrow_category_summary_route = route_command(
+        "明日のカテゴリ別件数",
+        {"confidence": 0.10},
+    )
+    assert tomorrow_category_summary_route is not None
+    assert tomorrow_category_summary_route["kind"] == "reminder_category_summary"
+    assert tomorrow_category_summary_route["query"] == "tomorrow"
 
     weekly_category_summary_route = route_command(
         "今週のカテゴリ別件数",
@@ -1219,6 +1235,14 @@ def main() -> int:
     assert location_progress_route["kind"] == "reminder_location_progress"
     assert location_progress_route["query"] == "today"
 
+    tomorrow_location_progress_route = route_command(
+        "明日の場所別進捗",
+        {"confidence": 0.10},
+    )
+    assert tomorrow_location_progress_route is not None
+    assert tomorrow_location_progress_route["kind"] == "reminder_location_progress"
+    assert tomorrow_location_progress_route["query"] == "tomorrow"
+
     weekly_location_progress_route = route_command(
         "今週の場所別進捗",
         {"confidence": 0.10},
@@ -1266,6 +1290,14 @@ def main() -> int:
     assert category_progress_route is not None
     assert category_progress_route["kind"] == "reminder_category_progress"
     assert category_progress_route["query"] == "today"
+
+    tomorrow_category_progress_route = route_command(
+        "明日のカテゴリ別進捗",
+        {"confidence": 0.10},
+    )
+    assert tomorrow_category_progress_route is not None
+    assert tomorrow_category_progress_route["kind"] == "reminder_category_progress"
+    assert tomorrow_category_progress_route["query"] == "tomorrow"
 
     weekly_category_progress_route = route_command(
         "今週のカテゴリ別進捗",
@@ -3167,6 +3199,49 @@ def main() -> int:
                 assert category_progress["未分類"] == {
                     "completed": 0,
                     "remaining": 1,
+                }
+
+                tomorrow_remaining = meina_reminders.remaining_scope_reminders(
+                    history_now,
+                    scope="tomorrow",
+                )
+                tomorrow_category_counts = meina_reminders.reminder_category_counts(
+                    tomorrow_remaining
+                )
+                assert tomorrow_category_counts == {
+                    "未分類": 2,
+                    "学校": 1,
+                }
+                tomorrow_location_counts = meina_reminders.reminder_location_counts(
+                    tomorrow_remaining
+                )
+                assert tomorrow_location_counts == {
+                    "場所未設定": 2,
+                    "教室": 1,
+                }
+
+                tomorrow_category_progress = (
+                    meina_reminders.completion_category_progress(
+                        history_now.date(),
+                        history_now,
+                        scope="tomorrow",
+                    )
+                )
+                assert tomorrow_category_progress == {
+                    "未分類": {"completed": 0, "remaining": 2},
+                    "学校": {"completed": 0, "remaining": 1},
+                }
+
+                tomorrow_location_progress = (
+                    meina_reminders.completion_location_progress(
+                        history_now.date(),
+                        history_now,
+                        scope="tomorrow",
+                    )
+                )
+                assert tomorrow_location_progress == {
+                    "場所未設定": {"completed": 0, "remaining": 2},
+                    "教室": {"completed": 0, "remaining": 1},
                 }
 
                 week_progress = meina_reminders.completion_progress_summary(
