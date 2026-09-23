@@ -562,10 +562,48 @@ def reminder_duration_summary(
     }
 
 
-def reminders_missing_duration() -> list[dict[str, Any]]:
-    """所要時間が未設定の未完了予定を時刻順で返す。"""
+def filter_reminders_by_metadata(
+    items: list[dict[str, Any]],
+    *,
+    category: str | None = None,
+    location: str | None = None,
+) -> list[dict[str, Any]]:
+    """予定群をカテゴリ・場所で完全一致フィルタする。空白差は無視する。"""
+    category_needle = (
+        _normalize_reminder_text(category)
+        if category is not None
+        else None
+    )
+    location_needle = (
+        _normalize_reminder_text(location)
+        if location is not None
+        else None
+    )
+
     result: list[dict[str, Any]] = []
-    for item in list_reminders():
+    for item in items:
+        if category_needle is not None and (
+            _normalize_reminder_text(item.get("category", ""))
+            != category_needle
+        ):
+            continue
+        if location_needle is not None and (
+            _normalize_reminder_text(item.get("location", ""))
+            != location_needle
+        ):
+            continue
+        result.append(item)
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def reminders_missing_duration(
+    items: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """所要時間が未設定の予定を時刻順で返す。items省略時は全未完了予定。"""
+    source = list_reminders() if items is None else list(items)
+    result: list[dict[str, Any]] = []
+    for item in source:
         try:
             duration = int(item.get("duration_minutes") or 0)
         except (TypeError, ValueError):
