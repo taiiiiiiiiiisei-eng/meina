@@ -418,6 +418,72 @@ def main() -> int:
         is None
     )
 
+    duration_set = meina_reminder_parser.parse_reminder_duration_command(
+        "宿題の予定の所要時間を2時間にして",
+        now,
+    )
+    assert duration_set is not None
+    assert duration_set["target"] == "宿題"
+    assert duration_set["duration_minutes"] == 120
+
+    duration_at_time = meina_reminder_parser.parse_reminder_duration_command(
+        "18時の宿題の予定の長さを90分にして",
+        now,
+    )
+    assert duration_at_time is not None
+    assert duration_at_time["target"] == "宿題"
+    assert duration_at_time["hour"] == 18
+    assert duration_at_time["duration_minutes"] == 90
+
+    duration_clear = meina_reminder_parser.parse_reminder_duration_command(
+        "宿題の予定の所要時間を解除して",
+        now,
+    )
+    assert duration_clear is not None
+    assert duration_clear["target"] == "宿題"
+    assert duration_clear["duration_minutes"] is None
+
+    assert (
+        meina_reminder_parser.parse_reminder_duration_command(
+            "宿題の予定の所要時間を25時間にして",
+            now,
+        )
+        is None
+    )
+    assert (
+        meina_reminder_parser.parse_reminder_duration_command(
+            "宿題の予定の所要時間を2時間にしていい？",
+            now,
+        )
+        is None
+    )
+
+    auto_slot = meina_reminder_parser.parse_reminder_free_slot_add_command(
+        "今日18時から22時の空いてる時間に1時間勉強の予定を入れて"
+    )
+    assert auto_slot is not None
+    assert auto_slot["day"] == "今日"
+    assert auto_slot["start_hour"] == 18
+    assert auto_slot["end_hour"] == 22
+    assert auto_slot["duration_minutes"] == 60
+    assert auto_slot["text"] == "勉強"
+
+    auto_slot_alt = meina_reminder_parser.parse_reminder_free_slot_add_command(
+        "明日18時30分から21時の空き時間に配信を90分入れて"
+    )
+    assert auto_slot_alt is not None
+    assert auto_slot_alt["day"] == "明日"
+    assert auto_slot_alt["start_minute"] == 30
+    assert auto_slot_alt["duration_minutes"] == 90
+    assert auto_slot_alt["text"] == "配信"
+
+    assert (
+        meina_reminder_parser.parse_reminder_free_slot_add_command(
+            "今日18時から22時の空いてる時間に1時間勉強の予定を入れていい？"
+        )
+        is None
+    )
+
     important_set = meina_reminder_parser.parse_reminder_importance_command(
         "宿題の予定を重要にして",
         now,
@@ -717,6 +783,32 @@ def main() -> int:
         assert route["confidence"] == 1.0
         assert route["query"] == expected_query
 
+    duration_route = route_command(
+        "宿題の予定の所要時間を2時間にして",
+        {"confidence": 0.10},
+    )
+    assert duration_route is not None
+    assert duration_route["kind"] == "reminder_duration"
+    assert duration_route["query"]["target"] == "宿題"
+    assert duration_route["query"]["duration_minutes"] == 120
+
+    duration_clear_route = route_command(
+        "宿題の予定の所要時間を解除して",
+        {"confidence": 0.10},
+    )
+    assert duration_clear_route is not None
+    assert duration_clear_route["kind"] == "reminder_duration"
+    assert duration_clear_route["query"]["duration_minutes"] is None
+
+    auto_slot_route = route_command(
+        "今日18時から22時の空いてる時間に1時間勉強の予定を入れて",
+        {"confidence": 0.10},
+    )
+    assert auto_slot_route is not None
+    assert auto_slot_route["kind"] == "reminder_schedule_free"
+    assert auto_slot_route["query"]["text"] == "勉強"
+    assert auto_slot_route["query"]["duration_minutes"] == 60
+
     important_list_route = route_command(
         "重要な予定を教えて",
         {"confidence": 0.10},
@@ -761,7 +853,16 @@ def main() -> int:
         "start_minute": 0,
         "end_hour": 22,
         "end_minute": 0,
+        "minimum_minutes": 15,
     }
+
+    free_hour_route = route_command(
+        "今日18時から22時で1時間空いてる時間",
+        {"confidence": 0.10},
+    )
+    assert free_hour_route is not None
+    assert free_hour_route["kind"] == "reminder_free_time"
+    assert free_hour_route["query"]["minimum_minutes"] == 60
 
     free_tomorrow_route = route_command(
         "明日18時30分から21時の空いてる時間",
@@ -1547,6 +1648,35 @@ def main() -> int:
             assert duration_item["duration_minutes"] == 90
             assert meina_reminders.format_reminder_duration(duration_item) == "1時間30分"
 
+            changed_duration = meina_reminders.set_reminder_duration(
+                duration_item["id"],
+                120,
+            )
+            assert changed_duration is not None
+            assert changed_duration["duration_minutes"] == 120
+            assert meina_reminders.format_reminder_duration(changed_duration) == "2時間"
+
+            cleared_duration = meina_reminders.set_reminder_duration(
+                duration_item["id"],
+                None,
+            )
+            assert cleared_duration is not None
+            assert "duration_minutes" not in cleared_duration
+            assert meina_reminders.set_reminder_duration(
+                duration_item["id"],
+                0,
+            ) is None
+            assert meina_reminders.set_reminder_duration(
+                "missing-id",
+                60,
+            ) is None
+
+            restored_duration = meina_reminders.set_reminder_duration(
+                duration_item["id"],
+                90,
+            )
+            assert restored_duration is not None
+
             same_without_duration = meina_reminders.find_duplicate_reminder(
                 "所要時間テスト",
                 "2050-01-01T18:00:00+09:00",
@@ -1656,6 +1786,24 @@ def main() -> int:
                     datetime.fromisoformat("2050-01-02T22:00:00+09:00"),
                 ),
             ]
+
+            first_hour_slot = meina_reminders.find_first_free_slot(
+                datetime.fromisoformat("2050-01-02T18:00:00+09:00"),
+                datetime.fromisoformat("2050-01-02T22:00:00+09:00"),
+                required_minutes=60,
+            )
+            assert first_hour_slot == (
+                datetime.fromisoformat("2050-01-02T20:30:00+09:00"),
+                datetime.fromisoformat("2050-01-02T21:30:00+09:00"),
+            )
+            assert (
+                meina_reminders.find_first_free_slot(
+                    datetime.fromisoformat("2050-01-02T18:00:00+09:00"),
+                    datetime.fromisoformat("2050-01-02T20:00:00+09:00"),
+                    required_minutes=60,
+                )
+                is None
+            )
 
             try:
                 meina_reminders.add_reminder(
