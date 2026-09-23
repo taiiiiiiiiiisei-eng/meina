@@ -562,6 +562,38 @@ def reminder_duration_summary(
     }
 
 
+def reminder_group_duration_summary(
+    items: list[dict[str, Any]],
+    *,
+    group_by: str,
+) -> dict[str, dict[str, int]]:
+    """予定群をカテゴリまたは場所ごとに所要時間集計する。"""
+    if group_by not in {"category", "location"}:
+        return {}
+
+    fallback = "未分類" if group_by == "category" else "場所未設定"
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for item in items:
+        label = str(item.get(group_by) or "").strip() or fallback
+        grouped.setdefault(label, []).append(item)
+
+    summaries: list[tuple[str, dict[str, int]]] = []
+    for label, grouped_items in grouped.items():
+        summary = reminder_duration_summary(grouped_items)
+        if summary["timed_count"] + summary["missing_count"] <= 0:
+            continue
+        summaries.append((label, summary))
+
+    summaries.sort(
+        key=lambda pair: (
+            -pair[1]["total_minutes"],
+            -(pair[1]["timed_count"] + pair[1]["missing_count"]),
+            pair[0],
+        )
+    )
+    return dict(summaries)
+
+
 def filter_reminders_by_metadata(
     items: list[dict[str, Any]],
     *,
