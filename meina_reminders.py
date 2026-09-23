@@ -919,6 +919,48 @@ def set_reminder_location(
     return None
 
 
+def reminders_by_location(location: str) -> list[dict[str, Any]]:
+    """場所が完全一致する未完了予定を時刻順で返す。"""
+    needle = _normalize_reminder_text(location)
+    if not needle:
+        return []
+
+    result = [
+        item
+        for item in list_reminders()
+        if _normalize_reminder_text(item.get("location", "")) == needle
+    ]
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def reminders_missing_location() -> list[dict[str, Any]]:
+    """場所が未設定の未完了予定を時刻順で返す。"""
+    result = [
+        item
+        for item in list_reminders()
+        if not str(item.get("location") or "").strip()
+    ]
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def reminder_location_counts(
+    items: list[dict[str, Any]],
+) -> dict[str, int]:
+    """予定群を場所別に集計する。未設定は「場所未設定」として数える。"""
+    counts: dict[str, int] = {}
+    for item in items:
+        location = str(item.get("location") or "").strip() or "場所未設定"
+        counts[location] = counts.get(location, 0) + 1
+    return dict(
+        sorted(
+            counts.items(),
+            key=lambda pair: (-pair[1], pair[0]),
+        )
+    )
+
+
 def set_reminder_category(
     reminder_id: str,
     category: str | None,
