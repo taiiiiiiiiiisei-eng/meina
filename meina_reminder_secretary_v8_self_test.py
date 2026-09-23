@@ -42,6 +42,7 @@ REQUIRED_KINDS = (
     "reminder_focus_slot",
     "reminder_move_free",
     "reminder_duration",
+    "reminder_detail",
     "reminder_completed_today",
     "reminder_completed_period",
     "reminder_completion_summary",
@@ -169,6 +170,16 @@ def main() -> int:
         return 1
     if "set_reminder_duration" not in agent_text:
         print("FAILED: 所要時間変更の実行配線がありません")
+        return 1
+    if (
+        "parse_reminder_detail_command" not in router_text
+        or 'elif kind == "reminder_detail"' not in agent_text
+        or "format_reminder_repeat" not in agent_text
+        or "format_reminder_note" not in agent_text
+        or "notify_before_minutes" not in agent_text
+        or "一時停止中" not in agent_text
+    ):
+        print("FAILED: 予定詳細確認の配線がありません")
         return 1
     if "find_first_free_slot" not in agent_text:
         print("FAILED: 空き枠自動配置の実行配線がありません")
