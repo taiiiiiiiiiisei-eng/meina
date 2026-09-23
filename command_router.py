@@ -605,6 +605,7 @@ def route_command(text, frame):
             parse_reminder_duration_command,
             parse_reminder_importance_command,
             parse_reminder_move_free_command,
+            parse_reminder_note_command,
             parse_reminder_pause_command,
             parse_reminder_pre_notify_clear_command,
             parse_reminder_pre_notify_set_command,
@@ -633,6 +634,15 @@ def route_command(text, frame):
                 "kind": "reminder_restore_completed",
                 "target": "local",
                 "query": restore_completed,
+                "confidence": 1.0,
+            }
+
+        note_command = parse_reminder_note_command(text)
+        if note_command is not None:
+            return {
+                "kind": "reminder_note",
+                "target": "local",
+                "query": note_command,
                 "confidence": 1.0,
             }
 
