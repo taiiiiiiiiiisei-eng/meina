@@ -271,6 +271,7 @@ def route_command(text, frame):
             parse_reminder_action_request,
             parse_reminder_duration_command,
             parse_reminder_importance_command,
+            parse_reminder_move_free_command,
             parse_reminder_pause_command,
             parse_reminder_pre_notify_clear_command,
             parse_reminder_pre_notify_set_command,
@@ -288,6 +289,15 @@ def route_command(text, frame):
                 "kind": "reminder_duration",
                 "target": "local",
                 "query": duration_change,
+                "confidence": 1.0,
+            }
+
+        move_free = parse_reminder_move_free_command(text)
+        if move_free is not None:
+            return {
+                "kind": "reminder_move_free",
+                "target": "local",
+                "query": move_free,
                 "confidence": 1.0,
             }
 
