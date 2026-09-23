@@ -511,6 +511,39 @@ def main() -> int:
         is None
     )
 
+    category_set = meina_reminder_parser.parse_reminder_category_command(
+        "宿題の予定を学校カテゴリにして",
+        now,
+    )
+    assert category_set is not None
+    assert category_set["target"] == "宿題"
+    assert category_set["category"] == "学校"
+
+    category_at_time = meina_reminder_parser.parse_reminder_category_command(
+        "18時の宿題の予定のカテゴリを勉強にして",
+        now,
+    )
+    assert category_at_time is not None
+    assert category_at_time["target"] == "宿題"
+    assert category_at_time["hour"] == 18
+    assert category_at_time["category"] == "勉強"
+
+    category_clear = meina_reminder_parser.parse_reminder_category_command(
+        "宿題の予定のカテゴリを解除して",
+        now,
+    )
+    assert category_clear is not None
+    assert category_clear["target"] == "宿題"
+    assert category_clear["category"] is None
+
+    assert (
+        meina_reminder_parser.parse_reminder_category_command(
+            "宿題の予定を学校カテゴリにしていい？",
+            now,
+        )
+        is None
+    )
+
     important_set = meina_reminder_parser.parse_reminder_importance_command(
         "宿題の予定を重要にして",
         now,
@@ -854,6 +887,39 @@ def main() -> int:
     assert move_free_selected_route["kind"] == "reminder_move_free"
     assert move_free_selected_route["query"]["hour"] == 18
     assert move_free_selected_route["query"]["day"] == "明日"
+
+    category_list_route = route_command(
+        "学校カテゴリの予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert category_list_route is not None
+    assert category_list_route["kind"] == "reminder_category_list"
+    assert category_list_route["query"] == "学校"
+
+    category_summary_route = route_command(
+        "今日のカテゴリ別件数",
+        {"confidence": 0.10},
+    )
+    assert category_summary_route is not None
+    assert category_summary_route["kind"] == "reminder_category_summary"
+    assert category_summary_route["query"] == "today"
+
+    category_set_route = route_command(
+        "宿題の予定を学校カテゴリにして",
+        {"confidence": 0.10},
+    )
+    assert category_set_route is not None
+    assert category_set_route["kind"] == "reminder_category"
+    assert category_set_route["query"]["target"] == "宿題"
+    assert category_set_route["query"]["category"] == "学校"
+
+    category_clear_route = route_command(
+        "宿題の予定のカテゴリを解除して",
+        {"confidence": 0.10},
+    )
+    assert category_clear_route is not None
+    assert category_clear_route["kind"] == "reminder_category"
+    assert category_clear_route["query"]["category"] is None
 
     important_list_route = route_command(
         "重要な予定を教えて",
@@ -1873,6 +1939,54 @@ def main() -> int:
             )
             assert same_with_duration is not None
             assert same_with_duration["id"] == duration_item["id"]
+
+            category_item = meina_reminders.add_reminder(
+                "カテゴリテスト",
+                "2050-01-02T15:00:00+09:00",
+            )
+            categorized = meina_reminders.set_reminder_category(
+                category_item["id"],
+                "学校",
+            )
+            assert categorized is not None
+            assert categorized["category"] == "学校"
+            assert meina_reminders.format_reminder_category(categorized) == "学校"
+            assert category_item["id"] in {
+                item["id"]
+                for item in meina_reminders.reminders_by_category("学 校")
+            }
+
+            category_counts = meina_reminders.reminder_category_counts(
+                [
+                    {"category": "学校"},
+                    {"category": "学校"},
+                    {"category": "配信"},
+                    {},
+                ]
+            )
+            assert category_counts == {
+                "学校": 2,
+                "未分類": 1,
+                "配信": 1,
+            }
+
+            assert meina_reminders.set_reminder_category(
+                category_item["id"],
+                "a" * 33,
+            ) is None
+            unchanged_category = meina_reminders.find_reminders("カテゴリテスト")
+            assert unchanged_category[0]["category"] == "学校"
+
+            cleared_category = meina_reminders.set_reminder_category(
+                category_item["id"],
+                None,
+            )
+            assert cleared_category is not None
+            assert "category" not in cleared_category
+            assert meina_reminders.set_reminder_category(
+                "missing-id",
+                "学校",
+            ) is None
 
             important_item = meina_reminders.add_reminder(
                 "重要テスト",
