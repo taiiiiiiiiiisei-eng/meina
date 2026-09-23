@@ -464,7 +464,7 @@ def route_command(text, frame):
     if text:
         category_completed_match = re.fullmatch(
             r"(?P<category>.+?)カテゴリ(?:で|の)?"
-            r"(?P<scope>今日|今週)"
+            r"(?P<scope>今日|今週|今月)"
             r"(?:終わった|完了した|済ませた)"
             r"(?:予定|リマインダー|リマインド)"
             r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
@@ -478,9 +478,13 @@ def route_command(text, frame):
                     "target": "local",
                     "query": {
                         "scope": (
-                            "week"
-                            if category_completed_match.group("scope") == "今週"
-                            else "today"
+                            "month"
+                            if category_completed_match.group("scope") == "今月"
+                            else (
+                                "week"
+                                if category_completed_match.group("scope") == "今週"
+                                else "today"
+                            )
                         ),
                         "category": category,
                     },
@@ -489,7 +493,7 @@ def route_command(text, frame):
 
         location_completed_match = re.fullmatch(
             r"(?:場所(?:が|は))?(?P<location>.+?)で"
-            r"(?P<scope>今日|今週)"
+            r"(?P<scope>今日|今週|今月)"
             r"(?:終わった|完了した|済ませた)"
             r"(?:予定|リマインダー|リマインド)"
             r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
@@ -503,14 +507,32 @@ def route_command(text, frame):
                     "target": "local",
                     "query": {
                         "scope": (
-                            "week"
-                            if location_completed_match.group("scope") == "今週"
-                            else "today"
+                            "month"
+                            if location_completed_match.group("scope") == "今月"
+                            else (
+                                "week"
+                                if location_completed_match.group("scope") == "今週"
+                                else "today"
+                            )
                         ),
                         "location": location,
                     },
                     "confidence": 1.0,
                 }
+
+    if text and any(p in compact for p in (
+        "今月終わった予定",
+        "今月完了した予定",
+        "今月済ませた予定",
+        "今月終わったリマインダー",
+        "今月完了したリマインダー",
+    )):
+        return {
+            "kind": "reminder_completed_period",
+            "target": "local",
+            "query": {"scope": "month", "category": None},
+            "confidence": 1.0,
+        }
 
     if text and any(p in compact for p in (
         "今週終わった予定",
