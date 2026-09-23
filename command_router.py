@@ -876,6 +876,71 @@ def route_command(text, frame):
                 "confidence": 1.0,
             }
 
+        important_setup_status_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:(?:重要|大事|優先)(?:な)?)"
+            r"(?:予定|リマインダー|リマインド)(?:の)?"
+            r"(?P<label>準備状況|設定状況|設定完了率|準備度)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if important_setup_status_match:
+            return {
+                "kind": "reminder_important_setup_status",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        important_setup_status_match.group("scope")
+                    ],
+                },
+                "confidence": 1.0,
+            }
+
+        important_setup_gap_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:(?:重要|大事|優先)(?:な)?)"
+            r"(?:予定|リマインダー|リマインド)(?:の)?"
+            r"(?P<label>設定不足|設定漏れ|準備不足)"
+            r"(?:の)?(?:予定|リマインダー|リマインド)?"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if important_setup_gap_summary_match:
+            return {
+                "kind": "reminder_important_setup_gaps",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        important_setup_gap_summary_match.group("scope")
+                    ],
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        important_setup_gap_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:(?:重要|大事|優先)(?:な)?)"
+            r"(?:予定|リマインダー|リマインド)(?:の)?"
+            r"(?P<label>設定不足|設定漏れ|準備不足)"
+            r"(?:の)?(?:予定|リマインダー|リマインド)?"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください|チェックして)?[?？]?",
+            str(text).strip(),
+        )
+        if important_setup_gap_list_match:
+            return {
+                "kind": "reminder_important_setup_gaps",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        important_setup_gap_list_match.group("scope")
+                    ],
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
         important_summary_match = re.fullmatch(
             r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
             r"(?:(?:重要|大事|優先)(?:な)?)"
