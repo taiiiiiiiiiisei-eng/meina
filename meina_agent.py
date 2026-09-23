@@ -1747,27 +1747,81 @@ def _execute_routed_command_base(route):
                 + _format_reminders(items)
             )
         elif kind == "reminder_location_list":
-            from meina_reminders import reminders_by_location
-
-            location = str(query or "").strip()
-            items = reminders_by_location(location)
-            result = (
-                f"場所が「{location}」の予定はありません。"
-                if not items
-                else f"場所が「{location}」の予定です。\n"
-                + _format_reminders(items)
+            from meina_reminders import (
+                filter_reminders_by_metadata,
+                remaining_scope_reminders,
+                reminders_by_location,
             )
+
+            request = query if isinstance(query, dict) else None
+            if request is not None:
+                location = str(request.get("location") or "").strip()
+                requested_scope = str(request.get("scope") or "today")
+                if requested_scope == "month":
+                    scope, label = "month", "今月"
+                elif requested_scope == "week":
+                    scope, label = "week", "今週"
+                elif requested_scope == "tomorrow":
+                    scope, label = "tomorrow", "明日"
+                else:
+                    scope, label = "today", "今日"
+                items = filter_reminders_by_metadata(
+                    remaining_scope_reminders(scope=scope),
+                    location=location,
+                )
+                result = (
+                    f"{label}の場所が「{location}」の予定はありません。"
+                    if not items
+                    else f"{label}の場所が「{location}」の予定です。\n"
+                    + _format_reminders(items)
+                )
+            else:
+                location = str(query or "").strip()
+                items = reminders_by_location(location)
+                result = (
+                    f"場所が「{location}」の予定はありません。"
+                    if not items
+                    else f"場所が「{location}」の予定です。\n"
+                    + _format_reminders(items)
+                )
         elif kind == "reminder_category_list":
-            from meina_reminders import reminders_by_category
-
-            category = str(query or "").strip()
-            items = reminders_by_category(category)
-            result = (
-                f"「{category}」カテゴリの予定はありません。"
-                if not items
-                else f"「{category}」カテゴリの予定です。\n"
-                + _format_reminders(items)
+            from meina_reminders import (
+                filter_reminders_by_metadata,
+                remaining_scope_reminders,
+                reminders_by_category,
             )
+
+            request = query if isinstance(query, dict) else None
+            if request is not None:
+                category = str(request.get("category") or "").strip()
+                requested_scope = str(request.get("scope") or "today")
+                if requested_scope == "month":
+                    scope, label = "month", "今月"
+                elif requested_scope == "week":
+                    scope, label = "week", "今週"
+                elif requested_scope == "tomorrow":
+                    scope, label = "tomorrow", "明日"
+                else:
+                    scope, label = "today", "今日"
+                items = filter_reminders_by_metadata(
+                    remaining_scope_reminders(scope=scope),
+                    category=category,
+                )
+                result = (
+                    f"{label}の「{category}」カテゴリの予定はありません。"
+                    if not items
+                    else f"{label}の「{category}」カテゴリの予定です。\n"
+                    + _format_reminders(items)
+                )
+            else:
+                category = str(query or "").strip()
+                items = reminders_by_category(category)
+                result = (
+                    f"「{category}」カテゴリの予定はありません。"
+                    if not items
+                    else f"「{category}」カテゴリの予定です。\n"
+                    + _format_reminders(items)
+                )
         elif kind == "reminder_important":
             from meina_reminders import important_reminders
             items = important_reminders()
