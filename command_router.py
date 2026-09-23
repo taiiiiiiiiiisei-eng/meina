@@ -662,6 +662,66 @@ def route_command(text, frame):
             "今月": "month",
         }
 
+        setup_gap_breakdown_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:(?:予定(?:の)?)?(?:設定不足|設定漏れ|準備不足))"
+            r"(?:の)?(?:内訳|項目別件数|項目別)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if setup_gap_breakdown_match:
+            return {
+                "kind": "reminder_setup_gap_summary",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        setup_gap_breakdown_match.group("scope")
+                    ],
+                },
+                "confidence": 1.0,
+            }
+
+        setup_complete_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>完全設定済み|設定完了|準備完了)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if setup_complete_summary_match:
+            return {
+                "kind": "reminder_setup_complete",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        setup_complete_summary_match.group("scope")
+                    ],
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        setup_complete_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>完全設定済み|設定完了|準備完了)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if setup_complete_list_match:
+            return {
+                "kind": "reminder_setup_complete",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        setup_complete_list_match.group("scope")
+                    ],
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
         setup_gap_summary_match = re.fullmatch(
             r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
             r"(?:(?:予定(?:の)?)?(?:設定不足|設定漏れ|準備不足)|設定が足りない予定)"
