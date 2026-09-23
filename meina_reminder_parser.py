@@ -647,6 +647,69 @@ def parse_reminder_free_slot_add_command(text: str) -> dict | None:
     return None
 
 
+
+_MOVE_FREE_ACTION = (
+    r"(?:移して|移してください|"
+    r"移動して|移動してください|"
+    r"ずらして|ずらしてください|"
+    r"動かして|動かしてください)"
+)
+
+
+def parse_reminder_move_free_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """既存予定を指定時間帯の最初の空き枠へ移す命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    pattern = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
+        r"(?:(?P<day>今日|明日))?"
+        r"(?P<start_hour>\d{1,2})時"
+        r"(?:(?P<start_minute>\d{1,2})分)?"
+        r"から"
+        r"(?P<end_hour>\d{1,2})時"
+        r"(?:(?P<end_minute>\d{1,2})分)?"
+        r"(?:まで)?(?:の)?(?:空いてる時間|空いている時間|空き時間)"
+        rf"(?:に)?{_MOVE_FREE_ACTION}$"
+    )
+
+    match = re.fullmatch(pattern, compact)
+    if not match:
+        return None
+
+    sh = int(match.group("start_hour"))
+    sm = int(match.group("start_minute") or 0)
+    eh = int(match.group("end_hour"))
+    em = int(match.group("end_minute") or 0)
+    if (
+        not (0 <= sh <= 23 and 0 <= eh <= 23)
+        or not (0 <= sm <= 59 and 0 <= em <= 59)
+        or (eh, em) <= (sh, sm)
+    ):
+        return None
+
+    selector = parse_reminder_selector_text(match.group("target"), now)
+    if not selector.get("valid", False):
+        return None
+
+    return {
+        "target": selector["target"],
+        "date": selector["date"],
+        "hour": selector["hour"],
+        "minute": selector["minute"],
+        "day": match.group("day") or "今日",
+        "start_hour": sh,
+        "start_minute": sm,
+        "end_hour": eh,
+        "end_minute": em,
+    }
+
+
 _IMPORTANT_SET_ACTION = (
     r"(?:重要(?:にして|にしてください|設定して|設定してください)|"
     r"大事(?:にして|にしてください|設定して|設定してください)|"
