@@ -583,6 +583,19 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "明日の場所別進捗",
+        "明日の場所ごとの進捗",
+        "明日場所別にどれくらい予定がある",
+        "明日場所ごとにどれくらい予定がある",
+    )):
+        return {
+            "kind": "reminder_location_progress",
+            "target": "local",
+            "query": "tomorrow",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "今日の場所別進捗",
         "今日の場所ごとの進捗",
         "今日場所別にどれくらい終わった",
@@ -605,6 +618,19 @@ def route_command(text, frame):
             "kind": "reminder_category_progress",
             "target": "local",
             "query": "week",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "明日のカテゴリ別進捗",
+        "明日のカテゴリごとの進捗",
+        "明日カテゴリ別にどれくらい予定がある",
+        "明日カテゴリごとにどれくらい予定がある",
+    )):
+        return {
+            "kind": "reminder_category_progress",
+            "target": "local",
+            "query": "tomorrow",
             "confidence": 1.0,
         }
 
@@ -634,6 +660,19 @@ def route_command(text, frame):
         "今週の場所内訳",
     )):
         return {"kind":"reminder_location_summary","target":"local","query":"week","confidence":1.0}
+
+    if text and any(p in compact for p in (
+        "明日のカテゴリ別件数",
+        "明日のカテゴリ別予定数",
+        "明日のカテゴリ内訳",
+        "明日の予定カテゴリ内訳",
+    )):
+        return {
+            "kind": "reminder_category_summary",
+            "target": "local",
+            "query": "tomorrow",
+            "confidence": 1.0,
+        }
 
     if text and any(p in compact for p in (
         "今日のカテゴリ別件数",
@@ -676,6 +715,19 @@ def route_command(text, frame):
             "kind": "reminder_missing_location",
             "target": "local",
             "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "明日の場所別件数",
+        "明日の場所別予定数",
+        "明日の場所内訳",
+        "明日の予定場所内訳",
+    )):
+        return {
+            "kind": "reminder_location_summary",
+            "target": "local",
+            "query": "tomorrow",
             "confidence": 1.0,
         }
 
