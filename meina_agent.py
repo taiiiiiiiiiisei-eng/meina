@@ -1206,17 +1206,20 @@ def _execute_routed_command_base(route):
         elif kind == "reminder_duration_total":
             from meina_reminders import (
                 reminder_duration_summary,
-                today_reminders,
-                tomorrow_reminders,
+                remaining_scope_reminders,
             )
 
-            is_tomorrow = str(query or "") == "tomorrow"
-            items = (
-                tomorrow_reminders()
-                if is_tomorrow
-                else today_reminders()
-            )
-            label = "明日" if is_tomorrow else "今日"
+            requested_scope = str(query or "")
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
+
+            items = remaining_scope_reminders(scope=scope)
             summary = reminder_duration_summary(items)
 
             if not items:
