@@ -191,6 +191,50 @@ def find_reminders(query: str) -> list[dict[str, Any]]:
 
 
 
+def find_completed_reminders(query: str) -> list[dict[str, Any]]:
+    """完了済みの単発予定を、完全一致優先で検索する。"""
+    needle = _normalize_reminder_text(query)
+    if not needle:
+        return []
+
+    items = [
+        item
+        for item in list_reminders(include_done=True)
+        if item.get("done") and item.get("completed_at")
+    ]
+    exact = [
+        item
+        for item in items
+        if _normalize_reminder_text(item.get("text", "")) == needle
+    ]
+    if exact:
+        return exact
+    return [
+        item
+        for item in items
+        if needle in _normalize_reminder_text(item.get("text", ""))
+    ]
+
+
+def restore_completed_reminder(reminder_id: str) -> dict[str, Any] | None:
+    """完了済みの単発予定だけを未完了へ戻す。定期予定の履歴は巻き戻さない。"""
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id:
+            continue
+        if not item.get("done") or not item.get("completed_at"):
+            return None
+        if item.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly"):
+            return None
+
+        item["done"] = False
+        item.pop("completed_at", None)
+        item.pop("pre_notified_due_at", None)
+        _save(items)
+        return item
+    return None
+
+
 def find_duplicate_reminder(
     text: str,
     due_at: str,
@@ -1579,10 +1623,25 @@ def completion_events(
     start_date=None,
     end_date=None,
     now: datetime | None = None,
+    *,
+    category: str | None = None,
 ) -> list[dict[str, Any]]:
     """保存済みの完了履歴を指定日付範囲で返す。"""
     current = now or datetime.now().astimezone()
     events: list[dict[str, Any]] = []
+    category_needle = (
+        _normalize_reminder_text(category)
+        if category is not None
+        else ""
+    )
+
+    def _category_matches(event: dict[str, Any]) -> bool:
+        if category is None:
+            return True
+        return (
+            _normalize_reminder_text(event.get("category", ""))
+            == category_needle
+        )
 
     def _in_range(completed_at: str) -> bool:
         try:
@@ -1611,7 +1670,8 @@ def completion_events(
             for key in ("category", "duration_minutes", "important"):
                 if key in item:
                     event[key] = item[key]
-            events.append(event)
+            if _category_matches(event):
+                events.append(event)
 
         history = item.get("completion_history")
         if not isinstance(history, list):
@@ -1625,7 +1685,8 @@ def completion_events(
             event = dict(raw_event)
             event.setdefault("reminder_id", item.get("id"))
             event.setdefault("text", str(item.get("text") or ""))
-            events.append(event)
+            if _category_matches(event):
+                events.append(event)
 
     events.sort(key=lambda event: str(event.get("completed_at", "")))
     return events
@@ -1634,12 +1695,15 @@ def completion_events(
 def completion_events_for_date(
     target_date,
     now: datetime | None = None,
+    *,
+    category: str | None = None,
 ) -> list[dict[str, Any]]:
     """指定日に完了した予定履歴を返す。"""
     return completion_events(
         target_date,
         target_date,
         now,
+        category=category,
     )
 
 
