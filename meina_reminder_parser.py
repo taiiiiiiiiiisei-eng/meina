@@ -521,6 +521,132 @@ def parse_reminder_repeat_clear_command(
 
 
 
+
+_DURATION_SET_ACTION = (
+    r"(?:にして|にしてください|"
+    r"変更して|変更してください|"
+    r"変えて|変えてください|"
+    r"設定して|設定してください)"
+)
+_DURATION_CLEAR_ACTION = (
+    r"(?:解除(?:して|してください)?|"
+    r"なし(?:にして|にしてください)?|"
+    r"消して|消してください)"
+)
+
+
+def parse_reminder_duration_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定の所要時間変更・解除命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    set_pattern = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"(?:所要時間|長さ)(?:を|は)?"
+        rf"(?P<num>\d{{1,4}})(?P<unit>分|時間)"
+        rf"(?:に)?{_DURATION_SET_ACTION}$"
+    )
+    clear_pattern = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"(?:所要時間|長さ)(?:を|は)?{_DURATION_CLEAR_ACTION}$"
+    )
+
+    match = re.fullmatch(set_pattern, compact)
+    if match:
+        amount = int(match.group("num"))
+        minutes = amount * 60 if match.group("unit") == "時間" else amount
+        if not 1 <= minutes <= 1440:
+            return None
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "duration_minutes": minutes,
+        }
+
+    match = re.fullmatch(clear_pattern, compact)
+    if match:
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "duration_minutes": None,
+        }
+    return None
+
+
+def parse_reminder_free_slot_add_command(text: str) -> dict | None:
+    """指定時間帯の最初の空き枠へ予定を入れる明示命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    time_range = (
+        r"(?:(?P<day>今日|明日))?"
+        r"(?P<start_hour>\d{1,2})時"
+        r"(?:(?P<start_minute>\d{1,2})分)?"
+        r"から"
+        r"(?P<end_hour>\d{1,2})時"
+        r"(?:(?P<end_minute>\d{1,2})分)?"
+        r"(?:まで)?(?:の)?(?:空いてる時間|空いている時間|空き時間)"
+    )
+    patterns = (
+        time_range
+        + r"(?:に)?(?P<num>\d{1,4})(?P<unit>分|時間)"
+        + r"(?P<text>.+?)(?:の)?予定を(?:入れて|入れてください|追加して|追加してください)$",
+        time_range
+        + r"(?:に)?(?P<text>.+?)(?:を)?(?P<num>\d{1,4})(?P<unit>分|時間)"
+        + r"(?:入れて|入れてください|追加して|追加してください)$",
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+
+        sh = int(match.group("start_hour"))
+        sm = int(match.group("start_minute") or 0)
+        eh = int(match.group("end_hour"))
+        em = int(match.group("end_minute") or 0)
+        amount = int(match.group("num"))
+        duration = amount * 60 if match.group("unit") == "時間" else amount
+        task_text = match.group("text").strip("のをは")
+
+        if (
+            not task_text
+            or not (0 <= sh <= 23 and 0 <= eh <= 23)
+            or not (0 <= sm <= 59 and 0 <= em <= 59)
+            or (eh, em) <= (sh, sm)
+            or not 1 <= duration <= 1440
+        ):
+            return None
+
+        return {
+            "day": match.group("day") or "今日",
+            "start_hour": sh,
+            "start_minute": sm,
+            "end_hour": eh,
+            "end_minute": em,
+            "duration_minutes": duration,
+            "text": task_text,
+        }
+    return None
+
+
 _IMPORTANT_SET_ACTION = (
     r"(?:重要(?:にして|にしてください|設定して|設定してください)|"
     r"大事(?:にして|にしてください|設定して|設定してください)|"
