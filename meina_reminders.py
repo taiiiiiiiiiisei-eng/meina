@@ -1013,6 +1013,54 @@ def filter_recurring_reminders(
     return result
 
 
+def reminder_setup_gaps(
+    items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """予定ごとの設定不足項目を返す。定期予定の投影重複はID単位でまとめる。"""
+    unique: dict[str, dict[str, Any]] = {}
+    for item in sorted(items, key=lambda row: str(row.get("due_at", ""))):
+        reminder_id = str(item.get("id") or "").strip()
+        key = reminder_id or (
+            f"{item.get('text', '')}|{item.get('due_at', '')}"
+        )
+        if key not in unique:
+            unique[key] = item
+
+    result: list[dict[str, Any]] = []
+    for item in unique.values():
+        missing: list[str] = []
+
+        try:
+            duration = int(item.get("duration_minutes") or 0)
+        except (TypeError, ValueError):
+            duration = 0
+        if duration <= 0:
+            missing.append("所要時間")
+
+        if not str(item.get("category") or "").strip():
+            missing.append("カテゴリ")
+        if not str(item.get("location") or "").strip():
+            missing.append("場所")
+        if not str(item.get("note") or "").strip():
+            missing.append("メモ")
+
+        try:
+            notify_minutes = int(item.get("notify_before_minutes") or 0)
+        except (TypeError, ValueError):
+            notify_minutes = 0
+        if not 1 <= notify_minutes <= 1440:
+            missing.append("事前通知")
+
+        if missing:
+            result.append({
+                "item": dict(item),
+                "missing": missing,
+            })
+
+    result.sort(key=lambda row: str(row["item"].get("due_at", "")))
+    return result
+
+
 def set_reminder_location(
     reminder_id: str,
     location: str | None,
