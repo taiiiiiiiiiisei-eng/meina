@@ -977,6 +977,130 @@ def _execute_routed_command_base(route):
             from meina_reminders import list_reminders
             items = list_reminders()
             result = "未完了のリマインダーはありません。" if not items else "未完了のリマインダーです。\n" + _format_reminders(items)
+        elif kind == "reminder_move_free":
+            from datetime import datetime, timedelta
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_first_free_slot,
+                find_reminders,
+                format_reminder_due,
+                format_reminder_duration,
+                move_reminder_occurrence,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+            current = datetime.now().astimezone()
+            day_offset = 1 if request.get("day") == "明日" else 0
+            target_date = (current + timedelta(days=day_offset)).date()
+
+            if not query_text:
+                result = "空き時間へ移す予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時の移動対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "空き時間へ移す予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    try:
+                        required = int(item.get("duration_minutes") or 0)
+                        start_at = current.replace(
+                            year=target_date.year,
+                            month=target_date.month,
+                            day=target_date.day,
+                            hour=int(request.get("start_hour", 0)),
+                            minute=int(request.get("start_minute", 0)),
+                            second=0,
+                            microsecond=0,
+                        )
+                        end_at = current.replace(
+                            year=target_date.year,
+                            month=target_date.month,
+                            day=target_date.day,
+                            hour=int(request.get("end_hour", 0)),
+                            minute=int(request.get("end_minute", 0)),
+                            second=0,
+                            microsecond=0,
+                        )
+                    except (TypeError, ValueError):
+                        result = "移動先の時間帯を読み取れませんでした。"
+                    else:
+                        if required <= 0:
+                            result = (
+                                f"「{item['text']}」には所要時間がありません。"
+                                "先に所要時間を設定してください。"
+                            )
+                        else:
+                            if day_offset == 0 and start_at < current:
+                                start_at = current.replace(second=0, microsecond=0)
+                                if start_at < current:
+                                    start_at += timedelta(minutes=1)
+
+                            slot = (
+                                find_first_free_slot(
+                                    start_at,
+                                    end_at,
+                                    required_minutes=required,
+                                    exclude_reminder_id=item["id"],
+                                )
+                                if start_at < end_at
+                                else None
+                            )
+                            if slot is None:
+                                result = "指定した時間帯に移動できる空き時間がありません。"
+                            else:
+                                slot_start, _ = slot
+                                moved = move_reminder_occurrence(
+                                    item["id"],
+                                    slot_start.isoformat(timespec="seconds"),
+                                )
+                                if moved:
+                                    repeat_note = (
+                                        "今回はこの時間に移し、次回の繰り返し時刻は元のままです。"
+                                        if moved.get("repeat_rule")
+                                        else ""
+                                    )
+                                    pause_note = (
+                                        "通知は一時停止中のままです。"
+                                        if moved.get("paused")
+                                        else ""
+                                    )
+                                    result = (
+                                        f"「{moved['text']}」を空いている時間へ移しました。"
+                                        f"新しい時間は{format_reminder_due(moved['due_at'])}から"
+                                        f"{format_reminder_duration(moved)}です。"
+                                        f"{repeat_note}{pause_note}"
+                                    )
+                                else:
+                                    result = f"「{query_text}」を空き時間へ移動できませんでした。"
         elif kind == "reminder_duration":
             from meina_reminders import (
                 filter_reminders_by_due,
