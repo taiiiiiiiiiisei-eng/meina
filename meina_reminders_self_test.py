@@ -1027,6 +1027,43 @@ def main() -> int:
     assert move_free_selected_route["query"]["hour"] == 18
     assert move_free_selected_route["query"]["day"] == "明日"
 
+    detail_parsed = meina_reminder_parser.parse_reminder_detail_command(
+        "明日18時の宿題の予定の詳細を教えて？",
+        now,
+    )
+    assert detail_parsed == {
+        "target": "宿題",
+        "date": "2026-09-13",
+        "hour": 18,
+        "minute": 0,
+    }
+
+    detail_route = route_command(
+        "宿題の予定の詳細を教えて",
+        {"confidence": 0.10},
+    )
+    assert detail_route is not None
+    assert detail_route["kind"] == "reminder_detail"
+    assert detail_route["query"]["target"] == "宿題"
+
+    detail_timed_route = route_command(
+        "18時の宿題の予定を詳しく教えて",
+        {"confidence": 0.10},
+    )
+    assert detail_timed_route is not None
+    assert detail_timed_route["kind"] == "reminder_detail"
+    assert detail_timed_route["query"]["target"] == "宿題"
+    assert detail_timed_route["query"]["hour"] == 18
+    assert detail_timed_route["query"]["minute"] == 0
+
+    detail_reminder_route = route_command(
+        "宿題のリマインダー詳細を見せて",
+        {"confidence": 0.10},
+    )
+    assert detail_reminder_route is not None
+    assert detail_reminder_route["kind"] == "reminder_detail"
+    assert detail_reminder_route["query"]["target"] == "宿題"
+
     note_set_route = route_command(
         "宿題の予定にメモを追加して「英語のワーク30ページ」",
         {"confidence": 0.10},
