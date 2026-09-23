@@ -62,6 +62,8 @@ REQUIRED_KINDS = (
     "reminder_category",
     "reminder_important",
     "reminder_paused_list",
+    "reminder_pre_notify_presence",
+    "reminder_recurring_list",
     "reminder_importance",
     "reminder_next",
     "reminder_soon",
@@ -246,6 +248,16 @@ def main() -> int:
         or 'elif kind == "reminder_paused_list"' not in agent_text
     ):
         print("FAILED: 期間指定の重要予定・一時停止中予定配線がありません")
+        return 1
+    if (
+        "pre_notify_list_match" not in router_text
+        or "recurring_list_match" not in router_text
+        or 'elif kind == "reminder_pre_notify_presence"' not in agent_text
+        or 'elif kind == "reminder_recurring_list"' not in agent_text
+        or "filter_reminders_by_pre_notify_presence" not in agent_text
+        or "filter_recurring_reminders" not in agent_text
+    ):
+        print("FAILED: 事前通知有無・繰り返し予定確認の配線がありません")
         return 1
     if "set_reminder_category" not in agent_text or "reminders_by_category" not in agent_text:
         print("FAILED: 予定カテゴリの設定・一覧配線がありません")
