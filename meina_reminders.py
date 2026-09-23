@@ -371,6 +371,89 @@ def find_free_time_slots(
     return free
 
 
+def schedule_window_stats(
+    start_at: datetime,
+    end_at: datetime,
+) -> dict[str, int]:
+    """指定時間帯の空き・占有時間を分単位で集計する。"""
+    if end_at <= start_at:
+        return {
+            "window_minutes": 0,
+            "free_minutes": 0,
+            "busy_minutes": 0,
+            "longest_free_minutes": 0,
+        }
+
+    window_minutes = int((end_at - start_at).total_seconds() // 60)
+    slots = find_free_time_slots(
+        start_at,
+        end_at,
+        minimum_minutes=1,
+    )
+    free_minutes = sum(
+        int((slot_end - slot_start).total_seconds() // 60)
+        for slot_start, slot_end in slots
+    )
+    longest_free = max(
+        (
+            int((slot_end - slot_start).total_seconds() // 60)
+            for slot_start, slot_end in slots
+        ),
+        default=0,
+    )
+    return {
+        "window_minutes": window_minutes,
+        "free_minutes": free_minutes,
+        "busy_minutes": max(0, window_minutes - free_minutes),
+        "longest_free_minutes": longest_free,
+    }
+
+
+def reminder_duration_summary(
+    items: list[dict[str, Any]],
+    *,
+    include_paused: bool = False,
+) -> dict[str, int]:
+    """予定群の明示された所要時間合計と未設定件数を返す。"""
+    total = 0
+    timed_count = 0
+    missing_count = 0
+
+    for item in items:
+        if item.get("paused") and not include_paused:
+            continue
+        try:
+            duration = int(item.get("duration_minutes") or 0)
+        except (TypeError, ValueError):
+            duration = 0
+
+        if duration > 0:
+            total += min(duration, 1440)
+            timed_count += 1
+        else:
+            missing_count += 1
+
+    return {
+        "total_minutes": total,
+        "timed_count": timed_count,
+        "missing_count": missing_count,
+    }
+
+
+def reminders_missing_duration() -> list[dict[str, Any]]:
+    """所要時間が未設定の未完了予定を時刻順で返す。"""
+    result: list[dict[str, Any]] = []
+    for item in list_reminders():
+        try:
+            duration = int(item.get("duration_minutes") or 0)
+        except (TypeError, ValueError):
+            duration = 0
+        if duration <= 0:
+            result.append(item)
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
 def find_first_free_slot(
     start_at: datetime,
     end_at: datetime,
