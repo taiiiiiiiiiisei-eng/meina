@@ -120,6 +120,18 @@ def route_command(text, frame):
         )
     ):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
+    if text:
+        from meina_reminder_parser import parse_reminder_free_slot_add_command
+
+        free_slot_add = parse_reminder_free_slot_add_command(text)
+        if free_slot_add is not None:
+            return {
+                "kind": "reminder_schedule_free",
+                "target": "local",
+                "query": free_slot_add,
+                "confidence": 1.0,
+            }
+
     if text and any(p in compact for p in (
         "予定かぶってる",
         "予定被ってる",
@@ -143,7 +155,9 @@ def route_command(text, frame):
             r"\s*から\s*"
             r"(?P<end_hour>\d{1,2})\s*時"
             r"(?:\s*(?P<end_minute>\d{1,2})\s*分)?"
-            r"(?:\s*まで)?(?:\s*の)?"
+            r"(?:\s*まで)?"
+            r"(?:\s*(?:で|の中で|の)\s*(?P<need_num>\d{1,4})\s*(?P<need_unit>分|時間)(?:以上)?)?"
+            r"(?:\s*の)?"
             r"(?:空き時間|空いてる時間|空いている時間|空き)",
             str(text),
         )
@@ -168,6 +182,12 @@ def route_command(text, frame):
                         "start_minute": sm,
                         "end_hour": eh,
                         "end_minute": em,
+                        "minimum_minutes": (
+                            int(free_match.group("need_num"))
+                            * (60 if free_match.group("need_unit") == "時間" else 1)
+                            if free_match.group("need_num")
+                            else 15
+                        ),
                     },
                     "confidence": 1.0,
                 }
@@ -249,6 +269,7 @@ def route_command(text, frame):
     if text:
         from meina_reminder_parser import (
             parse_reminder_action_request,
+            parse_reminder_duration_command,
             parse_reminder_importance_command,
             parse_reminder_pause_command,
             parse_reminder_pre_notify_clear_command,
@@ -260,6 +281,15 @@ def route_command(text, frame):
             parse_reminder_reschedule_command,
             parse_reminder_snooze_command,
         )
+
+        duration_change = parse_reminder_duration_command(text)
+        if duration_change is not None:
+            return {
+                "kind": "reminder_duration",
+                "target": "local",
+                "query": duration_change,
+                "confidence": 1.0,
+            }
 
         importance = parse_reminder_importance_command(text)
         if importance is not None:
