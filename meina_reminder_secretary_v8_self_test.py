@@ -54,6 +54,7 @@ REQUIRED_KINDS = (
     "reminder_location_list",
     "reminder_missing_location",
     "reminder_location_summary",
+    "reminder_location_progress",
     "reminder_category",
     "reminder_important",
     "reminder_importance",
@@ -220,6 +221,9 @@ def main() -> int:
         return 1
     if "completion_category_progress" not in agent_text:
         print("FAILED: カテゴリ別完了進捗の配線がありません")
+        return 1
+    if "completion_location_progress" not in agent_text:
+        print("FAILED: 場所別完了進捗の配線がありません")
         return 1
     if "find_completed_reminders" not in agent_text or "restore_completed_reminder" not in agent_text:
         print("FAILED: 完了済み単発予定の復元配線がありません")
