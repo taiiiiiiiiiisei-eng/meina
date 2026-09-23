@@ -49,6 +49,7 @@ REQUIRED_KINDS = (
     "reminder_category_progress",
     "reminder_category_summary",
     "reminder_category_list",
+    "reminder_note",
     "reminder_category",
     "reminder_important",
     "reminder_importance",
@@ -191,6 +192,9 @@ def main() -> int:
         return 1
     if "set_reminder_category" not in agent_text or "reminders_by_category" not in agent_text:
         print("FAILED: 予定カテゴリの設定・一覧配線がありません")
+        return 1
+    if "set_reminder_note" not in agent_text or "format_reminder_note" not in agent_text:
+        print("FAILED: 予定メモの設定・表示配線がありません")
         return 1
     if "reminder_category_counts" not in agent_text:
         print("FAILED: 予定カテゴリ集計の配線がありません")
