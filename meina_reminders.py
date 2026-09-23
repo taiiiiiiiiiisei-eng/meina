@@ -1104,6 +1104,50 @@ def reminders_fully_configured(
     return result
 
 
+def reminder_setup_status_summary(
+    items: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """予定設定の準備状況をID単位で要約する。"""
+    unique: dict[str, dict[str, Any]] = {}
+    for item in sorted(items, key=lambda row: str(row.get("due_at", ""))):
+        reminder_id = str(item.get("id") or "").strip()
+        key = reminder_id or (
+            f"{item.get('text', '')}|{item.get('due_at', '')}"
+        )
+        if key not in unique:
+            unique[key] = item
+
+    unique_items = list(unique.values())
+    gaps = reminder_setup_gaps(unique_items)
+    complete = reminders_fully_configured(unique_items)
+    total_count = len(unique_items)
+    complete_count = len(complete)
+    incomplete_count = len(gaps)
+    completion_percent = (
+        round(complete_count * 100 / total_count)
+        if total_count
+        else 0
+    )
+    missing_counts = reminder_setup_gap_counts(unique_items)
+    most_missing: list[str] = []
+    if missing_counts:
+        max_count = max(missing_counts.values())
+        most_missing = [
+            label
+            for label, count in missing_counts.items()
+            if count == max_count
+        ]
+
+    return {
+        "total_count": total_count,
+        "complete_count": complete_count,
+        "incomplete_count": incomplete_count,
+        "completion_percent": completion_percent,
+        "missing_counts": missing_counts,
+        "most_missing": most_missing,
+    }
+
+
 def set_reminder_location(
     reminder_id: str,
     location: str | None,
