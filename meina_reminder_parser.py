@@ -711,6 +711,48 @@ def parse_reminder_move_free_command(
 
 
 
+
+_RESTORE_COMPLETED_ACTION = (
+    r"(?:未完了に戻して|未完了に戻してください|"
+    r"完了を取り消して|完了を取り消してください|"
+    r"完了を解除して|完了を解除してください|"
+    r"済みを取り消して|済みを取り消してください)"
+)
+
+
+def parse_reminder_restore_completed_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """完了済み単発予定を未完了へ戻す明示命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
+        rf"(?:{_RESTORE_COMPLETED_ACTION})$",
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"(?:{_RESTORE_COMPLETED_ACTION})$",
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+        }
+    return None
+
+
 _CATEGORY_SET_ACTION = (
     r"(?:にして|にしてください|"
     r"設定して|設定してください|"
