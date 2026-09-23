@@ -40,6 +40,9 @@ REQUIRED_KINDS = (
     "reminder_focus_slot",
     "reminder_move_free",
     "reminder_duration",
+    "reminder_completed_today",
+    "reminder_completion_summary",
+    "reminder_category_progress",
     "reminder_category_summary",
     "reminder_category_list",
     "reminder_category",
@@ -187,6 +190,15 @@ def main() -> int:
         return 1
     if "reminder_category_counts" not in agent_text:
         print("FAILED: 予定カテゴリ集計の配線がありません")
+        return 1
+    if "completion_events_for_date" not in agent_text:
+        print("FAILED: 完了履歴一覧の配線がありません")
+        return 1
+    if "completion_progress_summary" not in agent_text:
+        print("FAILED: 完了進捗集計の配線がありません")
+        return 1
+    if "completion_category_progress" not in agent_text:
+        print("FAILED: カテゴリ別完了進捗の配線がありません")
         return 1
 
     legacy_worker_text = LEGACY_WORKER_UPGRADER.read_text(encoding="utf-8")
