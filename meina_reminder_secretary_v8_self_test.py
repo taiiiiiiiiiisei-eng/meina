@@ -195,8 +195,8 @@ def main() -> int:
         return 1
     if (
         "reminder_group_duration_summary" not in agent_text
-        or "カテゴリ別予定時間" not in router_text
-        or "場所別予定時間" not in router_text
+        or "category_duration_summary_match" not in router_text
+        or "location_duration_summary_match" not in router_text
     ):
         print("FAILED: カテゴリ・場所別予定時間内訳の配線がありません")
         return 1
