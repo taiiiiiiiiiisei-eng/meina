@@ -29,6 +29,7 @@ REQUIRED_KINDS = (
     "reminder_conflicts",
     "reminder_free_time",
     "reminder_schedule_free",
+    "reminder_move_free",
     "reminder_duration",
     "reminder_important",
     "reminder_importance",
@@ -144,6 +145,9 @@ def main() -> int:
         return 1
     if "find_first_free_slot" not in agent_text:
         print("FAILED: 空き枠自動配置の実行配線がありません")
+        return 1
+    if "move_reminder_occurrence" not in agent_text:
+        print("FAILED: 既存予定の空き枠移動配線がありません")
         return 1
     if "set_reminder_importance" not in agent_text or "important_reminders" not in agent_text:
         print("FAILED: 重要予定の設定・一覧配線がありません")
