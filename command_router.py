@@ -662,6 +662,25 @@ def route_command(text, frame):
             "今月": "month",
         }
 
+        setup_status_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?:予定(?:の)?)?"
+            r"(?P<label>準備状況|設定状況|設定完了率|準備度)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if setup_status_match:
+            return {
+                "kind": "reminder_setup_status",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        setup_status_match.group("scope")
+                    ],
+                },
+                "confidence": 1.0,
+            }
+
         setup_gap_breakdown_match = re.fullmatch(
             r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
             r"(?:(?:予定(?:の)?)?(?:設定不足|設定漏れ|準備不足))"
