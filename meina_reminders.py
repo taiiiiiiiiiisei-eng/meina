@@ -1455,6 +1455,8 @@ def rename_reminder(reminder_id: str, new_text: str) -> dict[str, Any] | None:
 def advance_recurring_reminder(
     reminder_id: str,
     now: datetime | None = None,
+    *,
+    record_completion: bool = False,
 ) -> dict[str, Any] | None:
     """繰り返し予定を次回へ進める。遅延時は現在時刻より後まで繰り越す。"""
     current = now or datetime.now().astimezone()
@@ -1466,6 +1468,28 @@ def advance_recurring_reminder(
         rule = item.get("repeat_rule")
         if rule not in ("daily", "weekdays", "weekly", "monthly"):
             return None
+
+        if record_completion:
+            history = item.get("completion_history")
+            if not isinstance(history, list):
+                history = []
+            entry = {
+                "reminder_id": item.get("id"),
+                "text": str(item.get("text") or ""),
+                "due_at": str(item.get("due_at") or ""),
+                "completed_at": current.isoformat(timespec="seconds"),
+            }
+            for key in (
+                "category",
+                "duration_minutes",
+                "important",
+                "repeat_rule",
+                "repeat_day",
+            ):
+                if key in item:
+                    entry[key] = item[key]
+            history.append(entry)
+            item["completion_history"] = history[-200:]
 
         anchor_due_at = item.pop("snooze_original_due_at", None)
         try:
@@ -1527,19 +1551,126 @@ def complete_reminder(
     reminder_id: str,
     now: datetime | None = None,
 ) -> bool:
-    """通常予定は完了、繰り返し予定は次回へ進める。"""
+    """通常予定は完了日時を保存し、繰り返し予定は今回分を記録して次回へ進める。"""
+    current = now or datetime.now().astimezone()
     items = _load()
     for item in items:
         if item.get("id") != reminder_id:
             continue
-        if item.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly") and not item.get("done"):
+        if item.get("done"):
+            return False
+        if item.get("repeat_rule") in ("daily", "weekdays", "weekly", "monthly"):
             return (
-                advance_recurring_reminder(reminder_id, now=now) is not None
+                advance_recurring_reminder(
+                    reminder_id,
+                    now=current,
+                    record_completion=True,
+                )
+                is not None
             )
         item["done"] = True
+        item["completed_at"] = current.isoformat(timespec="seconds")
         _save(items)
         return True
     return False
+
+
+def completion_events(
+    start_date=None,
+    end_date=None,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """保存済みの完了履歴を指定日付範囲で返す。"""
+    current = now or datetime.now().astimezone()
+    events: list[dict[str, Any]] = []
+
+    def _in_range(completed_at: str) -> bool:
+        try:
+            completed = datetime.fromisoformat(str(completed_at))
+            if completed.tzinfo is None and current.tzinfo is not None:
+                completed = completed.replace(tzinfo=current.tzinfo)
+            elif completed.tzinfo is not None and current.tzinfo is not None:
+                completed = completed.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            return False
+        if start_date is not None and completed.date() < start_date:
+            return False
+        if end_date is not None and completed.date() > end_date:
+            return False
+        return True
+
+    for item in _load():
+        completed_at = item.get("completed_at")
+        if item.get("done") and completed_at and _in_range(str(completed_at)):
+            event = {
+                "reminder_id": item.get("id"),
+                "text": str(item.get("text") or ""),
+                "due_at": str(item.get("due_at") or ""),
+                "completed_at": str(completed_at),
+            }
+            for key in ("category", "duration_minutes", "important"):
+                if key in item:
+                    event[key] = item[key]
+            events.append(event)
+
+        history = item.get("completion_history")
+        if not isinstance(history, list):
+            continue
+        for raw_event in history:
+            if not isinstance(raw_event, dict):
+                continue
+            completed_at = raw_event.get("completed_at")
+            if not completed_at or not _in_range(str(completed_at)):
+                continue
+            event = dict(raw_event)
+            event.setdefault("reminder_id", item.get("id"))
+            event.setdefault("text", str(item.get("text") or ""))
+            events.append(event)
+
+    events.sort(key=lambda event: str(event.get("completed_at", "")))
+    return events
+
+
+def completion_events_for_date(
+    target_date,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """指定日に完了した予定履歴を返す。"""
+    return completion_events(
+        target_date,
+        target_date,
+        now,
+    )
+
+
+def completion_category_progress(
+    target_date,
+    now: datetime | None = None,
+) -> dict[str, dict[str, int]]:
+    """指定日のカテゴリ別に完了件数と未完了件数を返す。"""
+    current = now or datetime.now().astimezone()
+    completed = completion_events_for_date(target_date, current)
+    remaining = _date_reminders(target_date, current)
+
+    progress: dict[str, dict[str, int]] = {}
+    for event in completed:
+        category = str(event.get("category") or "").strip() or "未分類"
+        bucket = progress.setdefault(category, {"completed": 0, "remaining": 0})
+        bucket["completed"] += 1
+    for item in remaining:
+        category = str(item.get("category") or "").strip() or "未分類"
+        bucket = progress.setdefault(category, {"completed": 0, "remaining": 0})
+        bucket["remaining"] += 1
+
+    return dict(
+        sorted(
+            progress.items(),
+            key=lambda pair: (
+                -(pair[1]["completed"] + pair[1]["remaining"]),
+                pair[0],
+            ),
+        )
+    )
 
 
 def delete_reminder(reminder_id: str) -> bool:
