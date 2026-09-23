@@ -1548,6 +1548,50 @@ def main() -> int:
     assert duration_total_month_route["kind"] == "reminder_duration_total"
     assert duration_total_month_route["query"] == "month"
 
+    category_duration_summary_week_route = route_command(
+        "今週のカテゴリ別予定時間を教えて",
+        {"confidence": 0.10},
+    )
+    assert category_duration_summary_week_route is not None
+    assert (
+        category_duration_summary_week_route["kind"]
+        == "reminder_category_duration_summary"
+    )
+    assert category_duration_summary_week_route["query"] == "week"
+
+    category_duration_summary_tomorrow_route = route_command(
+        "明日のカテゴリごとの時間内訳",
+        {"confidence": 0.10},
+    )
+    assert category_duration_summary_tomorrow_route is not None
+    assert (
+        category_duration_summary_tomorrow_route["kind"]
+        == "reminder_category_duration_summary"
+    )
+    assert category_duration_summary_tomorrow_route["query"] == "tomorrow"
+
+    location_duration_summary_month_route = route_command(
+        "今月の場所別予定時間",
+        {"confidence": 0.10},
+    )
+    assert location_duration_summary_month_route is not None
+    assert (
+        location_duration_summary_month_route["kind"]
+        == "reminder_location_duration_summary"
+    )
+    assert location_duration_summary_month_route["query"] == "month"
+
+    location_duration_summary_today_route = route_command(
+        "今日の場所ごとの時間合計を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_duration_summary_today_route is not None
+    assert (
+        location_duration_summary_today_route["kind"]
+        == "reminder_location_duration_summary"
+    )
+    assert location_duration_summary_today_route["query"] == "today"
+
     category_duration_week_route = route_command(
         "学校カテゴリの今週の予定時間合計",
         {"confidence": 0.10},
@@ -2607,6 +2651,81 @@ def main() -> int:
                 assert len(
                     meina_reminders.reminders_missing_duration(monthly_items)
                 ) == 17
+
+                weekly_category_duration = (
+                    meina_reminders.reminder_group_duration_summary(
+                        weekly_items,
+                        group_by="category",
+                    )
+                )
+                assert weekly_category_duration == {
+                    "学校": {
+                        "total_minutes": 210,
+                        "timed_count": 6,
+                        "missing_count": 5,
+                    },
+                }
+
+                weekly_location_duration = (
+                    meina_reminders.reminder_group_duration_summary(
+                        weekly_items,
+                        group_by="location",
+                    )
+                )
+                assert weekly_location_duration == {
+                    "教室": {
+                        "total_minutes": 150,
+                        "timed_count": 5,
+                        "missing_count": 5,
+                    },
+                    "自習室": {
+                        "total_minutes": 60,
+                        "timed_count": 1,
+                        "missing_count": 0,
+                    },
+                }
+
+                monthly_category_duration = (
+                    meina_reminders.reminder_group_duration_summary(
+                        monthly_items,
+                        group_by="category",
+                    )
+                )
+                assert monthly_category_duration == {
+                    "学校": {
+                        "total_minutes": 570,
+                        "timed_count": 18,
+                        "missing_count": 17,
+                    },
+                    "配信": {
+                        "total_minutes": 90,
+                        "timed_count": 1,
+                        "missing_count": 0,
+                    },
+                }
+
+                monthly_location_duration = (
+                    meina_reminders.reminder_group_duration_summary(
+                        monthly_items,
+                        group_by="location",
+                    )
+                )
+                assert monthly_location_duration == {
+                    "教室": {
+                        "total_minutes": 510,
+                        "timed_count": 17,
+                        "missing_count": 17,
+                    },
+                    "自習室": {
+                        "total_minutes": 150,
+                        "timed_count": 2,
+                        "missing_count": 0,
+                    },
+                }
+                assert meina_reminders.reminder_group_duration_summary(
+                    monthly_items,
+                    group_by="invalid",
+                ) == {}
             finally:
                 meina_reminders.REMINDER_PATH = duration_scope_original_path
 
