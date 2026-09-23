@@ -1104,6 +1104,28 @@ def main() -> int:
     assert location_list_explicit_route["kind"] == "reminder_location_list"
     assert location_list_explicit_route["query"] == "図書館"
 
+    scoped_location_list_route = route_command(
+        "明日の図書館での予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert scoped_location_list_route is not None
+    assert scoped_location_list_route["kind"] == "reminder_location_list"
+    assert scoped_location_list_route["query"] == {
+        "scope": "tomorrow",
+        "location": "図書館",
+    }
+
+    scoped_location_list_reverse_route = route_command(
+        "場所が図書館の今月の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert scoped_location_list_reverse_route is not None
+    assert scoped_location_list_reverse_route["kind"] == "reminder_location_list"
+    assert scoped_location_list_reverse_route["query"] == {
+        "scope": "month",
+        "location": "図書館",
+    }
+
     missing_location_route = route_command(
         "場所未設定の予定を教えて",
         {"confidence": 0.10},
@@ -1134,6 +1156,28 @@ def main() -> int:
     assert category_list_route is not None
     assert category_list_route["kind"] == "reminder_category_list"
     assert category_list_route["query"] == "学校"
+
+    scoped_category_list_route = route_command(
+        "今週の学校カテゴリの予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert scoped_category_list_route is not None
+    assert scoped_category_list_route["kind"] == "reminder_category_list"
+    assert scoped_category_list_route["query"] == {
+        "scope": "week",
+        "category": "学校",
+    }
+
+    scoped_category_list_reverse_route = route_command(
+        "学校カテゴリの今月の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert scoped_category_list_reverse_route is not None
+    assert scoped_category_list_reverse_route["kind"] == "reminder_category_list"
+    assert scoped_category_list_reverse_route["query"] == {
+        "scope": "month",
+        "category": "学校",
+    }
 
     category_summary_route = route_command(
         "今日のカテゴリ別件数",
@@ -2726,6 +2770,43 @@ def main() -> int:
                     monthly_items,
                     group_by="invalid",
                 ) == {}
+
+                scoped_week_school = meina_reminders.filter_reminders_by_metadata(
+                    meina_reminders.remaining_scope_reminders(
+                        duration_scope_now,
+                        scope="week",
+                    ),
+                    category="学校",
+                )
+                assert len(scoped_week_school) == 11
+
+                scoped_tomorrow_classroom = (
+                    meina_reminders.filter_reminders_by_metadata(
+                        meina_reminders.remaining_scope_reminders(
+                            duration_scope_now,
+                            scope="tomorrow",
+                        ),
+                        location="教室",
+                    )
+                )
+                assert len(scoped_tomorrow_classroom) == 2
+
+                scoped_month_study_room = (
+                    meina_reminders.filter_reminders_by_metadata(
+                        meina_reminders.remaining_scope_reminders(
+                            duration_scope_now,
+                            scope="month",
+                        ),
+                        location="自習室",
+                    )
+                )
+                assert {
+                    item["text"]
+                    for item in scoped_month_study_room
+                } == {
+                    "今日の単発",
+                    "今月だけの単発",
+                }
             finally:
                 meina_reminders.REMINDER_PATH = duration_scope_original_path
 
