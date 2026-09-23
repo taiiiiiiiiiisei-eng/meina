@@ -158,7 +158,8 @@ def route_command(text, frame):
             r"(?:\s*まで)?"
             r"(?:\s*(?:で|の中で|の)\s*(?P<need_num>\d{1,4})\s*(?P<need_unit>分|時間)(?:以上)?)?"
             r"(?:\s*の)?"
-            r"(?:空き時間|空いてる時間|空いている時間|空き)",
+            r"(?:空き時間|空いてる時間|空いている時間|空き|"
+            r"どれくらい空いてる|何分空いてる)",
             str(text),
         )
         if free_match and not any(
@@ -185,8 +186,21 @@ def route_command(text, frame):
                 and 0 <= em <= 59
                 and (eh, em) > (sh, sm)
             ):
+                aggregate_free = any(
+                    p in compact
+                    for p in (
+                        "空き時間合計",
+                        "空きの合計",
+                        "何分空いて",
+                        "どれくらい空いて",
+                    )
+                )
                 return {
-                    "kind": "reminder_free_time",
+                    "kind": (
+                        "reminder_free_total"
+                        if aggregate_free
+                        else "reminder_free_time"
+                    ),
                     "target": "local",
                     "query": {
                         "day": free_match.group("day") or "今日",
@@ -203,6 +217,47 @@ def route_command(text, frame):
                     },
                     "confidence": 1.0,
                 }
+
+    if text and any(p in compact for p in (
+        "所要時間未設定の予定",
+        "所要時間がない予定",
+        "時間未設定の予定",
+        "長さ未設定の予定",
+    )):
+        return {
+            "kind": "reminder_missing_duration",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日の予定時間合計",
+        "今日の予定の時間合計",
+        "今日何時間予定",
+        "今日どれくらい予定入ってる",
+        "今日の予定時間",
+    )):
+        return {
+            "kind": "reminder_duration_total",
+            "target": "local",
+            "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "明日の予定時間合計",
+        "明日の予定の時間合計",
+        "明日何時間予定",
+        "明日どれくらい予定入ってる",
+        "明日の予定時間",
+    )):
+        return {
+            "kind": "reminder_duration_total",
+            "target": "local",
+            "query": "tomorrow",
+            "confidence": 1.0,
+        }
 
     if text and any(p in compact for p in (
         "今日の予定まとめ",
