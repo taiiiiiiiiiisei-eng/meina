@@ -35,6 +35,9 @@ REQUIRED_KINDS = (
     "reminder_remaining_today",
     "reminder_day_load",
     "reminder_week_peak",
+    "reminder_next_action",
+    "reminder_priority_today",
+    "reminder_focus_slot",
     "reminder_move_free",
     "reminder_duration",
     "reminder_important",
@@ -166,6 +169,9 @@ def main() -> int:
         return 1
     if "remaining_week_schedule_summary" not in agent_text:
         print("FAILED: 今週ピーク日の分析配線がありません")
+        return 1
+    if "next_priority_reminder" not in agent_text or "prioritized_reminders" not in agent_text:
+        print("FAILED: 優先予定・次アクションの配線がありません")
         return 1
     if "move_reminder_occurrence" not in agent_text:
         print("FAILED: 既存予定の空き枠移動配線がありません")
