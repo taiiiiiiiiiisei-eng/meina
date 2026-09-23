@@ -1496,8 +1496,13 @@ def _execute_routed_command_base(route):
             from meina_reminders import completion_location_progress
 
             current = datetime.now().astimezone()
-            scope = "week" if str(query or "") == "week" else "today"
-            label = "今週" if scope == "week" else "今日"
+            requested_scope = str(query or "")
+            if requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
             progress = completion_location_progress(
                 current.date(),
                 current,
@@ -1516,8 +1521,13 @@ def _execute_routed_command_base(route):
             from meina_reminders import completion_category_progress
 
             current = datetime.now().astimezone()
-            scope = "week" if str(query or "") == "week" else "today"
-            label = "今週" if scope == "week" else "今日"
+            requested_scope = str(query or "")
+            if requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
             progress = completion_category_progress(
                 current.date(),
                 current,
@@ -1537,8 +1547,13 @@ def _execute_routed_command_base(route):
                 remaining_scope_reminders,
             )
 
-            scope = "week" if str(query or "") == "week" else "today"
-            label = "今週" if scope == "week" else "今日"
+            requested_scope = str(query or "")
+            if requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
             items = remaining_scope_reminders(scope=scope)
             counts = reminder_category_counts(items)
             if not counts:
@@ -1555,8 +1570,13 @@ def _execute_routed_command_base(route):
                 remaining_scope_reminders,
             )
 
-            scope = "week" if str(query or "") == "week" else "today"
-            label = "今週" if scope == "week" else "今日"
+            requested_scope = str(query or "")
+            if requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
             items = remaining_scope_reminders(scope=scope)
             counts = reminder_location_counts(items)
             if not counts:
