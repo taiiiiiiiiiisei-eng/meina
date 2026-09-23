@@ -618,6 +618,38 @@ def main() -> int:
         is None
     )
 
+    location_set = meina_reminder_parser.parse_reminder_location_command(
+        "宿題の予定の場所を図書館にして",
+        now,
+    )
+    assert location_set is not None
+    assert location_set["target"] == "宿題"
+    assert location_set["operation"] == "set"
+    assert location_set["location"] == "図書館"
+
+    location_get = meina_reminder_parser.parse_reminder_location_command(
+        "18時の宿題の予定の場所を教えて",
+        now,
+    )
+    assert location_get is not None
+    assert location_get["target"] == "宿題"
+    assert location_get["hour"] == 18
+    assert location_get["operation"] == "get"
+
+    location_clear = meina_reminder_parser.parse_reminder_location_command(
+        "宿題の予定の場所を解除して",
+        now,
+    )
+    assert location_clear is not None
+    assert location_clear["operation"] == "clear"
+    assert (
+        meina_reminder_parser.parse_reminder_location_command(
+            "宿題の予定の場所を解除していい？",
+            now,
+        )
+        is None
+    )
+
     category_set = meina_reminder_parser.parse_reminder_category_command(
         "宿題の予定を学校カテゴリにして",
         now,
@@ -1020,6 +1052,32 @@ def main() -> int:
     assert note_clear_route["kind"] == "reminder_note"
     assert note_clear_route["query"]["operation"] == "clear"
     assert note_clear_route["query"]["hour"] == 18
+
+    location_set_route = route_command(
+        "宿題の予定の場所を図書館にして",
+        {"confidence": 0.10},
+    )
+    assert location_set_route is not None
+    assert location_set_route["kind"] == "reminder_location"
+    assert location_set_route["query"]["operation"] == "set"
+    assert location_set_route["query"]["location"] == "図書館"
+
+    location_get_route = route_command(
+        "18時の宿題の予定の場所を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_get_route is not None
+    assert location_get_route["kind"] == "reminder_location"
+    assert location_get_route["query"]["operation"] == "get"
+    assert location_get_route["query"]["hour"] == 18
+
+    location_clear_route = route_command(
+        "宿題の予定の場所を解除して",
+        {"confidence": 0.10},
+    )
+    assert location_clear_route is not None
+    assert location_clear_route["kind"] == "reminder_location"
+    assert location_clear_route["query"]["operation"] == "clear"
 
     category_list_route = route_command(
         "学校カテゴリの予定を教えて",
@@ -1582,6 +1640,10 @@ def main() -> int:
                 deleted["id"],
                 True,
             )
+            assert meina_reminders.set_reminder_location(
+                deleted["id"],
+                "図書館",
+            )
             assert meina_reminders.delete_reminder(
                 deleted["id"],
                 now=datetime.fromisoformat("2030-01-02T09:00:00+09:00"),
@@ -1594,6 +1656,7 @@ def main() -> int:
             assert deleted_items[0]["category"] == "学校"
             assert deleted_items[0]["important"] is True
             assert deleted_items[0]["duration_minutes"] == 45
+            assert deleted_items[0]["location"] == "図書館"
             assert meina_reminders.find_deleted_reminders("削 除 テスト")[0]["id"] == deleted["id"]
 
             restored_deleted = meina_reminders.restore_deleted_reminder(
@@ -1604,6 +1667,7 @@ def main() -> int:
             assert restored_deleted["category"] == "学校"
             assert restored_deleted["important"] is True
             assert restored_deleted["duration_minutes"] == 45
+            assert restored_deleted["location"] == "図書館"
             assert "deleted_at" not in restored_deleted
             assert meina_reminders.list_deleted_reminders() == []
             assert meina_reminders.find_reminders("削除テスト")[0]["id"] == deleted["id"]
@@ -2225,6 +2289,39 @@ def main() -> int:
                 "メモ",
             ) is None
 
+            location_item = meina_reminders.add_reminder(
+                "場所テスト",
+                "2050-01-02T14:30:00+09:00",
+            )
+            located = meina_reminders.set_reminder_location(
+                location_item["id"],
+                "彦根市立図書館",
+            )
+            assert located is not None
+            assert located["location"] == "彦根市立図書館"
+            assert (
+                meina_reminders.format_reminder_location(located)
+                == "彦根市立図書館"
+            )
+            assert meina_reminders.set_reminder_location(
+                location_item["id"],
+                "a" * 101,
+            ) is None
+            assert meina_reminders.set_reminder_location(
+                location_item["id"],
+                "改行\n入り",
+            ) is None
+            cleared_location = meina_reminders.set_reminder_location(
+                location_item["id"],
+                None,
+            )
+            assert cleared_location is not None
+            assert "location" not in cleared_location
+            assert meina_reminders.set_reminder_location(
+                "missing-id",
+                "図書館",
+            ) is None
+
             category_item = meina_reminders.add_reminder(
                 "カテゴリテスト",
                 "2050-01-02T15:00:00+09:00",
@@ -2690,6 +2787,10 @@ def main() -> int:
                     school_done["id"],
                     "提出前に見直す",
                 )
+                assert meina_reminders.set_reminder_location(
+                    school_done["id"],
+                    "自習室",
+                )
                 stream_done = meina_reminders.add_reminder(
                     "配信準備完了",
                     "2030-01-07T11:00:00+09:00",
@@ -2769,6 +2870,7 @@ def main() -> int:
                     "2030-01-07T10:30:00+09:00"
                 )
                 assert stored_school["note"] == "提出前に見直す"
+                assert stored_school["location"] == "自習室"
 
                 daily_history = meina_reminders.add_reminder(
                     "毎日の学校確認",
@@ -2783,6 +2885,10 @@ def main() -> int:
                 assert meina_reminders.set_reminder_note(
                     daily_history["id"],
                     "毎回の確認メモ",
+                )
+                assert meina_reminders.set_reminder_location(
+                    daily_history["id"],
+                    "教室",
                 )
                 assert meina_reminders.complete_reminder(
                     daily_history["id"],
@@ -2804,6 +2910,7 @@ def main() -> int:
                 )
                 assert recurring_event["category"] == "学校"
                 assert recurring_event["note"] == "毎回の確認メモ"
+                assert recurring_event["location"] == "教室"
                 assert (
                     meina_reminders.restore_completed_reminder(
                         daily_history["id"]
