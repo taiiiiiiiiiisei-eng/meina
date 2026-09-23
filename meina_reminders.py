@@ -1009,11 +1009,18 @@ def remaining_scope_reminders(
     *,
     scope: str = "today",
 ) -> list[dict[str, Any]]:
-    """今日または今週の未完了予定を返す。今週は定期予定を投影する。"""
+    """今日・明日・今週の未完了予定を返す。未来分は定期予定を投影する。"""
     current = now or datetime.now().astimezone()
     normalized = str(scope or "today").strip().lower()
     if normalized == "today":
         return _date_reminders(current.date(), current)
+    if normalized == "tomorrow":
+        tomorrow = current.date() + timedelta(days=1)
+        return project_reminder_occurrences(
+            tomorrow,
+            tomorrow,
+            current,
+        )
     if normalized != "week":
         return []
 
@@ -1952,12 +1959,22 @@ def _completion_group_progress_items(
     current: datetime,
     scope: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """今日/今週のグループ別進捗に使う完了・残り予定を返す。"""
+    """今日/明日/今週のグループ別進捗に使う完了・残り予定を返す。"""
     normalized = str(scope or "today").strip().lower()
     if normalized == "today":
         return (
             completion_events_for_date(target_date, current),
             _date_reminders(target_date, current),
+        )
+    if normalized == "tomorrow":
+        tomorrow = current.date() + timedelta(days=1)
+        return (
+            completion_events_for_date(tomorrow, current),
+            project_reminder_occurrences(
+                tomorrow,
+                tomorrow,
+                current,
+            ),
         )
     if normalized != "week":
         return [], []
@@ -1996,7 +2013,7 @@ def completion_category_progress(
     *,
     scope: str = "today",
 ) -> dict[str, dict[str, int]]:
-    """今日または今週のカテゴリ別に完了件数と未完了件数を返す。"""
+    """今日・明日・今週のカテゴリ別に完了件数と未完了件数を返す。"""
     current = now or datetime.now().astimezone()
     completed, remaining = _completion_group_progress_items(
         target_date,
@@ -2031,7 +2048,7 @@ def completion_location_progress(
     *,
     scope: str = "today",
 ) -> dict[str, dict[str, int]]:
-    """今日または今週の場所別に完了件数と未完了件数を返す。"""
+    """今日・明日・今週の場所別に完了件数と未完了件数を返す。"""
     current = now or datetime.now().astimezone()
     completed, remaining = _completion_group_progress_items(
         target_date,
