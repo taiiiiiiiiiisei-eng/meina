@@ -570,6 +570,19 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "今週の場所別進捗",
+        "今週の場所ごとの進捗",
+        "今週場所別にどれくらい終わった",
+        "今週場所ごとにどれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_location_progress",
+            "target": "local",
+            "query": "week",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "今日の場所別進捗",
         "今日の場所ごとの進捗",
         "今日場所別にどれくらい終わった",
@@ -579,6 +592,19 @@ def route_command(text, frame):
             "kind": "reminder_location_progress",
             "target": "local",
             "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今週のカテゴリ別進捗",
+        "今週のカテゴリごとの進捗",
+        "今週カテゴリ別にどれくらい終わった",
+        "今週カテゴリごとにどれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_category_progress",
+            "target": "local",
+            "query": "week",
             "confidence": 1.0,
         }
 
