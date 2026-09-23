@@ -1203,6 +1203,14 @@ def main() -> int:
     assert location_progress_route["kind"] == "reminder_location_progress"
     assert location_progress_route["query"] == "today"
 
+    weekly_location_progress_route = route_command(
+        "今週の場所別進捗",
+        {"confidence": 0.10},
+    )
+    assert weekly_location_progress_route is not None
+    assert weekly_location_progress_route["kind"] == "reminder_location_progress"
+    assert weekly_location_progress_route["query"] == "week"
+
     restore_completed_route = route_command(
         "18時の宿題の予定の完了を取り消して",
         {"confidence": 0.10},
@@ -1242,6 +1250,14 @@ def main() -> int:
     assert category_progress_route is not None
     assert category_progress_route["kind"] == "reminder_category_progress"
     assert category_progress_route["query"] == "today"
+
+    weekly_category_progress_route = route_command(
+        "今週のカテゴリ別進捗",
+        {"confidence": 0.10},
+    )
+    assert weekly_category_progress_route is not None
+    assert weekly_category_progress_route["kind"] == "reminder_category_progress"
+    assert weekly_category_progress_route["query"] == "week"
 
     category_set_route = route_command(
         "宿題の予定を学校カテゴリにして",
@@ -3143,6 +3159,46 @@ def main() -> int:
                 )
                 assert week_progress["completed_count"] == 3
                 assert week_progress["remaining_count"] >= 1
+
+                weekly_category_progress = (
+                    meina_reminders.completion_category_progress(
+                        history_now.date(),
+                        history_now,
+                        scope="week",
+                    )
+                )
+                assert weekly_category_progress["学校"] == {
+                    "completed": 2,
+                    "remaining": 7,
+                }
+                assert weekly_category_progress["配信"] == {
+                    "completed": 1,
+                    "remaining": 0,
+                }
+                assert weekly_category_progress["未分類"] == {
+                    "completed": 0,
+                    "remaining": 1,
+                }
+
+                weekly_location_progress = (
+                    meina_reminders.completion_location_progress(
+                        history_now.date(),
+                        history_now,
+                        scope="week",
+                    )
+                )
+                assert weekly_location_progress["自習室"] == {
+                    "completed": 1,
+                    "remaining": 1,
+                }
+                assert weekly_location_progress["教室"] == {
+                    "completed": 1,
+                    "remaining": 6,
+                }
+                assert weekly_location_progress["場所未設定"] == {
+                    "completed": 1,
+                    "remaining": 1,
+                }
 
                 no_old_events = meina_reminders.completion_events(
                     datetime.fromisoformat("2029-12-01T00:00:00+09:00").date(),
