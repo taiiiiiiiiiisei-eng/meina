@@ -710,6 +710,79 @@ def parse_reminder_move_free_command(
     }
 
 
+
+_CATEGORY_SET_ACTION = (
+    r"(?:にして|にしてください|"
+    r"設定して|設定してください|"
+    r"変更して|変更してください|"
+    r"変えて|変えてください)"
+)
+_CATEGORY_CLEAR_ACTION = (
+    r"(?:解除(?:して|してください)?|"
+    r"なし(?:にして|にしてください)?|"
+    r"外して|外してください|"
+    r"消して|消してください)"
+)
+
+
+def parse_reminder_category_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定カテゴリの設定・解除命令を解析する。"""
+    raw = str(text or "").strip()
+    if not raw or raw.rstrip().endswith(("?", "？")):
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw)
+    set_patterns = (
+        (
+            rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を|は)?"
+            rf"(?P<category>.+?)カテゴリ(?:に)?{_CATEGORY_SET_ACTION}$"
+        ),
+        (
+            rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+            rf"カテゴリ(?:を|は)?(?P<category>.+?)(?:に)?{_CATEGORY_SET_ACTION}$"
+        ),
+    )
+    clear_pattern = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"カテゴリ(?:を|は)?{_CATEGORY_CLEAR_ACTION}$"
+    )
+
+    for pattern in set_patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        category = match.group("category").strip()
+        if not category or len(category) > 32:
+            return None
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "category": category,
+        }
+
+    match = re.fullmatch(clear_pattern, compact)
+    if match:
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "category": None,
+        }
+    return None
+
+
 _IMPORTANT_SET_ACTION = (
     r"(?:重要(?:にして|にしてください|設定して|設定してください)|"
     r"大事(?:にして|にしてください|設定して|設定してください)|"
