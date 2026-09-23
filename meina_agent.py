@@ -928,6 +928,164 @@ def _execute_routed_command_base(route):
                         f"{minimum_minutes}分以上の空き時間は、"
                         f"{slot_text}です。"
                     )
+        elif kind == "reminder_remaining_today":
+            from datetime import datetime, timedelta
+            from meina_reminders import (
+                reminder_duration_summary,
+                schedule_window_stats,
+                today_reminders,
+            )
+
+            current = datetime.now().astimezone()
+            start_at = current.replace(second=0, microsecond=0)
+            if start_at < current:
+                start_at += timedelta(minutes=1)
+            end_at = (
+                current.replace(
+                    hour=0,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
+                )
+                + timedelta(days=1)
+            )
+
+            if start_at >= end_at:
+                result = "今日は残り時間がありません。"
+            else:
+                stats = schedule_window_stats(start_at, end_at)
+                today_summary = reminder_duration_summary(today_reminders())
+                result = (
+                    f"今日の残りは{_format_minutes(stats['window_minutes'])}です。"
+                    f"空きは{_format_minutes(stats['free_minutes'])}、"
+                    f"予定で埋まっているのは"
+                    f"{_format_minutes(stats['busy_minutes'])}です。"
+                )
+                if stats["longest_free_minutes"]:
+                    result += (
+                        "最長の連続した空きは"
+                        f"{_format_minutes(stats['longest_free_minutes'])}です。"
+                    )
+                if today_summary["missing_count"]:
+                    result += (
+                        f"所要時間未設定の予定が"
+                        f"{today_summary['missing_count']}件あるため、"
+                        "実際の空き時間はこれより少ない可能性があります。"
+                    )
+        elif kind == "reminder_day_load":
+            from datetime import datetime, timedelta
+            from meina_reminders import day_schedule_summary
+
+            current = datetime.now().astimezone()
+            is_tomorrow = str(query or "") == "tomorrow"
+            target_date = (
+                current.date() + timedelta(days=1)
+                if is_tomorrow
+                else current.date()
+            )
+            label = "明日" if is_tomorrow else "今日"
+            summary = day_schedule_summary(target_date, current)
+
+            if summary["count"] == 0:
+                result = f"{label}の未完了予定はありません。"
+            else:
+                result = (
+                    f"{label}の未完了予定は{summary['count']}件です。"
+                )
+                if summary["timed_count"]:
+                    result += (
+                        "所要時間設定済みは"
+                        f"{summary['timed_count']}件で、合計"
+                        f"{_format_minutes(summary['total_minutes'])}です。"
+                    )
+                if summary["important_count"]:
+                    result += (
+                        f"重要予定は{summary['important_count']}件あります。"
+                    )
+                if summary["conflict_pairs"]:
+                    result += (
+                        f"時間が重なる組み合わせが"
+                        f"{summary['conflict_pairs']}組あります。"
+                    )
+                if summary["missing_count"]:
+                    result += (
+                        f"所要時間未設定が{summary['missing_count']}件あるため、"
+                        "予定時間の合計は暫定です。"
+                    )
+        elif kind == "reminder_week_peak":
+            from datetime import date, datetime
+            from meina_reminders import remaining_week_schedule_summary
+
+            current = datetime.now().astimezone()
+            summaries = remaining_week_schedule_summary(current)
+            active = [summary for summary in summaries if summary["count"] > 0]
+
+            if not active:
+                result = "今週これからの予定はありません。"
+            else:
+                mode = str(query or "count")
+                weekdays = ("月", "火", "水", "木", "金", "土", "日")
+
+                if mode == "duration":
+                    max_value = max(
+                        summary["total_minutes"]
+                        for summary in active
+                    )
+                    if max_value > 0:
+                        selected = [
+                            summary
+                            for summary in active
+                            if summary["total_minutes"] == max_value
+                        ]
+                        label_text = (
+                            "所要時間設定済みの予定で見ると、"
+                            "今週これから最も予定時間が長いのは"
+                        )
+                        value_text = _format_minutes(max_value)
+                    else:
+                        max_count = max(summary["count"] for summary in active)
+                        selected = [
+                            summary
+                            for summary in active
+                            if summary["count"] == max_count
+                        ]
+                        label_text = (
+                            "所要時間設定済みの予定がないため件数で見ると、"
+                            "今週これから予定が最も多いのは"
+                        )
+                        value_text = f"{max_count}件"
+                else:
+                    max_count = max(summary["count"] for summary in active)
+                    selected = [
+                        summary
+                        for summary in active
+                        if summary["count"] == max_count
+                    ]
+                    label_text = "今週これから予定が最も多いのは"
+                    value_text = f"{max_count}件"
+
+                day_labels = []
+                for summary in selected:
+                    target = date.fromisoformat(summary["date"])
+                    day_labels.append(
+                        f"{target.month}月{target.day}日"
+                        f"{weekdays[target.weekday()]}曜"
+                    )
+                result = (
+                    label_text
+                    + "、".join(day_labels)
+                    + f"で{value_text}です。"
+                )
+
+                missing_total = sum(
+                    summary["missing_count"]
+                    for summary in active
+                )
+                if mode == "duration" and missing_total:
+                    result += (
+                        f"今週これから所要時間未設定が"
+                        f"{missing_total}件あるため、時間比較は暫定です。"
+                    )
         elif kind == "reminder_duration_total":
             from meina_reminders import (
                 reminder_duration_summary,
