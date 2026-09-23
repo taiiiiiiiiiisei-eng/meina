@@ -1867,6 +1867,55 @@ def _execute_routed_command_base(route):
                     else f"「{category}」カテゴリの予定です。\n"
                     + _format_reminders(items)
                 )
+        elif kind == "reminder_setup_gaps":
+            from meina_reminders import (
+                format_reminder_due,
+                reminder_setup_gaps,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            summary_only = bool(request.get("summary"))
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            gaps = reminder_setup_gaps(source)
+            subject = (
+                f"{scope_labels[requested_scope]}の設定不足予定"
+                if requested_scope in scope_labels
+                else "設定不足の予定"
+            )
+
+            if summary_only:
+                result = f"{subject}は{len(gaps)}件です。"
+            elif not gaps:
+                result = f"{subject}はありません。"
+            else:
+                lines = []
+                for entry in gaps:
+                    item = entry["item"]
+                    due_text = format_reminder_due(item.get("due_at", ""))
+                    paused_text = "、一時停止中" if item.get("paused") else ""
+                    missing_text = "・".join(entry["missing"])
+                    lines.append(
+                        f"・{item.get('text', '')}、{due_text}{paused_text}"
+                        f"：{missing_text}"
+                    )
+                result = (
+                    f"{subject}は{len(gaps)}件です。\n"
+                    + "\n".join(lines)
+                )
         elif kind == "reminder_important":
             from meina_reminders import (
                 important_reminders,
