@@ -1088,6 +1088,37 @@ def main() -> int:
     assert location_clear_route["kind"] == "reminder_location"
     assert location_clear_route["query"]["operation"] == "clear"
 
+    location_list_route = route_command(
+        "図書館での予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_list_route is not None
+    assert location_list_route["kind"] == "reminder_location_list"
+    assert location_list_route["query"] == "図書館"
+
+    location_list_explicit_route = route_command(
+        "場所が図書館の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_list_explicit_route is not None
+    assert location_list_explicit_route["kind"] == "reminder_location_list"
+    assert location_list_explicit_route["query"] == "図書館"
+
+    missing_location_route = route_command(
+        "場所未設定の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert missing_location_route is not None
+    assert missing_location_route["kind"] == "reminder_missing_location"
+
+    location_summary_route = route_command(
+        "今日の場所別件数",
+        {"confidence": 0.10},
+    )
+    assert location_summary_route is not None
+    assert location_summary_route["kind"] == "reminder_location_summary"
+    assert location_summary_route["query"] == "today"
+
     category_list_route = route_command(
         "学校カテゴリの予定を教えて",
         {"confidence": 0.10},
@@ -2312,6 +2343,29 @@ def main() -> int:
                 meina_reminders.format_reminder_location(located)
                 == "彦根市立図書館"
             )
+            location_matches = meina_reminders.reminders_by_location(
+                "彦 根 市 立 図 書 館"
+            )
+            assert [item["id"] for item in location_matches] == [
+                location_item["id"]
+            ]
+            assert location_item["id"] not in {
+                item["id"]
+                for item in meina_reminders.reminders_missing_location()
+            }
+            location_counts = meina_reminders.reminder_location_counts(
+                [
+                    {"location": "図書館"},
+                    {"location": "図書館"},
+                    {"location": "学校"},
+                    {},
+                ]
+            )
+            assert location_counts == {
+                "図書館": 2,
+                "場所未設定": 1,
+                "学校": 1,
+            }
             assert meina_reminders.set_reminder_location(
                 location_item["id"],
                 "a" * 101,
@@ -2326,6 +2380,10 @@ def main() -> int:
             )
             assert cleared_location is not None
             assert "location" not in cleared_location
+            assert location_item["id"] in {
+                item["id"]
+                for item in meina_reminders.reminders_missing_location()
+            }
             assert meina_reminders.set_reminder_location(
                 "missing-id",
                 "図書館",
