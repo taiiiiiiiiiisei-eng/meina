@@ -976,6 +976,43 @@ def filter_reminders_by_note_presence(
     return result
 
 
+def filter_reminders_by_pre_notify_presence(
+    items: list[dict[str, Any]],
+    *,
+    has_pre_notify: bool,
+) -> list[dict[str, Any]]:
+    """予定群を事前通知設定の有無で絞り込み、時刻順で返す。"""
+    result: list[dict[str, Any]] = []
+    for item in items:
+        try:
+            minutes = int(item.get("notify_before_minutes") or 0)
+        except (TypeError, ValueError):
+            minutes = 0
+        enabled = 1 <= minutes <= 1440
+        if enabled is bool(has_pre_notify):
+            result.append(item)
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def filter_recurring_reminders(
+    items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """予定群から定期予定だけを時刻順で返す。"""
+    result = [
+        item
+        for item in items
+        if item.get("repeat_rule") in (
+            "daily",
+            "weekdays",
+            "weekly",
+            "monthly",
+        )
+    ]
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
 def set_reminder_location(
     reminder_id: str,
     location: str | None,
