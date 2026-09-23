@@ -1583,6 +1583,7 @@ def advance_recurring_reminder(
                 "category",
                 "duration_minutes",
                 "important",
+                "note",
                 "repeat_rule",
                 "repeat_day",
             ):
@@ -1723,7 +1724,7 @@ def completion_events(
                 "due_at": str(item.get("due_at") or ""),
                 "completed_at": str(completed_at),
             }
-            for key in ("category", "duration_minutes", "important"):
+            for key in ("category", "duration_minutes", "important", "note"):
                 if key in item:
                     event[key] = item[key]
             if _category_matches(event):
