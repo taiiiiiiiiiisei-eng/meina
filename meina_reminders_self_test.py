@@ -1064,6 +1064,54 @@ def main() -> int:
     assert detail_reminder_route["kind"] == "reminder_detail"
     assert detail_reminder_route["query"]["target"] == "宿題"
 
+    note_presence_week_route = route_command(
+        "今週のメモ付き予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert note_presence_week_route is not None
+    assert note_presence_week_route["kind"] == "reminder_note_presence"
+    assert note_presence_week_route["query"] == {
+        "scope": "week",
+        "has_note": True,
+        "summary": False,
+    }
+
+    note_missing_tomorrow_route = route_command(
+        "明日のメモ未設定の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert note_missing_tomorrow_route is not None
+    assert note_missing_tomorrow_route["kind"] == "reminder_note_presence"
+    assert note_missing_tomorrow_route["query"] == {
+        "scope": "tomorrow",
+        "has_note": False,
+        "summary": False,
+    }
+
+    note_presence_month_count_route = route_command(
+        "今月のメモ付き予定は何件？",
+        {"confidence": 0.10},
+    )
+    assert note_presence_month_count_route is not None
+    assert note_presence_month_count_route["kind"] == "reminder_note_presence"
+    assert note_presence_month_count_route["query"] == {
+        "scope": "month",
+        "has_note": True,
+        "summary": True,
+    }
+
+    note_missing_all_route = route_command(
+        "メモなし予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert note_missing_all_route is not None
+    assert note_missing_all_route["kind"] == "reminder_note_presence"
+    assert note_missing_all_route["query"] == {
+        "scope": "all",
+        "has_note": False,
+        "summary": False,
+    }
+
     note_set_route = route_command(
         "宿題の予定にメモを追加して「英語のワーク30ページ」",
         {"confidence": 0.10},
@@ -2632,6 +2680,10 @@ def main() -> int:
                     duration_daily_timed["id"],
                     "教室",
                 )
+                assert meina_reminders.set_reminder_note(
+                    duration_daily_timed["id"],
+                    "毎日の確認メモ",
+                )
                 duration_daily_missing = meina_reminders.add_reminder(
                     "毎日の時間なし",
                     "2051-03-15T20:00:00+09:00",
@@ -2657,6 +2709,10 @@ def main() -> int:
                 assert meina_reminders.set_reminder_location(
                     duration_month_once["id"],
                     "自習室",
+                )
+                assert meina_reminders.set_reminder_note(
+                    duration_month_once["id"],
+                    "配信準備メモ",
                 )
 
                 weekly_duration = meina_reminders.reminder_duration_summary(
@@ -2807,6 +2863,54 @@ def main() -> int:
                     monthly_items,
                     group_by="invalid",
                 ) == {}
+
+                weekly_with_note = (
+                    meina_reminders.filter_reminders_by_note_presence(
+                        weekly_items,
+                        has_note=True,
+                    )
+                )
+                assert len(weekly_with_note) == 5
+                assert {
+                    item["text"] for item in weekly_with_note
+                } == {"毎日の時間あり"}
+
+                weekly_without_note = (
+                    meina_reminders.filter_reminders_by_note_presence(
+                        weekly_items,
+                        has_note=False,
+                    )
+                )
+                assert len(weekly_without_note) == 6
+
+                monthly_with_note = (
+                    meina_reminders.filter_reminders_by_note_presence(
+                        monthly_items,
+                        has_note=True,
+                    )
+                )
+                assert len(monthly_with_note) == 18
+                assert {
+                    item["text"] for item in monthly_with_note
+                } == {
+                    "毎日の時間あり",
+                    "今月だけの単発",
+                }
+
+                basic_note_presence = (
+                    meina_reminders.filter_reminders_by_note_presence(
+                        [
+                            {"text": "あり", "note": "確認", "due_at": "2"},
+                            {"text": "空白", "note": "  ", "due_at": "1"},
+                            {"text": "なし", "due_at": "3"},
+                        ],
+                        has_note=False,
+                    )
+                )
+                assert [item["text"] for item in basic_note_presence] == [
+                    "空白",
+                    "なし",
+                ]
 
                 scoped_week_school = meina_reminders.filter_reminders_by_metadata(
                     meina_reminders.remaining_scope_reminders(
