@@ -1061,6 +1061,49 @@ def reminder_setup_gaps(
     return result
 
 
+def reminder_setup_gap_counts(
+    items: list[dict[str, Any]],
+) -> dict[str, int]:
+    """設定不足を項目別に集計する。同じ予定IDは1件として数える。"""
+    counts = {
+        "所要時間": 0,
+        "カテゴリ": 0,
+        "場所": 0,
+        "メモ": 0,
+        "事前通知": 0,
+    }
+    for entry in reminder_setup_gaps(items):
+        for label in entry.get("missing", []):
+            if label in counts:
+                counts[label] += 1
+    return {
+        label: count
+        for label, count in counts.items()
+        if count > 0
+    }
+
+
+def reminders_fully_configured(
+    items: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """5項目がすべて設定済みの予定をID単位で重複除外して返す。"""
+    unique: dict[str, dict[str, Any]] = {}
+    for item in sorted(items, key=lambda row: str(row.get("due_at", ""))):
+        reminder_id = str(item.get("id") or "").strip()
+        key = reminder_id or (
+            f"{item.get('text', '')}|{item.get('due_at', '')}"
+        )
+        if key not in unique:
+            unique[key] = item
+
+    result: list[dict[str, Any]] = []
+    for item in unique.values():
+        if not reminder_setup_gaps([item]):
+            result.append(dict(item))
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
 def set_reminder_location(
     reminder_id: str,
     location: str | None,
