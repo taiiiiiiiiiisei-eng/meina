@@ -511,6 +511,34 @@ def main() -> int:
         is None
     )
 
+    restore_completed = (
+        meina_reminder_parser.parse_reminder_restore_completed_command(
+            "宿題の予定を未完了に戻して",
+            now,
+        )
+    )
+    assert restore_completed is not None
+    assert restore_completed["target"] == "宿題"
+    assert restore_completed["hour"] is None
+
+    restore_completed_at_time = (
+        meina_reminder_parser.parse_reminder_restore_completed_command(
+            "18時の宿題の予定の完了を取り消して",
+            now,
+        )
+    )
+    assert restore_completed_at_time is not None
+    assert restore_completed_at_time["target"] == "宿題"
+    assert restore_completed_at_time["hour"] == 18
+
+    assert (
+        meina_reminder_parser.parse_reminder_restore_completed_command(
+            "宿題の予定を未完了に戻していい？",
+            now,
+        )
+        is None
+    )
+
     category_set = meina_reminder_parser.parse_reminder_category_command(
         "宿題の予定を学校カテゴリにして",
         now,
@@ -903,6 +931,37 @@ def main() -> int:
     assert category_summary_route is not None
     assert category_summary_route["kind"] == "reminder_category_summary"
     assert category_summary_route["query"] == "today"
+
+    completed_week_route = route_command(
+        "今週終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert completed_week_route is not None
+    assert completed_week_route["kind"] == "reminder_completed_period"
+    assert completed_week_route["query"] == {
+        "scope": "week",
+        "category": None,
+    }
+
+    category_completed_week_route = route_command(
+        "学校カテゴリで今週終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert category_completed_week_route is not None
+    assert category_completed_week_route["kind"] == "reminder_completed_period"
+    assert category_completed_week_route["query"] == {
+        "scope": "week",
+        "category": "学校",
+    }
+
+    restore_completed_route = route_command(
+        "18時の宿題の予定の完了を取り消して",
+        {"confidence": 0.10},
+    )
+    assert restore_completed_route is not None
+    assert restore_completed_route["kind"] == "reminder_restore_completed"
+    assert restore_completed_route["query"]["target"] == "宿題"
+    assert restore_completed_route["query"]["hour"] == 18
 
     completed_today_route = route_command(
         "今日終わった予定を教えて",
@@ -2472,6 +2531,35 @@ def main() -> int:
                     is False
                 )
 
+                restore_candidate = meina_reminders.add_reminder(
+                    "戻すテスト",
+                    "2030-01-07T11:30:00+09:00",
+                    duration_minutes=20,
+                )
+                assert meina_reminders.complete_reminder(
+                    restore_candidate["id"],
+                    now=datetime.fromisoformat("2030-01-07T11:40:00+09:00"),
+                )
+                completed_matches = meina_reminders.find_completed_reminders(
+                    "戻すテスト"
+                )
+                assert [item["id"] for item in completed_matches] == [
+                    restore_candidate["id"]
+                ]
+                restored = meina_reminders.restore_completed_reminder(
+                    restore_candidate["id"]
+                )
+                assert restored is not None
+                assert restored["done"] is False
+                assert "completed_at" not in restored
+                assert meina_reminders.find_completed_reminders("戻すテスト") == []
+                assert (
+                    meina_reminders.restore_completed_reminder(
+                        restore_candidate["id"]
+                    )
+                    is None
+                )
+
                 stored_all = meina_reminders.list_reminders(include_done=True)
                 stored_school = next(
                     item for item in stored_all
@@ -2511,6 +2599,12 @@ def main() -> int:
                     "2030-01-07T09:05:00+09:00"
                 )
                 assert recurring_event["category"] == "学校"
+                assert (
+                    meina_reminders.restore_completed_reminder(
+                        daily_history["id"]
+                    )
+                    is None
+                )
 
                 resumed_without_completion = meina_reminders.add_reminder(
                     "再開だけの定期",
@@ -2537,6 +2631,32 @@ def main() -> int:
                     "配信準備完了",
                     "毎日の学校確認",
                 }
+
+                school_events = meina_reminders.completion_events_for_date(
+                    history_now.date(),
+                    history_now,
+                    category="学 校",
+                )
+                assert {event["text"] for event in school_events} == {
+                    "学校宿題完了",
+                    "毎日の学校確認",
+                }
+                stream_events = meina_reminders.completion_events(
+                    history_now.date(),
+                    history_now.date(),
+                    history_now,
+                    category="配信",
+                )
+                assert [event["text"] for event in stream_events] == [
+                    "配信準備完了"
+                ]
+                missing_category_events = meina_reminders.completion_events(
+                    history_now.date(),
+                    history_now.date(),
+                    history_now,
+                    category="存在しない",
+                )
+                assert missing_category_events == []
 
                 today_progress = meina_reminders.completion_progress_summary(
                     history_now,
