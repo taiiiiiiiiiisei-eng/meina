@@ -1736,6 +1736,51 @@ def _execute_routed_command_base(route):
                     for location, count in counts.items()
                 ]
                 result = f"{label}の場所別件数は、" + "、".join(parts) + "です。"
+        elif kind == "reminder_note_presence":
+            from meina_reminders import (
+                filter_reminders_by_note_presence,
+                list_reminders,
+                remaining_scope_reminders,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            has_note = bool(request.get("has_note"))
+            summary_only = bool(request.get("summary"))
+
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            if requested_scope in scope_labels:
+                items = remaining_scope_reminders(scope=requested_scope)
+                label = scope_labels[requested_scope]
+            else:
+                items = list_reminders()
+                label = ""
+
+            filtered = filter_reminders_by_note_presence(
+                items,
+                has_note=has_note,
+            )
+            state_label = "メモ付き" if has_note else "メモ未設定"
+            subject = (
+                f"{label}の{state_label}予定"
+                if label
+                else f"{state_label}予定"
+            )
+
+            if summary_only:
+                result = f"{subject}は{len(filtered)}件です。"
+            elif not filtered:
+                result = f"{subject}はありません。"
+            else:
+                result = (
+                    f"{subject}は{len(filtered)}件です。\n"
+                    + _format_reminders(filtered)
+                )
         elif kind == "reminder_missing_location":
             from meina_reminders import reminders_missing_location
 
