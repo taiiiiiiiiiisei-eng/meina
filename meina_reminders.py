@@ -368,6 +368,35 @@ def find_free_time_slots(
     return free
 
 
+def find_first_free_slot(
+    start_at: datetime,
+    end_at: datetime,
+    *,
+    required_minutes: int,
+) -> tuple[datetime, datetime] | None:
+    """必要時間を満たす最初の空き枠を返す。"""
+    try:
+        required = int(required_minutes)
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= required <= 1440:
+        return None
+
+    slots = find_free_time_slots(
+        start_at,
+        end_at,
+        minimum_minutes=required,
+    )
+    if not slots:
+        return None
+
+    start, available_end = slots[0]
+    end = start + timedelta(minutes=required)
+    if end > available_end:
+        return None
+    return start, end
+
+
 def find_conflicting_reminders(
     reminder_id: str,
     now: datetime | None = None,
@@ -404,6 +433,33 @@ def important_reminders() -> list[dict[str, Any]]:
     items = [item for item in list_reminders() if item.get("important")]
     items.sort(key=lambda item: str(item.get("due_at", "")))
     return items
+
+
+def set_reminder_duration(
+    reminder_id: str,
+    minutes: int | None,
+) -> dict[str, Any] | None:
+    """予定の所要時間を変更する。Noneなら所要時間だけ解除する。"""
+    duration = None
+    if minutes is not None:
+        try:
+            duration = int(minutes)
+        except (TypeError, ValueError):
+            return None
+        if not 1 <= duration <= 1440:
+            return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        if duration is None:
+            item.pop("duration_minutes", None)
+        else:
+            item["duration_minutes"] = duration
+        _save(items)
+        return item
+    return None
 
 
 def set_reminder_importance(
