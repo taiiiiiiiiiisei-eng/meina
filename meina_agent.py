@@ -1524,6 +1524,26 @@ def _execute_routed_command_base(route):
                 if not items
                 else "重要な予定です。\n" + _format_reminders(items)
             )
+        elif kind == "reminder_deleted_list":
+            from meina_reminders import (
+                format_reminder_due,
+                list_deleted_reminders,
+            )
+            items = list_deleted_reminders(limit=20)
+            if not items:
+                result = "最近削除した予定はありません。"
+            else:
+                lines = []
+                for item in items:
+                    deleted = format_reminder_due(item.get("deleted_at", ""))
+                    due = format_reminder_due(item.get("due_at", ""))
+                    lines.append(
+                        f"・{item.get('text', '')}、予定:{due}、削除:{deleted}"
+                    )
+                result = (
+                    f"最近削除した予定は{len(items)}件です。\n"
+                    + "\n".join(lines)
+                )
         elif kind == "reminder_list":
             from meina_reminders import list_reminders
             items = list_reminders()
@@ -2278,6 +2298,59 @@ def _execute_routed_command_base(route):
                         result = f"予定名を「{item['text']}」に変更しました。"
                     else:
                         result = f"「{query_text}」の予定名を変更できませんでした。"
+        elif kind == "reminder_restore_deleted":
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_deleted_reminders,
+                format_reminder_due,
+                restore_deleted_reminder,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "復元する予定名を指定してください。"
+            else:
+                matches = find_deleted_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時の削除済み予定が見つかりませんでした。"
+                        if has_due_filter
+                        else "削除済みの予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する削除済み予定が"
+                        f"{len(matches)}件あります。候補は{candidate_times}です。"
+                        "日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    restored = restore_deleted_reminder(matches[0]["id"])
+                    result = (
+                        f"「{restored['text']}」をゴミ箱から復元しました。"
+                        if restored
+                        else f"「{query_text}」を復元できませんでした。"
+                    )
         elif kind == "reminder_restore_completed":
             from meina_reminders import (
                 filter_reminders_by_due,
