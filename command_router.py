@@ -450,6 +450,62 @@ def route_command(text, frame):
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
         return {"kind": "reminder_today", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in (
+        "今日終わった予定",
+        "今日完了した予定",
+        "今日済ませた予定",
+        "今日終わったリマインダー",
+        "今日完了したリマインダー",
+    )):
+        return {
+            "kind": "reminder_completed_today",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日何個終わった",
+        "今日何件終わった",
+        "今日何個完了した",
+        "今日何件完了した",
+        "今日の予定の進捗",
+        "今日の予定どれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_completion_summary",
+            "target": "local",
+            "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今週何個終わった",
+        "今週何件終わった",
+        "今週何個完了した",
+        "今週何件完了した",
+        "今週の予定の進捗",
+    )):
+        return {
+            "kind": "reminder_completion_summary",
+            "target": "local",
+            "query": "week",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日のカテゴリ別進捗",
+        "今日のカテゴリごとの進捗",
+        "今日カテゴリ別にどれくらい終わった",
+        "今日カテゴリごとにどれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_category_progress",
+            "target": "local",
+            "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "今日のカテゴリ別件数",
         "今日のカテゴリ別予定数",
         "今日のカテゴリ内訳",
