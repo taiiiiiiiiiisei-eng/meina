@@ -604,6 +604,7 @@ def route_command(text, frame):
             parse_reminder_category_command,
             parse_reminder_duration_command,
             parse_reminder_importance_command,
+            parse_reminder_location_command,
             parse_reminder_move_free_command,
             parse_reminder_note_command,
             parse_reminder_pause_command,
@@ -643,6 +644,15 @@ def route_command(text, frame):
                 "kind": "reminder_note",
                 "target": "local",
                 "query": note_command,
+                "confidence": 1.0,
+            }
+
+        location_command = parse_reminder_location_command(text)
+        if location_command is not None:
+            return {
+                "kind": "reminder_location",
+                "target": "local",
+                "query": location_command,
                 "confidence": 1.0,
             }
 
