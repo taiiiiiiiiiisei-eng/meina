@@ -1548,12 +1548,51 @@ def main() -> int:
     assert duration_total_month_route["kind"] == "reminder_duration_total"
     assert duration_total_month_route["query"] == "month"
 
+    category_duration_week_route = route_command(
+        "学校カテゴリの今週の予定時間合計",
+        {"confidence": 0.10},
+    )
+    assert category_duration_week_route is not None
+    assert category_duration_week_route["kind"] == "reminder_duration_total"
+    assert category_duration_week_route["query"] == {
+        "scope": "week",
+        "category": "学校",
+    }
+
+    location_duration_month_route = route_command(
+        "自習室で今月の予定時間合計",
+        {"confidence": 0.10},
+    )
+    assert location_duration_month_route is not None
+    assert location_duration_month_route["kind"] == "reminder_duration_total"
+    assert location_duration_month_route["query"] == {
+        "scope": "month",
+        "location": "自習室",
+    }
+
     missing_duration_route = route_command(
         "所要時間未設定の予定を教えて",
         {"confidence": 0.10},
     )
     assert missing_duration_route is not None
     assert missing_duration_route["kind"] == "reminder_missing_duration"
+    assert missing_duration_route["query"] is None
+
+    missing_duration_week_route = route_command(
+        "今週の所要時間未設定の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert missing_duration_week_route is not None
+    assert missing_duration_week_route["kind"] == "reminder_missing_duration"
+    assert missing_duration_week_route["query"] == "week"
+
+    missing_duration_month_route = route_command(
+        "今月の所要時間がない予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert missing_duration_month_route is not None
+    assert missing_duration_month_route["kind"] == "reminder_missing_duration"
+    assert missing_duration_month_route["query"] == "month"
 
     next_action_route = route_command(
         "次に何やればいい？",
@@ -2441,26 +2480,58 @@ def main() -> int:
                 duration_scope_now = datetime.fromisoformat(
                     "2051-03-15T12:00:00+09:00"
                 )
-                meina_reminders.add_reminder(
+                duration_today = meina_reminders.add_reminder(
                     "今日の単発",
                     "2051-03-15T18:30:00+09:00",
                     duration_minutes=60,
                 )
-                meina_reminders.add_reminder(
+                assert meina_reminders.set_reminder_category(
+                    duration_today["id"],
+                    "学校",
+                )
+                assert meina_reminders.set_reminder_location(
+                    duration_today["id"],
+                    "自習室",
+                )
+                duration_daily_timed = meina_reminders.add_reminder(
                     "毎日の時間あり",
                     "2051-03-15T19:00:00+09:00",
                     repeat_rule="daily",
                     duration_minutes=30,
                 )
-                meina_reminders.add_reminder(
+                assert meina_reminders.set_reminder_category(
+                    duration_daily_timed["id"],
+                    "学校",
+                )
+                assert meina_reminders.set_reminder_location(
+                    duration_daily_timed["id"],
+                    "教室",
+                )
+                duration_daily_missing = meina_reminders.add_reminder(
                     "毎日の時間なし",
                     "2051-03-15T20:00:00+09:00",
                     repeat_rule="daily",
                 )
-                meina_reminders.add_reminder(
+                assert meina_reminders.set_reminder_category(
+                    duration_daily_missing["id"],
+                    "学校",
+                )
+                assert meina_reminders.set_reminder_location(
+                    duration_daily_missing["id"],
+                    "教室",
+                )
+                duration_month_once = meina_reminders.add_reminder(
                     "今月だけの単発",
                     "2051-03-20T18:00:00+09:00",
                     duration_minutes=90,
+                )
+                assert meina_reminders.set_reminder_category(
+                    duration_month_once["id"],
+                    "配信",
+                )
+                assert meina_reminders.set_reminder_location(
+                    duration_month_once["id"],
+                    "自習室",
                 )
 
                 weekly_duration = meina_reminders.reminder_duration_summary(
@@ -2486,6 +2557,56 @@ def main() -> int:
                     "timed_count": 19,
                     "missing_count": 17,
                 }
+
+                weekly_items = meina_reminders.remaining_scope_reminders(
+                    duration_scope_now,
+                    scope="week",
+                )
+                school_weekly = meina_reminders.filter_reminders_by_metadata(
+                    weekly_items,
+                    category="学 校",
+                )
+                assert meina_reminders.reminder_duration_summary(
+                    school_weekly
+                ) == {
+                    "total_minutes": 210,
+                    "timed_count": 6,
+                    "missing_count": 5,
+                }
+                classroom_weekly = meina_reminders.filter_reminders_by_metadata(
+                    weekly_items,
+                    location="教 室",
+                )
+                assert meina_reminders.reminder_duration_summary(
+                    classroom_weekly
+                ) == {
+                    "total_minutes": 150,
+                    "timed_count": 5,
+                    "missing_count": 5,
+                }
+
+                monthly_items = meina_reminders.remaining_scope_reminders(
+                    duration_scope_now,
+                    scope="month",
+                )
+                study_room_monthly = meina_reminders.filter_reminders_by_metadata(
+                    monthly_items,
+                    location="自 習 室",
+                )
+                assert meina_reminders.reminder_duration_summary(
+                    study_room_monthly
+                ) == {
+                    "total_minutes": 150,
+                    "timed_count": 2,
+                    "missing_count": 0,
+                }
+
+                assert len(
+                    meina_reminders.reminders_missing_duration(weekly_items)
+                ) == 5
+                assert len(
+                    meina_reminders.reminders_missing_duration(monthly_items)
+                ) == 17
             finally:
                 meina_reminders.REMINDER_PATH = duration_scope_original_path
 
