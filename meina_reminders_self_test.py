@@ -2664,7 +2664,7 @@ def main() -> int:
                 )
                 assert today_progress == {
                     "completed_count": 3,
-                    "remaining_count": 1,
+                    "remaining_count": 2,
                 }
 
                 category_progress = meina_reminders.completion_category_progress(
@@ -2678,6 +2678,10 @@ def main() -> int:
                 assert category_progress["配信"] == {
                     "completed": 1,
                     "remaining": 0,
+                }
+                assert category_progress["未分類"] == {
+                    "completed": 0,
+                    "remaining": 1,
                 }
 
                 week_progress = meina_reminders.completion_progress_summary(
