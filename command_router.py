@@ -116,7 +116,19 @@ def route_command(text, frame):
         and any(p in compact for p in ("起こして", "知らせて", "思い出させて", "教えて"))
         and not any(
             p in compact
-            for p in ("空き時間", "空いてる時間", "空いている時間")
+            for p in (
+                "空き時間",
+                "空いてる時間",
+                "空いている時間",
+                "予定のメモ",
+                "予定メモ",
+                "リマインダーのメモ",
+                "リマインドのメモ",
+                "予定の場所",
+                "予定場所",
+                "リマインダーの場所",
+                "リマインドの場所",
+            )
         )
     ):
         return {"kind": "reminder", "target": "local", "query": str(text).strip(), "confidence": 1.0}
