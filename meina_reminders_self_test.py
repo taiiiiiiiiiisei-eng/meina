@@ -484,6 +484,33 @@ def main() -> int:
         is None
     )
 
+    move_free = meina_reminder_parser.parse_reminder_move_free_command(
+        "宿題の予定を今日18時から22時の空いてる時間に移して",
+        now,
+    )
+    assert move_free is not None
+    assert move_free["target"] == "宿題"
+    assert move_free["day"] == "今日"
+    assert move_free["start_hour"] == 18
+    assert move_free["end_hour"] == 22
+
+    move_free_selected = meina_reminder_parser.parse_reminder_move_free_command(
+        "18時の宿題の予定を明日19時から22時の空き時間に移動して",
+        now,
+    )
+    assert move_free_selected is not None
+    assert move_free_selected["target"] == "宿題"
+    assert move_free_selected["hour"] == 18
+    assert move_free_selected["day"] == "明日"
+
+    assert (
+        meina_reminder_parser.parse_reminder_move_free_command(
+            "宿題の予定を今日18時から22時の空いてる時間に移していい？",
+            now,
+        )
+        is None
+    )
+
     important_set = meina_reminder_parser.parse_reminder_importance_command(
         "宿題の予定を重要にして",
         now,
@@ -808,6 +835,25 @@ def main() -> int:
     assert auto_slot_route["kind"] == "reminder_schedule_free"
     assert auto_slot_route["query"]["text"] == "勉強"
     assert auto_slot_route["query"]["duration_minutes"] == 60
+
+    move_free_route = route_command(
+        "宿題の予定を今日18時から22時の空いてる時間に移して",
+        {"confidence": 0.10},
+    )
+    assert move_free_route is not None
+    assert move_free_route["kind"] == "reminder_move_free"
+    assert move_free_route["query"]["target"] == "宿題"
+    assert move_free_route["query"]["start_hour"] == 18
+    assert move_free_route["query"]["end_hour"] == 22
+
+    move_free_selected_route = route_command(
+        "18時の宿題の予定を明日19時から22時の空き時間に移動して",
+        {"confidence": 0.10},
+    )
+    assert move_free_selected_route is not None
+    assert move_free_selected_route["kind"] == "reminder_move_free"
+    assert move_free_selected_route["query"]["hour"] == 18
+    assert move_free_selected_route["query"]["day"] == "明日"
 
     important_list_route = route_command(
         "重要な予定を教えて",
@@ -1804,6 +1850,73 @@ def main() -> int:
                 )
                 is None
             )
+
+            movable = meina_reminders.add_reminder(
+                "移動対象",
+                "2050-01-03T18:00:00+09:00",
+                duration_minutes=60,
+            )
+            blocker = meina_reminders.add_reminder(
+                "移動先ブロック",
+                "2050-01-03T19:00:00+09:00",
+                duration_minutes=60,
+            )
+            slot_excluding_self = meina_reminders.find_first_free_slot(
+                datetime.fromisoformat("2050-01-03T18:00:00+09:00"),
+                datetime.fromisoformat("2050-01-03T22:00:00+09:00"),
+                required_minutes=60,
+                exclude_reminder_id=movable["id"],
+            )
+            assert slot_excluding_self == (
+                datetime.fromisoformat("2050-01-03T18:00:00+09:00"),
+                datetime.fromisoformat("2050-01-03T19:00:00+09:00"),
+            )
+            slot_without_exclusion = meina_reminders.find_first_free_slot(
+                datetime.fromisoformat("2050-01-03T18:00:00+09:00"),
+                datetime.fromisoformat("2050-01-03T22:00:00+09:00"),
+                required_minutes=60,
+            )
+            assert slot_without_exclusion == (
+                datetime.fromisoformat("2050-01-03T20:00:00+09:00"),
+                datetime.fromisoformat("2050-01-03T21:00:00+09:00"),
+            )
+
+            moved_one = meina_reminders.move_reminder_occurrence(
+                movable["id"],
+                "2050-01-03T20:00:00+09:00",
+            )
+            assert moved_one is not None
+            assert moved_one["due_at"] == "2050-01-03T20:00:00+09:00"
+            assert "snooze_original_due_at" not in moved_one
+
+            recurring_move = meina_reminders.add_reminder(
+                "定期移動",
+                "2050-01-04T18:00:00+09:00",
+                repeat_rule="daily",
+                duration_minutes=60,
+            )
+            moved_recurring = meina_reminders.move_reminder_occurrence(
+                recurring_move["id"],
+                "2050-01-04T20:00:00+09:00",
+            )
+            assert moved_recurring is not None
+            assert moved_recurring["due_at"] == "2050-01-04T20:00:00+09:00"
+            assert moved_recurring["snooze_original_due_at"] == (
+                "2050-01-04T18:00:00+09:00"
+            )
+            assert meina_reminders.complete_reminder(
+                recurring_move["id"],
+                now=datetime.fromisoformat("2050-01-04T20:01:00+09:00"),
+            )
+            recurring_after_move = meina_reminders.find_reminders("定期移動")
+            assert len(recurring_after_move) == 1
+            assert recurring_after_move[0]["due_at"] == (
+                "2050-01-05T18:00:00+09:00"
+            )
+            assert "snooze_original_due_at" not in recurring_after_move[0]
+            assert blocker["id"] in {
+                item["id"] for item in meina_reminders.list_reminders()
+            }
 
             try:
                 meina_reminders.add_reminder(
