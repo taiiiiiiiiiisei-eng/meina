@@ -1203,6 +1203,94 @@ def _execute_routed_command_base(route):
                         f"今週これから所要時間未設定が"
                         f"{missing_total}件あるため、時間比較は暫定です。"
                     )
+        elif kind == "reminder_category_duration_summary":
+            from meina_reminders import (
+                reminder_group_duration_summary,
+                remaining_scope_reminders,
+            )
+
+            requested_scope = str(query or "")
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
+
+            items = remaining_scope_reminders(scope=scope)
+            summaries = reminder_group_duration_summary(
+                items,
+                group_by="category",
+            )
+            if not summaries:
+                result = f"{label}のカテゴリ別予定時間に表示できる予定はありません。"
+            else:
+                parts = []
+                for category, summary in summaries.items():
+                    if summary["total_minutes"] > 0:
+                        part = (
+                            f"{category}は"
+                            f"{_format_minutes(summary['total_minutes'])}"
+                        )
+                        if summary["missing_count"]:
+                            part += f"、所要時間未設定{summary['missing_count']}件"
+                    else:
+                        part = (
+                            f"{category}は所要時間未設定"
+                            f"{summary['missing_count']}件"
+                        )
+                    parts.append(part)
+                result = (
+                    f"{label}のカテゴリ別予定時間は、"
+                    + "。".join(parts)
+                    + "です。"
+                )
+        elif kind == "reminder_location_duration_summary":
+            from meina_reminders import (
+                reminder_group_duration_summary,
+                remaining_scope_reminders,
+            )
+
+            requested_scope = str(query or "")
+            if requested_scope == "month":
+                scope, label = "month", "今月"
+            elif requested_scope == "week":
+                scope, label = "week", "今週"
+            elif requested_scope == "tomorrow":
+                scope, label = "tomorrow", "明日"
+            else:
+                scope, label = "today", "今日"
+
+            items = remaining_scope_reminders(scope=scope)
+            summaries = reminder_group_duration_summary(
+                items,
+                group_by="location",
+            )
+            if not summaries:
+                result = f"{label}の場所別予定時間に表示できる予定はありません。"
+            else:
+                parts = []
+                for location, summary in summaries.items():
+                    if summary["total_minutes"] > 0:
+                        part = (
+                            f"{location}は"
+                            f"{_format_minutes(summary['total_minutes'])}"
+                        )
+                        if summary["missing_count"]:
+                            part += f"、所要時間未設定{summary['missing_count']}件"
+                    else:
+                        part = (
+                            f"{location}は所要時間未設定"
+                            f"{summary['missing_count']}件"
+                        )
+                    parts.append(part)
+                result = (
+                    f"{label}の場所別予定時間は、"
+                    + "。".join(parts)
+                    + "です。"
+                )
         elif kind == "reminder_duration_total":
             from meina_reminders import (
                 filter_reminders_by_metadata,
