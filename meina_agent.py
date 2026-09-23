@@ -1867,6 +1867,80 @@ def _execute_routed_command_base(route):
                     else f"「{category}」カテゴリの予定です。\n"
                     + _format_reminders(items)
                 )
+        elif kind == "reminder_setup_gap_summary":
+            from meina_reminders import (
+                reminder_setup_gap_counts,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            counts = reminder_setup_gap_counts(source)
+            subject = (
+                f"{scope_labels[requested_scope]}の設定不足内訳"
+                if requested_scope in scope_labels
+                else "設定不足内訳"
+            )
+
+            if not counts:
+                result = f"{subject}はありません。すべて設定済みです。"
+            else:
+                parts = [
+                    f"{label}{count}件"
+                    for label, count in counts.items()
+                ]
+                result = f"{subject}は、" + "、".join(parts) + "です。"
+        elif kind == "reminder_setup_complete":
+            from meina_reminders import (
+                reminders_fully_configured,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            summary_only = bool(request.get("summary"))
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            items = reminders_fully_configured(source)
+            subject = (
+                f"{scope_labels[requested_scope]}の完全設定済み予定"
+                if requested_scope in scope_labels
+                else "完全設定済み予定"
+            )
+
+            if summary_only:
+                result = f"{subject}は{len(items)}件です。"
+            elif not items:
+                result = f"{subject}はありません。"
+            else:
+                result = (
+                    f"{subject}は{len(items)}件です。\n"
+                    + _format_reminders(items)
+                )
         elif kind == "reminder_setup_gaps":
             from meina_reminders import (
                 format_reminder_due,
