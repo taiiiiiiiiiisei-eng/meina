@@ -662,6 +662,100 @@ def route_command(text, frame):
             "今月": "month",
         }
 
+        pre_notify_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>事前通知あり|事前通知付き|事前通知設定済み|事前通知なし|事前通知未設定)"
+            r"(?:の)?(?:予定|リマインダー|リマインド)"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if pre_notify_summary_match:
+            state = pre_notify_summary_match.group("state")
+            return {
+                "kind": "reminder_pre_notify_presence",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        pre_notify_summary_match.group("scope")
+                    ],
+                    "has_pre_notify": state in (
+                        "事前通知あり",
+                        "事前通知付き",
+                        "事前通知設定済み",
+                    ),
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        pre_notify_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>事前通知あり|事前通知付き|事前通知設定済み|事前通知なし|事前通知未設定)"
+            r"(?:の)?(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if pre_notify_list_match:
+            state = pre_notify_list_match.group("state")
+            return {
+                "kind": "reminder_pre_notify_presence",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        pre_notify_list_match.group("scope")
+                    ],
+                    "has_pre_notify": state in (
+                        "事前通知あり",
+                        "事前通知付き",
+                        "事前通知設定済み",
+                    ),
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
+        recurring_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>繰り返し|定期)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if recurring_summary_match:
+            return {
+                "kind": "reminder_recurring_list",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        recurring_summary_match.group("scope")
+                    ],
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        recurring_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>繰り返し|定期)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if recurring_list_match:
+            return {
+                "kind": "reminder_recurring_list",
+                "target": "local",
+                "query": {
+                    "scope": state_scope_map[
+                        recurring_list_match.group("scope")
+                    ],
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
         important_summary_match = re.fullmatch(
             r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
             r"(?:(?:重要|大事|優先)(?:な)?)"
