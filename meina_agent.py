@@ -1205,11 +1205,18 @@ def _execute_routed_command_base(route):
                     )
         elif kind == "reminder_duration_total":
             from meina_reminders import (
+                filter_reminders_by_metadata,
                 reminder_duration_summary,
                 remaining_scope_reminders,
             )
 
-            requested_scope = str(query or "")
+            request = query if isinstance(query, dict) else {
+                "scope": str(query or "today")
+            }
+            requested_scope = str(request.get("scope") or "today")
+            category = str(request.get("category") or "").strip() or None
+            location = str(request.get("location") or "").strip() or None
+
             if requested_scope == "month":
                 scope, label = "month", "今月"
             elif requested_scope == "week":
@@ -1220,18 +1227,31 @@ def _execute_routed_command_base(route):
                 scope, label = "today", "今日"
 
             items = remaining_scope_reminders(scope=scope)
+            if category or location:
+                items = filter_reminders_by_metadata(
+                    items,
+                    category=category,
+                    location=location,
+                )
             summary = reminder_duration_summary(items)
 
+            filter_text = ""
+            if category:
+                filter_text += f"「{category}」カテゴリの"
+            if location:
+                filter_text += f"場所が「{location}」の"
+            subject = f"{label}の{filter_text}予定"
+
             if not items:
-                result = f"{label}の予定はありません。"
+                result = f"{subject}はありません。"
             elif summary["timed_count"] == 0:
                 result = (
-                    f"{label}は予定が{len(items)}件ありますが、"
+                    f"{subject}は{len(items)}件ありますが、"
                     "所要時間が設定されている予定はありません。"
                 )
             else:
                 result = (
-                    f"{label}は所要時間が設定されている予定が"
+                    f"{subject}は所要時間が設定されている予定が"
                     f"{summary['timed_count']}件あり、合計"
                     f"{_format_minutes(summary['total_minutes'])}です。"
                 )
@@ -1241,14 +1261,35 @@ def _execute_routed_command_base(route):
                         f"{summary['missing_count']}件あります。"
                     )
         elif kind == "reminder_missing_duration":
-            from meina_reminders import reminders_missing_duration
+            from meina_reminders import (
+                remaining_scope_reminders,
+                reminders_missing_duration,
+            )
 
-            items = reminders_missing_duration()
+            requested_scope = str(query or "").strip()
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            if requested_scope in scope_labels:
+                source = remaining_scope_reminders(scope=requested_scope)
+                items = reminders_missing_duration(source)
+                label = scope_labels[requested_scope]
+                empty_text = f"{label}は所要時間未設定の予定はありません。"
+                count_text = (
+                    f"{label}の所要時間未設定の予定が{len(items)}件あります。\n"
+                )
+            else:
+                items = reminders_missing_duration()
+                empty_text = "所要時間が未設定の予定はありません。"
+                count_text = f"所要時間が未設定の予定が{len(items)}件あります。\n"
+
             result = (
-                "所要時間が未設定の予定はありません。"
+                empty_text
                 if not items
-                else f"所要時間が未設定の予定が{len(items)}件あります。\n"
-                + _format_reminders(items)
+                else count_text + _format_reminders(items)
             )
         elif kind == "reminder_next_action":
             from datetime import datetime
