@@ -1867,6 +1867,58 @@ def _execute_routed_command_base(route):
                     else f"「{category}」カテゴリの予定です。\n"
                     + _format_reminders(items)
                 )
+        elif kind == "reminder_setup_status":
+            from meina_reminders import (
+                reminder_setup_status_summary,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            summary = reminder_setup_status_summary(source)
+            subject = (
+                f"{scope_labels[requested_scope]}の予定準備状況"
+                if requested_scope in scope_labels
+                else "予定準備状況"
+            )
+
+            if summary["total_count"] == 0:
+                result = f"{subject}を確認できる予定はありません。"
+            else:
+                result = (
+                    f"{subject}は、予定{summary['total_count']}件、"
+                    f"完全設定{summary['complete_count']}件、"
+                    f"設定不足{summary['incomplete_count']}件、"
+                    f"設定完了率{summary['completion_percent']}%です。"
+                )
+                if summary["most_missing"]:
+                    missing_parts = [
+                        (
+                            f"{label}"
+                            f"{summary['missing_counts'].get(label, 0)}件"
+                        )
+                        for label in summary["most_missing"]
+                    ]
+                    result += (
+                        "不足が多い項目は"
+                        + "・".join(missing_parts)
+                        + "です。"
+                    )
+                else:
+                    result += "不足項目はありません。"
         elif kind == "reminder_setup_gap_summary":
             from meina_reminders import (
                 reminder_setup_gap_counts,
