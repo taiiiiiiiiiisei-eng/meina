@@ -855,25 +855,6 @@ def parse_reminder_note_command(
         rf"メモ(?:を|は)?{_NOTE_CLEAR_ACTION}$"
     )
 
-    for pattern in set_patterns:
-        match = re.fullmatch(pattern, compact)
-        if not match:
-            continue
-        note = _clean_reminder_note_text(match.group("note"))
-        if not note or len(note) > 500:
-            return None
-        selector = parse_reminder_selector_text(match.group("target"), now)
-        if not selector.get("valid", False):
-            return None
-        return {
-            "target": selector["target"],
-            "date": selector["date"],
-            "hour": selector["hour"],
-            "minute": selector["minute"],
-            "operation": "set",
-            "note": note,
-        }
-
     match = re.fullmatch(get_pattern, compact)
     if match:
         selector = parse_reminder_selector_text(match.group("target"), now)
@@ -900,6 +881,25 @@ def parse_reminder_note_command(
             "minute": selector["minute"],
             "operation": "clear",
             "note": None,
+        }
+
+    for pattern in set_patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+        note = _clean_reminder_note_text(match.group("note"))
+        if not note or len(note) > 500:
+            return None
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+            "operation": "set",
+            "note": note,
         }
 
     return None
