@@ -225,6 +225,13 @@ def main() -> int:
     if "completion_location_progress" not in agent_text:
         print("FAILED: 場所別完了進捗の配線がありません")
         return 1
+    if (
+        "今週のカテゴリ別進捗" not in router_text
+        or "今週の場所別進捗" not in router_text
+        or "scope=scope" not in agent_text
+    ):
+        print("FAILED: 今週のカテゴリ・場所別進捗の配線がありません")
+        return 1
     if "find_completed_reminders" not in agent_text or "restore_completed_reminder" not in agent_text:
         print("FAILED: 完了済み単発予定の復元配線がありません")
         return 1
