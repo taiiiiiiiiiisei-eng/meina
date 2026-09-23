@@ -187,6 +187,19 @@ def route_command(text, frame):
                 and 0 <= em <= 59
                 and (eh, em) > (sh, sm)
             ):
+                query_data = {
+                    "day": free_match.group("day") or "今日",
+                    "start_hour": sh,
+                    "start_minute": sm,
+                    "end_hour": eh,
+                    "end_minute": em,
+                    "minimum_minutes": (
+                        int(free_match.group("need_num"))
+                        * (60 if free_match.group("need_unit") == "時間" else 1)
+                        if free_match.group("need_num")
+                        else 15
+                    ),
+                }
                 aggregate_free = any(
                     p in compact
                     for p in (
@@ -196,26 +209,17 @@ def route_command(text, frame):
                         "どれくらい空いて",
                     )
                 )
+                if aggregate_free:
+                    return {
+                        "kind": "reminder_free_total",
+                        "target": "local",
+                        "query": query_data,
+                        "confidence": 1.0,
+                    }
                 return {
-                    "kind": (
-                        "reminder_free_total"
-                        if aggregate_free
-                        else "reminder_free_time"
-                    ),
+                    "kind": "reminder_free_time",
                     "target": "local",
-                    "query": {
-                        "day": free_match.group("day") or "今日",
-                        "start_hour": sh,
-                        "start_minute": sm,
-                        "end_hour": eh,
-                        "end_minute": em,
-                        "minimum_minutes": (
-                            int(free_match.group("need_num"))
-                            * (60 if free_match.group("need_unit") == "時間" else 1)
-                            if free_match.group("need_num")
-                            else 15
-                        ),
-                    },
+                    "query": query_data,
                     "confidence": 1.0,
                 }
 
