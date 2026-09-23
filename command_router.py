@@ -303,6 +303,47 @@ def route_command(text, frame):
         }
 
     if text:
+        grouped_duration_scope_map = {
+            "今日": "today",
+            "明日": "tomorrow",
+            "今週": "week",
+            "今月": "month",
+        }
+        category_duration_summary_match = re.fullmatch(
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"カテゴリ(?:別|ごとの)"
+            r"(?:予定時間|時間)(?:合計|内訳)?"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if category_duration_summary_match:
+            return {
+                "kind": "reminder_category_duration_summary",
+                "target": "local",
+                "query": grouped_duration_scope_map[
+                    category_duration_summary_match.group("scope")
+                ],
+                "confidence": 1.0,
+            }
+
+        location_duration_summary_match = re.fullmatch(
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"場所(?:別|ごとの)"
+            r"(?:予定時間|時間)(?:合計|内訳)?"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if location_duration_summary_match:
+            return {
+                "kind": "reminder_location_duration_summary",
+                "target": "local",
+                "query": grouped_duration_scope_map[
+                    location_duration_summary_match.group("scope")
+                ],
+                "confidence": 1.0,
+            }
+
+    if text:
         category_duration_match = re.fullmatch(
             r"(?P<category>.+?)カテゴリ(?:の|で)?"
             r"(?P<scope>今日|明日|今週|今月)(?:の)?"
