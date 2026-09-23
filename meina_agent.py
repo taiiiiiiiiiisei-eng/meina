@@ -1978,6 +1978,86 @@ def _execute_routed_command_base(route):
                                     )
                                 else:
                                     result = f"「{query_text}」を空き時間へ移動できませんでした。"
+        elif kind == "reminder_detail":
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_category,
+                format_reminder_due,
+                format_reminder_duration,
+                format_reminder_location,
+                format_reminder_note,
+                format_reminder_repeat,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "詳細を確認する予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時の詳細対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "詳細を確認する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    due_text = format_reminder_due(item.get("due_at", ""))
+                    duration_text = format_reminder_duration(item) or "未設定"
+                    repeat_text = format_reminder_repeat(item) or "なし"
+                    category_text = format_reminder_category(item) or "未分類"
+                    location_text = format_reminder_location(item) or "未設定"
+                    note_text = format_reminder_note(item) or "なし"
+                    importance_text = "重要" if item.get("important") else "通常"
+                    state_text = "一時停止中" if item.get("paused") else "通知中"
+                    try:
+                        notify_minutes = int(item.get("notify_before_minutes") or 0)
+                    except (TypeError, ValueError):
+                        notify_minutes = 0
+                    notify_text = (
+                        f"{notify_minutes}分前"
+                        if notify_minutes > 0
+                        else "なし"
+                    )
+                    result = (
+                        f"「{item.get('text', '')}」の詳細です。"
+                        f"日時:{due_text}、"
+                        f"所要時間:{duration_text}、"
+                        f"繰り返し:{repeat_text}、"
+                        f"カテゴリ:{category_text}、"
+                        f"重要度:{importance_text}、"
+                        f"場所:{location_text}、"
+                        f"事前通知:{notify_text}、"
+                        f"状態:{state_text}、"
+                        f"メモ:{note_text}。"
+                    )
         elif kind == "reminder_duration":
             from meina_reminders import (
                 filter_reminders_by_due,
