@@ -902,6 +902,22 @@ def main() -> int:
         "minimum_minutes": 15,
     }
 
+    free_total_route = route_command(
+        "今日18時から22時の空き時間合計",
+        {"confidence": 0.10},
+    )
+    assert free_total_route is not None
+    assert free_total_route["kind"] == "reminder_free_total"
+    assert free_total_route["query"]["start_hour"] == 18
+    assert free_total_route["query"]["end_hour"] == 22
+
+    free_total_natural_route = route_command(
+        "今日18時から22時でどれくらい空いてる",
+        {"confidence": 0.10},
+    )
+    assert free_total_natural_route is not None
+    assert free_total_natural_route["kind"] == "reminder_free_total"
+
     free_hour_route = route_command(
         "今日18時から22時で1時間空いてる時間",
         {"confidence": 0.10},
@@ -918,6 +934,29 @@ def main() -> int:
     assert free_tomorrow_route["kind"] == "reminder_free_time"
     assert free_tomorrow_route["query"]["day"] == "明日"
     assert free_tomorrow_route["query"]["start_minute"] == 30
+
+    duration_total_today_route = route_command(
+        "今日の予定時間合計",
+        {"confidence": 0.10},
+    )
+    assert duration_total_today_route is not None
+    assert duration_total_today_route["kind"] == "reminder_duration_total"
+    assert duration_total_today_route["query"] == "today"
+
+    duration_total_tomorrow_route = route_command(
+        "明日何時間予定入ってる？",
+        {"confidence": 0.10},
+    )
+    assert duration_total_tomorrow_route is not None
+    assert duration_total_tomorrow_route["kind"] == "reminder_duration_total"
+    assert duration_total_tomorrow_route["query"] == "tomorrow"
+
+    missing_duration_route = route_command(
+        "所要時間未設定の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert missing_duration_route is not None
+    assert missing_duration_route["kind"] == "reminder_missing_duration"
 
     brief_route = route_command(
         "今日の予定まとめ",
@@ -1694,6 +1733,30 @@ def main() -> int:
             assert duration_item["duration_minutes"] == 90
             assert meina_reminders.format_reminder_duration(duration_item) == "1時間30分"
 
+            duration_summary = meina_reminders.reminder_duration_summary(
+                [
+                    {"duration_minutes": 30},
+                    {"duration_minutes": 90},
+                    {"text": "未設定"},
+                    {"duration_minutes": 60, "paused": True},
+                ]
+            )
+            assert duration_summary == {
+                "total_minutes": 120,
+                "timed_count": 2,
+                "missing_count": 1,
+            }
+            duration_summary_with_paused = (
+                meina_reminders.reminder_duration_summary(
+                    [
+                        {"duration_minutes": 30},
+                        {"duration_minutes": 60, "paused": True},
+                    ],
+                    include_paused=True,
+                )
+            )
+            assert duration_summary_with_paused["total_minutes"] == 90
+
             changed_duration = meina_reminders.set_reminder_duration(
                 duration_item["id"],
                 120,
@@ -1833,6 +1896,17 @@ def main() -> int:
                 ),
             ]
 
+            window_stats = meina_reminders.schedule_window_stats(
+                datetime.fromisoformat("2050-01-02T18:00:00+09:00"),
+                datetime.fromisoformat("2050-01-02T22:00:00+09:00"),
+            )
+            assert window_stats == {
+                "window_minutes": 240,
+                "free_minutes": 120,
+                "busy_minutes": 120,
+                "longest_free_minutes": 90,
+            }
+
             first_hour_slot = meina_reminders.find_first_free_slot(
                 datetime.fromisoformat("2050-01-02T18:00:00+09:00"),
                 datetime.fromisoformat("2050-01-02T22:00:00+09:00"),
@@ -1917,6 +1991,25 @@ def main() -> int:
             assert blocker["id"] in {
                 item["id"] for item in meina_reminders.list_reminders()
             }
+
+            missing_duration_item = meina_reminders.add_reminder(
+                "時間未設定確認",
+                "2050-01-03T10:00:00+09:00",
+            )
+            missing_ids = {
+                item["id"]
+                for item in meina_reminders.reminders_missing_duration()
+            }
+            assert missing_duration_item["id"] in missing_ids
+            assert meina_reminders.set_reminder_duration(
+                missing_duration_item["id"],
+                45,
+            )
+            missing_ids_after = {
+                item["id"]
+                for item in meina_reminders.reminders_missing_duration()
+            }
+            assert missing_duration_item["id"] not in missing_ids_after
 
             try:
                 meina_reminders.add_reminder(
