@@ -546,6 +546,7 @@ def _format_reminders(items):
         format_reminder_category,
         format_reminder_due,
         format_reminder_duration,
+        format_reminder_location,
         format_reminder_note,
         format_reminder_importance,
         format_reminder_repeat,
@@ -558,6 +559,7 @@ def _format_reminders(items):
         duration = format_reminder_duration(item)
         importance = format_reminder_importance(item)
         category = format_reminder_category(item)
+        location = format_reminder_location(item)
         note = format_reminder_note(item)
         if item.get("done"):
             status = "完了"
@@ -569,6 +571,7 @@ def _format_reminders(items):
         duration_text = f"、所要{duration}" if duration else ""
         importance_text = "、重要" if importance else ""
         category_text = f"、カテゴリ:{category}" if category else ""
+        location_text = f"、場所:{location}" if location else ""
         note_text = "、メモあり" if note else ""
         try:
             pre_minutes = int(item.get("notify_before_minutes") or 0)
@@ -576,7 +579,7 @@ def _format_reminders(items):
             pre_minutes = 0
         pre_text = f"、{pre_minutes}分前通知" if pre_minutes > 0 else ""
         lines.append(
-            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{importance_text}{category_text}{note_text}{pre_text}、{status}"
+            f"・{item.get('text', '')}、{due}{duration_text}{repeat_text}{importance_text}{category_text}{location_text}{note_text}{pre_text}、{status}"
         )
     return "\n".join(lines)
 
@@ -602,6 +605,7 @@ def _format_completion_events(events):
     from meina_reminders import (
         format_reminder_due,
         format_reminder_duration,
+        format_reminder_location,
         format_reminder_note,
     )
 
@@ -613,12 +617,14 @@ def _format_completion_events(events):
         duration_text = f"、所要{duration}" if duration else ""
         note = format_reminder_note(event)
         note_text = "、メモあり" if note else ""
+        location = format_reminder_location(event)
+        location_text = f"、場所:{location}" if location else ""
         category = str(event.get("category") or "").strip()
         category_text = f"、カテゴリ:{category}" if category else ""
         important_text = "、重要" if event.get("important") else ""
         lines.append(
             f"・{event.get('text', '')}、完了:{completed}、予定:{due}"
-            f"{duration_text}{category_text}{important_text}{note_text}"
+            f"{duration_text}{category_text}{location_text}{important_text}{note_text}"
         )
     return "\n".join(lines)
 
@@ -1819,6 +1825,78 @@ def _execute_routed_command_base(route):
                         )
                     else:
                         result = "メモの操作内容を読み取れませんでした。"
+        elif kind == "reminder_location":
+            from meina_reminders import (
+                filter_reminders_by_due,
+                find_reminders,
+                format_reminder_due,
+                set_reminder_location,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            query_text = str(request.get("target") or "").strip()
+            operation = str(request.get("operation") or "").strip().lower()
+            location = request.get("location")
+            date_filter = request.get("date")
+            hour_filter = request.get("hour")
+            minute_filter = request.get("minute")
+
+            if not query_text:
+                result = "場所を確認・変更する予定名を指定してください。"
+            else:
+                matches = find_reminders(query_text)
+                has_due_filter = any(
+                    value is not None
+                    for value in (date_filter, hour_filter, minute_filter)
+                )
+                if has_due_filter:
+                    matches = filter_reminders_by_due(
+                        matches,
+                        date=date_filter,
+                        hour=hour_filter,
+                        minute=minute_filter,
+                    )
+
+                if not matches:
+                    result = (
+                        "指定した日時の場所対象が見つかりませんでした。"
+                        if has_due_filter
+                        else "場所を確認・変更する予定が見つかりませんでした。"
+                    )
+                elif len(matches) > 1:
+                    candidate_times = "、".join(
+                        format_reminder_due(item.get("due_at", ""))
+                        for item in matches[:3]
+                    )
+                    result = (
+                        f"「{query_text}」に一致する予定が{len(matches)}件あります。"
+                        f"候補は{candidate_times}です。日時をもう少し具体的に指定してください。"
+                    )
+                else:
+                    item = matches[0]
+                    if operation == "get":
+                        saved_location = str(item.get("location") or "").strip()
+                        result = (
+                            f"「{item['text']}」の場所は「{saved_location}」です。"
+                            if saved_location
+                            else f"「{item['text']}」には場所が設定されていません。"
+                        )
+                    elif operation == "set":
+                        changed = set_reminder_location(item["id"], location)
+                        result = (
+                            f"「{changed['text']}」の場所を「{changed.get('location')}」に設定しました。"
+                            if changed
+                            else f"「{query_text}」の場所を設定できませんでした。"
+                        )
+                    elif operation == "clear":
+                        changed = set_reminder_location(item["id"], None)
+                        result = (
+                            f"「{changed['text']}」の場所設定を解除しました。"
+                            if changed
+                            else f"「{query_text}」の場所設定を解除できませんでした。"
+                        )
+                    else:
+                        result = "場所の操作内容を読み取れませんでした。"
         elif kind == "reminder_category":
             from meina_reminders import (
                 filter_reminders_by_due,
