@@ -935,6 +935,45 @@ def main() -> int:
     assert free_tomorrow_route["query"]["day"] == "明日"
     assert free_tomorrow_route["query"]["start_minute"] == 30
 
+    remaining_today_route = route_command(
+        "今日あとどれくらい空いてる？",
+        {"confidence": 0.10},
+    )
+    assert remaining_today_route is not None
+    assert remaining_today_route["kind"] == "reminder_remaining_today"
+
+    day_load_today_route = route_command(
+        "今日どれくらい予定詰まってる？",
+        {"confidence": 0.10},
+    )
+    assert day_load_today_route is not None
+    assert day_load_today_route["kind"] == "reminder_day_load"
+    assert day_load_today_route["query"] == "today"
+
+    day_load_tomorrow_route = route_command(
+        "明日の予定どれくらい詰まってる？",
+        {"confidence": 0.10},
+    )
+    assert day_load_tomorrow_route is not None
+    assert day_load_tomorrow_route["kind"] == "reminder_day_load"
+    assert day_load_tomorrow_route["query"] == "tomorrow"
+
+    week_peak_count_route = route_command(
+        "今週いちばん予定が多い日は？",
+        {"confidence": 0.10},
+    )
+    assert week_peak_count_route is not None
+    assert week_peak_count_route["kind"] == "reminder_week_peak"
+    assert week_peak_count_route["query"] == "count"
+
+    week_peak_duration_route = route_command(
+        "今週いちばん忙しい日は？",
+        {"confidence": 0.10},
+    )
+    assert week_peak_duration_route is not None
+    assert week_peak_duration_route["kind"] == "reminder_week_peak"
+    assert week_peak_duration_route["query"] == "duration"
+
     duration_total_today_route = route_command(
         "今日の予定時間合計",
         {"confidence": 0.10},
@@ -1991,6 +2030,108 @@ def main() -> int:
             assert blocker["id"] in {
                 item["id"] for item in meina_reminders.list_reminders()
             }
+
+            projection_daily = meina_reminders.add_reminder(
+                "投影毎日",
+                "2060-01-01T18:00:00+09:00",
+                repeat_rule="daily",
+                duration_minutes=60,
+            )
+            projection_weekly = meina_reminders.add_reminder(
+                "投影毎週",
+                "2060-01-01T20:00:00+09:00",
+                repeat_rule="weekly",
+                duration_minutes=30,
+            )
+            projection_monthly = meina_reminders.add_reminder(
+                "投影毎月",
+                "2060-01-31T21:00:00+09:00",
+                repeat_rule="monthly",
+                duration_minutes=45,
+            )
+
+            projected_short = meina_reminders.project_reminder_occurrences(
+                datetime.fromisoformat("2060-01-01T00:00:00+09:00").date(),
+                datetime.fromisoformat("2060-01-03T00:00:00+09:00").date(),
+                now=datetime.fromisoformat("2060-01-01T12:00:00+09:00"),
+            )
+            daily_due = [
+                item["due_at"]
+                for item in projected_short
+                if item["id"] == projection_daily["id"]
+            ]
+            assert daily_due == [
+                "2060-01-01T18:00:00+09:00",
+                "2060-01-02T18:00:00+09:00",
+                "2060-01-03T18:00:00+09:00",
+            ]
+            weekly_due = [
+                item["due_at"]
+                for item in meina_reminders.project_reminder_occurrences(
+                    datetime.fromisoformat("2060-01-01T00:00:00+09:00").date(),
+                    datetime.fromisoformat("2060-01-15T00:00:00+09:00").date(),
+                    now=datetime.fromisoformat("2060-01-01T12:00:00+09:00"),
+                )
+                if item["id"] == projection_weekly["id"]
+            ]
+            assert weekly_due == [
+                "2060-01-01T20:00:00+09:00",
+                "2060-01-08T20:00:00+09:00",
+                "2060-01-15T20:00:00+09:00",
+            ]
+            monthly_due = [
+                item["due_at"]
+                for item in meina_reminders.project_reminder_occurrences(
+                    datetime.fromisoformat("2060-01-31T00:00:00+09:00").date(),
+                    datetime.fromisoformat("2060-03-31T00:00:00+09:00").date(),
+                    now=datetime.fromisoformat("2060-01-31T12:00:00+09:00"),
+                )
+                if item["id"] == projection_monthly["id"]
+            ]
+            assert monthly_due == [
+                "2060-01-31T21:00:00+09:00",
+                "2060-02-29T21:00:00+09:00",
+                "2060-03-31T21:00:00+09:00",
+            ]
+
+            day_summary = meina_reminders.day_schedule_summary(
+                datetime.fromisoformat("2060-01-01T00:00:00+09:00").date(),
+                now=datetime.fromisoformat("2060-01-01T12:00:00+09:00"),
+            )
+            assert day_summary["count"] >= 2
+            assert day_summary["total_minutes"] >= 90
+
+            projection_moved = meina_reminders.add_reminder(
+                "投影移動毎日",
+                "2060-02-01T18:00:00+09:00",
+                repeat_rule="daily",
+                duration_minutes=60,
+            )
+            moved_projection = meina_reminders.move_reminder_occurrence(
+                projection_moved["id"],
+                "2060-02-02T20:00:00+09:00",
+            )
+            assert moved_projection is not None
+            moved_due = [
+                item["due_at"]
+                for item in meina_reminders.project_reminder_occurrences(
+                    datetime.fromisoformat("2060-02-01T00:00:00+09:00").date(),
+                    datetime.fromisoformat("2060-02-04T00:00:00+09:00").date(),
+                    now=datetime.fromisoformat("2060-02-01T12:00:00+09:00"),
+                )
+                if item["id"] == projection_moved["id"]
+            ]
+            assert moved_due == [
+                "2060-02-02T20:00:00+09:00",
+                "2060-02-03T18:00:00+09:00",
+                "2060-02-04T18:00:00+09:00",
+            ]
+
+            week_projection = meina_reminders.remaining_week_schedule_summary(
+                now=datetime.fromisoformat("2060-01-01T12:00:00+09:00")
+            )
+            assert week_projection
+            assert week_projection[0]["date"] == "2060-01-01"
 
             missing_duration_item = meina_reminders.add_reminder(
                 "時間未設定確認",
