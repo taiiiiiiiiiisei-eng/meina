@@ -161,7 +161,19 @@ def route_command(text, frame):
             r"(?:空き時間|空いてる時間|空いている時間|空き)",
             str(text),
         )
-        if free_match:
+        if free_match and not any(
+            p in compact
+            for p in (
+                "移して",
+                "移してください",
+                "移動して",
+                "移動してください",
+                "ずらして",
+                "ずらしてください",
+                "動かして",
+                "動かしてください",
+            )
+        ):
             sh = int(free_match.group("start_hour"))
             sm = int(free_match.group("start_minute") or 0)
             eh = int(free_match.group("end_hour"))
