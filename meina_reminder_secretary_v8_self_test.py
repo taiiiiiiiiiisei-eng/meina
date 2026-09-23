@@ -51,6 +51,9 @@ REQUIRED_KINDS = (
     "reminder_category_list",
     "reminder_note",
     "reminder_location",
+    "reminder_location_list",
+    "reminder_missing_location",
+    "reminder_location_summary",
     "reminder_category",
     "reminder_important",
     "reminder_importance",
@@ -199,6 +202,12 @@ def main() -> int:
         return 1
     if "set_reminder_location" not in agent_text or "format_reminder_location" not in agent_text:
         print("FAILED: 予定場所の設定・表示配線がありません")
+        return 1
+    if "reminders_by_location" not in agent_text or "reminders_missing_location" not in agent_text:
+        print("FAILED: 予定場所の検索・未設定一覧配線がありません")
+        return 1
+    if "reminder_location_counts" not in agent_text:
+        print("FAILED: 予定場所集計の配線がありません")
         return 1
     if "reminder_category_counts" not in agent_text:
         print("FAILED: 予定カテゴリ集計の配線がありません")
