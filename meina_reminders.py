@@ -273,6 +273,46 @@ def next_reminder(
     return candidates[0][1]
 
 
+def prioritized_reminders(
+    now: datetime | None = None,
+    *,
+    target_date=None,
+) -> list[dict[str, Any]]:
+    """未完了予定を期限切れ→重要→時刻順の固定ルールで並べる。"""
+    current = now or datetime.now().astimezone()
+    ranked: list[tuple[int, int, datetime, dict[str, Any]]] = []
+
+    for item in list_reminders():
+        if item.get("paused"):
+            continue
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+
+        if target_date is not None and due.date() != target_date:
+            continue
+
+        overdue_rank = 0 if due < current else 1
+        important_rank = 0 if item.get("important") else 1
+        ranked.append((overdue_rank, important_rank, due, item))
+
+    ranked.sort(key=lambda row: (row[0], row[1], row[2]))
+    return [item for _, _, _, item in ranked]
+
+
+def next_priority_reminder(
+    now: datetime | None = None,
+) -> dict[str, Any] | None:
+    """固定優先ルールで最上位の未完了予定を1件返す。"""
+    items = prioritized_reminders(now)
+    return items[0] if items else None
+
+
 def _reminder_interval(
     item: dict[str, Any],
     current: datetime,
