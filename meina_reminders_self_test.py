@@ -1689,6 +1689,47 @@ def main() -> int:
         "scope": "all",
     }
 
+    important_setup_gap_week_route = route_command(
+        "今週の重要予定の設定不足を教えて",
+        {"confidence": 0.10},
+    )
+    assert important_setup_gap_week_route is not None
+    assert (
+        important_setup_gap_week_route["kind"]
+        == "reminder_important_setup_gaps"
+    )
+    assert important_setup_gap_week_route["query"] == {
+        "scope": "week",
+        "summary": False,
+    }
+
+    important_setup_gap_month_count_route = route_command(
+        "今月の重要予定の設定不足は何件？",
+        {"confidence": 0.10},
+    )
+    assert important_setup_gap_month_count_route is not None
+    assert (
+        important_setup_gap_month_count_route["kind"]
+        == "reminder_important_setup_gaps"
+    )
+    assert important_setup_gap_month_count_route["query"] == {
+        "scope": "month",
+        "summary": True,
+    }
+
+    important_setup_status_week_route = route_command(
+        "今週の重要予定の準備状況を教えて",
+        {"confidence": 0.10},
+    )
+    assert important_setup_status_week_route is not None
+    assert (
+        important_setup_status_week_route["kind"]
+        == "reminder_important_setup_status"
+    )
+    assert important_setup_status_week_route["query"] == {
+        "scope": "week",
+    }
+
     setup_gap_breakdown_route = route_command(
         "今週の設定不足内訳を教えて",
         {"confidence": 0.10},
@@ -3334,6 +3375,51 @@ def main() -> int:
                     "completion_percent": 0,
                     "missing_counts": {},
                     "most_missing": [],
+                }
+
+                weekly_important_items = [
+                    item for item in weekly_state_items
+                    if item.get("important")
+                ]
+                weekly_important_gaps = meina_reminders.reminder_setup_gaps(
+                    weekly_important_items
+                )
+                assert len(weekly_important_gaps) == 1
+                assert weekly_important_gaps[0]["item"]["text"] == "今日の単発"
+                assert weekly_important_gaps[0]["missing"] == [
+                    "メモ",
+                    "事前通知",
+                ]
+                assert meina_reminders.reminder_setup_status_summary(
+                    weekly_important_items
+                ) == {
+                    "total_count": 2,
+                    "complete_count": 1,
+                    "incomplete_count": 1,
+                    "completion_percent": 50,
+                    "missing_counts": {
+                        "メモ": 1,
+                        "事前通知": 1,
+                    },
+                    "most_missing": ["メモ", "事前通知"],
+                }
+
+                monthly_important_items = [
+                    item for item in monthly_state_items
+                    if item.get("important")
+                ]
+                assert meina_reminders.reminder_setup_status_summary(
+                    monthly_important_items
+                ) == {
+                    "total_count": 2,
+                    "complete_count": 1,
+                    "incomplete_count": 1,
+                    "completion_percent": 50,
+                    "missing_counts": {
+                        "メモ": 1,
+                        "事前通知": 1,
+                    },
+                    "most_missing": ["メモ", "事前通知"],
                 }
 
                 invalid_pre_notify_gap = meina_reminders.reminder_setup_gaps([
