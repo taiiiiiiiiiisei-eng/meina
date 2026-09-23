@@ -31,6 +31,8 @@ REQUIRED_KINDS = (
     "reminder_free_total",
     "reminder_schedule_free",
     "reminder_duration_total",
+    "reminder_category_duration_summary",
+    "reminder_location_duration_summary",
     "reminder_missing_duration",
     "reminder_remaining_today",
     "reminder_day_load",
@@ -190,6 +192,13 @@ def main() -> int:
         or "filter_reminders_by_metadata" not in agent_text
     ):
         print("FAILED: 期間指定・カテゴリ/場所指定の予定時間分析配線がありません")
+        return 1
+    if (
+        "reminder_group_duration_summary" not in agent_text
+        or "カテゴリ別予定時間" not in router_text
+        or "場所別予定時間" not in router_text
+    ):
+        print("FAILED: カテゴリ・場所別予定時間内訳の配線がありません")
         return 1
     if "reminders_missing_duration" not in agent_text:
         print("FAILED: 所要時間未設定一覧の配線がありません")
