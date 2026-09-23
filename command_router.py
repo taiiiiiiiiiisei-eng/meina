@@ -588,6 +588,50 @@ def route_command(text, frame):
                 }
 
     if text and any(p in compact for p in (
+        "場所未設定の予定",
+        "場所が未設定の予定",
+        "場所のない予定",
+        "場所がない予定",
+        "場所未設定のリマインダー",
+    )):
+        return {
+            "kind": "reminder_missing_location",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日の場所別件数",
+        "今日の場所別予定数",
+        "今日の場所内訳",
+        "今日の予定場所内訳",
+    )):
+        return {
+            "kind": "reminder_location_summary",
+            "target": "local",
+            "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text:
+        location_list_match = re.fullmatch(
+            r"(?:場所(?:が|は))?(?P<location>.+?)(?:で|の場所の|にある)"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if location_list_match:
+            location = location_list_match.group("location").strip()
+            if location and len(location) <= 100:
+                return {
+                    "kind": "reminder_location_list",
+                    "target": "local",
+                    "query": location,
+                    "confidence": 1.0,
+                }
+
+    if text and any(p in compact for p in (
         "最近削除した予定",
         "削除した予定を教えて",
         "削除した予定一覧",
