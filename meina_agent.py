@@ -2042,6 +2042,115 @@ def _execute_routed_command_base(route):
                     f"{subject}は{len(gaps)}件です。\n"
                     + "\n".join(lines)
                 )
+        elif kind == "reminder_important_setup_status":
+            from meina_reminders import (
+                reminder_setup_status_summary,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            important_items = [
+                item for item in source
+                if item.get("important")
+            ]
+            summary = reminder_setup_status_summary(important_items)
+            subject = (
+                f"{scope_labels[requested_scope]}の重要予定の準備状況"
+                if requested_scope in scope_labels
+                else "重要予定の準備状況"
+            )
+
+            if summary["total_count"] == 0:
+                result = f"{subject}を確認できる予定はありません。"
+            else:
+                result = (
+                    f"{subject}は、予定{summary['total_count']}件、"
+                    f"完全設定{summary['complete_count']}件、"
+                    f"設定不足{summary['incomplete_count']}件、"
+                    f"設定完了率{summary['completion_percent']}%です。"
+                )
+                if summary["most_missing"]:
+                    missing_parts = [
+                        (
+                            f"{label}"
+                            f"{summary['missing_counts'].get(label, 0)}件"
+                        )
+                        for label in summary["most_missing"]
+                    ]
+                    result += (
+                        "不足が多い項目は"
+                        + "・".join(missing_parts)
+                        + "です。"
+                    )
+                else:
+                    result += "不足項目はありません。"
+        elif kind == "reminder_important_setup_gaps":
+            from meina_reminders import (
+                format_reminder_due,
+                reminder_setup_gaps,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            summary_only = bool(request.get("summary"))
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            important_items = [
+                item for item in source
+                if item.get("important")
+            ]
+            gaps = reminder_setup_gaps(important_items)
+            subject = (
+                f"{scope_labels[requested_scope]}の重要予定の設定不足"
+                if requested_scope in scope_labels
+                else "重要予定の設定不足"
+            )
+
+            if summary_only:
+                result = f"{subject}は{len(gaps)}件です。"
+            elif not gaps:
+                result = f"{subject}はありません。"
+            else:
+                lines = []
+                for entry in gaps:
+                    item = entry["item"]
+                    due_text = format_reminder_due(item.get("due_at", ""))
+                    paused_text = "、一時停止中" if item.get("paused") else ""
+                    missing_text = "・".join(entry["missing"])
+                    lines.append(
+                        f"・{item.get('text', '')}、{due_text}{paused_text}"
+                        f"：{missing_text}"
+                    )
+                result = (
+                    f"{subject}は{len(gaps)}件です。\n"
+                    + "\n".join(lines)
+                )
         elif kind == "reminder_important":
             from meina_reminders import (
                 important_reminders,
