@@ -1167,6 +1167,22 @@ def main() -> int:
     assert weekly_location_summary_route["kind"] == "reminder_location_summary"
     assert weekly_location_summary_route["query"] == "week"
 
+    monthly_category_summary_route = route_command(
+        "今月のカテゴリ別件数",
+        {"confidence": 0.10},
+    )
+    assert monthly_category_summary_route is not None
+    assert monthly_category_summary_route["kind"] == "reminder_category_summary"
+    assert monthly_category_summary_route["query"] == "month"
+
+    monthly_location_summary_route = route_command(
+        "今月の場所別件数",
+        {"confidence": 0.10},
+    )
+    assert monthly_location_summary_route is not None
+    assert monthly_location_summary_route["kind"] == "reminder_location_summary"
+    assert monthly_location_summary_route["query"] == "month"
+
     deleted_list_route = route_command(
         "最近削除した予定を教えて",
         {"confidence": 0.10},
@@ -1283,6 +1299,14 @@ def main() -> int:
     assert completion_week_route["kind"] == "reminder_completion_summary"
     assert completion_week_route["query"] == "week"
 
+    completion_month_route = route_command(
+        "今月何個終わった？",
+        {"confidence": 0.10},
+    )
+    assert completion_month_route is not None
+    assert completion_month_route["kind"] == "reminder_completion_summary"
+    assert completion_month_route["query"] == "month"
+
     category_progress_route = route_command(
         "今日のカテゴリ別進捗",
         {"confidence": 0.10},
@@ -1306,6 +1330,22 @@ def main() -> int:
     assert weekly_category_progress_route is not None
     assert weekly_category_progress_route["kind"] == "reminder_category_progress"
     assert weekly_category_progress_route["query"] == "week"
+
+    monthly_category_progress_route = route_command(
+        "今月のカテゴリ別進捗",
+        {"confidence": 0.10},
+    )
+    assert monthly_category_progress_route is not None
+    assert monthly_category_progress_route["kind"] == "reminder_category_progress"
+    assert monthly_category_progress_route["query"] == "month"
+
+    monthly_location_progress_route = route_command(
+        "今月の場所別進捗",
+        {"confidence": 0.10},
+    )
+    assert monthly_location_progress_route is not None
+    assert monthly_location_progress_route["kind"] == "reminder_location_progress"
+    assert monthly_location_progress_route["query"] == "month"
 
     category_set_route = route_command(
         "宿題の予定を学校カテゴリにして",
@@ -3242,6 +3282,61 @@ def main() -> int:
                 assert tomorrow_location_progress == {
                     "場所未設定": {"completed": 0, "remaining": 2},
                     "教室": {"completed": 0, "remaining": 1},
+                }
+
+                month_progress = meina_reminders.completion_progress_summary(
+                    history_now,
+                    scope="month",
+                )
+                assert month_progress == {
+                    "completed_count": 3,
+                    "remaining_count": 51,
+                }
+
+                monthly_remaining = meina_reminders.remaining_scope_reminders(
+                    history_now,
+                    scope="month",
+                )
+                monthly_category_counts = meina_reminders.reminder_category_counts(
+                    monthly_remaining
+                )
+                assert monthly_category_counts == {
+                    "未分類": 26,
+                    "学校": 25,
+                }
+                monthly_location_counts = meina_reminders.reminder_location_counts(
+                    monthly_remaining
+                )
+                assert monthly_location_counts == {
+                    "場所未設定": 26,
+                    "教室": 24,
+                    "自習室": 1,
+                }
+
+                monthly_category_progress = (
+                    meina_reminders.completion_category_progress(
+                        history_now.date(),
+                        history_now,
+                        scope="month",
+                    )
+                )
+                assert monthly_category_progress == {
+                    "未分類": {"completed": 0, "remaining": 26},
+                    "学校": {"completed": 2, "remaining": 25},
+                    "配信": {"completed": 1, "remaining": 0},
+                }
+
+                monthly_location_progress = (
+                    meina_reminders.completion_location_progress(
+                        history_now.date(),
+                        history_now,
+                        scope="month",
+                    )
+                )
+                assert monthly_location_progress == {
+                    "場所未設定": {"completed": 1, "remaining": 26},
+                    "教室": {"completed": 1, "remaining": 24},
+                    "自習室": {"completed": 1, "remaining": 1},
                 }
 
                 week_progress = meina_reminders.completion_progress_summary(
