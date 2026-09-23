@@ -316,6 +316,34 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "今月の予定時間合計",
+        "今月の予定の時間合計",
+        "今月何時間予定",
+        "今月どれくらい予定入ってる",
+        "今月の予定時間",
+    )):
+        return {
+            "kind": "reminder_duration_total",
+            "target": "local",
+            "query": "month",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今週の予定時間合計",
+        "今週の予定の時間合計",
+        "今週何時間予定",
+        "今週どれくらい予定入ってる",
+        "今週の予定時間",
+    )):
+        return {
+            "kind": "reminder_duration_total",
+            "target": "local",
+            "query": "week",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "今日の予定時間合計",
         "今日の予定の時間合計",
         "今日何時間予定",
