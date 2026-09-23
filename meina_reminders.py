@@ -80,6 +80,11 @@ def format_reminder_importance(item: dict[str, Any]) -> str:
     return "重要" if item.get("important") else ""
 
 
+def format_reminder_category(item: dict[str, Any]) -> str:
+    """予定カテゴリの表示名を返す。"""
+    return str(item.get("category") or "").strip()
+
+
 def format_reminder_repeat(item: dict[str, Any]) -> str:
     """繰り返し設定を読み上げやすい日本語へ整形する。"""
     rule = item.get("repeat_rule")
@@ -779,6 +784,65 @@ def important_reminders() -> list[dict[str, Any]]:
     items = [item for item in list_reminders() if item.get("important")]
     items.sort(key=lambda item: str(item.get("due_at", "")))
     return items
+
+
+def set_reminder_category(
+    reminder_id: str,
+    category: str | None,
+) -> dict[str, Any] | None:
+    """予定のカテゴリだけを設定・解除する。"""
+    clean = None
+    if category is not None:
+        clean = str(category).strip()
+        if (
+            not clean
+            or len(clean) > 32
+            or any(ord(ch) < 32 for ch in clean)
+        ):
+            return None
+
+    items = _load()
+    for item in items:
+        if item.get("id") != reminder_id or item.get("done"):
+            continue
+        if clean is None:
+            item.pop("category", None)
+        else:
+            item["category"] = clean
+        _save(items)
+        return item
+    return None
+
+
+def reminders_by_category(category: str) -> list[dict[str, Any]]:
+    """カテゴリ完全一致の未完了予定を時刻順で返す。"""
+    needle = _normalize_reminder_text(category)
+    if not needle:
+        return []
+
+    result = [
+        item
+        for item in list_reminders()
+        if _normalize_reminder_text(item.get("category", "")) == needle
+    ]
+    result.sort(key=lambda item: str(item.get("due_at", "")))
+    return result
+
+
+def reminder_category_counts(
+    items: list[dict[str, Any]],
+) -> dict[str, int]:
+    """予定群をカテゴリ別に集計する。未分類は「未分類」として数える。"""
+    counts: dict[str, int] = {}
+    for item in items:
+        category = str(item.get("category") or "").strip() or "未分類"
+        counts[category] = counts.get(category, 0) + 1
+    return dict(
+        sorted(
+            counts.items(),
+            key=lambda pair: (-pair[1], pair[0]),
+        )
+    )
 
 
 def set_reminder_duration(
