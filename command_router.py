@@ -588,6 +588,77 @@ def route_command(text, frame):
         "遅れている予定",
     )):
         return {"kind": "reminder_overdue", "target": "local", "query": None, "confidence": 1.0}
+    if text:
+        scoped_list_scope_map = {
+            "今日": "today",
+            "明日": "tomorrow",
+            "今週": "week",
+            "今月": "month",
+        }
+        scoped_category_list_patterns = (
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?P<category>.+?)カテゴリ(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            r"(?P<category>.+?)カテゴリ(?:の)?"
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+        )
+        for pattern in scoped_category_list_patterns:
+            scoped_category_list_match = re.fullmatch(pattern, str(text).strip())
+            if not scoped_category_list_match:
+                continue
+            category = scoped_category_list_match.group("category").strip()
+            if category and len(category) <= 32:
+                return {
+                    "kind": "reminder_category_list",
+                    "target": "local",
+                    "query": {
+                        "scope": scoped_list_scope_map[
+                            scoped_category_list_match.group("scope")
+                        ],
+                        "category": category,
+                    },
+                    "confidence": 1.0,
+                }
+
+        scoped_location_list_patterns = (
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?P<location>.+?)(?:での|にある)"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            r"(?P<location>.+?)(?:での|にある)"
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"場所(?:が|は)(?P<location>.+?)の"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            r"場所(?:が|は)(?P<location>.+?)の"
+            r"(?P<scope>今日|明日|今週|今月)(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+        )
+        for pattern in scoped_location_list_patterns:
+            scoped_location_list_match = re.fullmatch(pattern, str(text).strip())
+            if not scoped_location_list_match:
+                continue
+            location = scoped_location_list_match.group("location").strip()
+            if location and len(location) <= 100:
+                return {
+                    "kind": "reminder_location_list",
+                    "target": "local",
+                    "query": {
+                        "scope": scoped_list_scope_map[
+                            scoped_location_list_match.group("scope")
+                        ],
+                        "location": location,
+                    },
+                    "confidence": 1.0,
+                }
+
     if text and any(p in compact for p in (
         "今月の予定",
         "今月のリマインダー",
