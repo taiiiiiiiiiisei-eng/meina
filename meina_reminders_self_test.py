@@ -997,6 +997,42 @@ def main() -> int:
     assert missing_duration_route is not None
     assert missing_duration_route["kind"] == "reminder_missing_duration"
 
+    next_action_route = route_command(
+        "次に何やればいい？",
+        {"confidence": 0.10},
+    )
+    assert next_action_route is not None
+    assert next_action_route["kind"] == "reminder_next_action"
+
+    priority_today_route = route_command(
+        "今日の優先予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert priority_today_route is not None
+    assert priority_today_route["kind"] == "reminder_priority_today"
+
+    focus_slot_route = route_command(
+        "今日1時間集中できる時間ある？",
+        {"confidence": 0.10},
+    )
+    assert focus_slot_route is not None
+    assert focus_slot_route["kind"] == "reminder_focus_slot"
+    assert focus_slot_route["query"] == {
+        "day": "今日",
+        "duration_minutes": 60,
+    }
+
+    focus_slot_tomorrow_route = route_command(
+        "明日90分まとまって空いてる時間ある？",
+        {"confidence": 0.10},
+    )
+    assert focus_slot_tomorrow_route is not None
+    assert focus_slot_tomorrow_route["kind"] == "reminder_focus_slot"
+    assert focus_slot_tomorrow_route["query"] == {
+        "day": "明日",
+        "duration_minutes": 90,
+    }
+
     brief_route = route_command(
         "今日の予定まとめ",
         {"confidence": 0.10},
@@ -2030,6 +2066,79 @@ def main() -> int:
             assert blocker["id"] in {
                 item["id"] for item in meina_reminders.list_reminders()
             }
+
+            priority_original_path = meina_reminders.REMINDER_PATH
+            meina_reminders.REMINDER_PATH = Path(tmp_dir) / "priority_reminders.json"
+            try:
+                priority_now = datetime.fromisoformat(
+                    "2070-01-01T12:00:00+09:00"
+                )
+                overdue_normal = meina_reminders.add_reminder(
+                    "期限切れ通常",
+                    "2070-01-01T10:00:00+09:00",
+                )
+                overdue_important = meina_reminders.add_reminder(
+                    "期限切れ重要",
+                    "2070-01-01T11:00:00+09:00",
+                )
+                assert meina_reminders.set_reminder_importance(
+                    overdue_important["id"],
+                    True,
+                )
+                future_normal = meina_reminders.add_reminder(
+                    "未来通常",
+                    "2070-01-01T13:00:00+09:00",
+                )
+                future_important = meina_reminders.add_reminder(
+                    "未来重要",
+                    "2070-01-01T18:00:00+09:00",
+                )
+                assert meina_reminders.set_reminder_importance(
+                    future_important["id"],
+                    True,
+                )
+                paused_overdue = meina_reminders.add_reminder(
+                    "停止中期限切れ重要",
+                    "2070-01-01T09:00:00+09:00",
+                )
+                assert meina_reminders.set_reminder_importance(
+                    paused_overdue["id"],
+                    True,
+                )
+                assert meina_reminders.pause_reminder(paused_overdue["id"])
+
+                ranked = meina_reminders.prioritized_reminders(priority_now)
+                assert [item["id"] for item in ranked] == [
+                    overdue_important["id"],
+                    overdue_normal["id"],
+                    future_important["id"],
+                    future_normal["id"],
+                ]
+
+                next_priority = meina_reminders.next_priority_reminder(priority_now)
+                assert next_priority is not None
+                assert next_priority["id"] == overdue_important["id"]
+
+                today_ranked = meina_reminders.prioritized_reminders(
+                    priority_now,
+                    target_date=priority_now.date(),
+                )
+                assert [item["id"] for item in today_ranked] == [
+                    overdue_important["id"],
+                    overdue_normal["id"],
+                    future_important["id"],
+                    future_normal["id"],
+                ]
+
+                tomorrow_ranked = meina_reminders.prioritized_reminders(
+                    priority_now,
+                    target_date=datetime.fromisoformat(
+                        "2070-01-02T12:00:00+09:00"
+                    ).date(),
+                )
+                assert tomorrow_ranked == []
+            finally:
+                meina_reminders.REMINDER_PATH = priority_original_path
 
             projection_daily = meina_reminders.add_reminder(
                 "投影毎日",
