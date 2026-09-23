@@ -1577,6 +1577,55 @@ def main() -> int:
         "summary": True,
     }
 
+    pre_notify_week_route = route_command(
+        "今週の事前通知あり予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert pre_notify_week_route is not None
+    assert pre_notify_week_route["kind"] == "reminder_pre_notify_presence"
+    assert pre_notify_week_route["query"] == {
+        "scope": "week",
+        "has_pre_notify": True,
+        "summary": False,
+    }
+
+    pre_notify_month_missing_count_route = route_command(
+        "今月の事前通知未設定予定は何件？",
+        {"confidence": 0.10},
+    )
+    assert pre_notify_month_missing_count_route is not None
+    assert (
+        pre_notify_month_missing_count_route["kind"]
+        == "reminder_pre_notify_presence"
+    )
+    assert pre_notify_month_missing_count_route["query"] == {
+        "scope": "month",
+        "has_pre_notify": False,
+        "summary": True,
+    }
+
+    recurring_tomorrow_route = route_command(
+        "明日の繰り返し予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert recurring_tomorrow_route is not None
+    assert recurring_tomorrow_route["kind"] == "reminder_recurring_list"
+    assert recurring_tomorrow_route["query"] == {
+        "scope": "tomorrow",
+        "summary": False,
+    }
+
+    recurring_month_count_route = route_command(
+        "今月の定期予定は何件？",
+        {"confidence": 0.10},
+    )
+    assert recurring_month_count_route is not None
+    assert recurring_month_count_route["kind"] == "reminder_recurring_list"
+    assert recurring_month_count_route["query"] == {
+        "scope": "month",
+        "summary": True,
+    }
+
     important_set_route = route_command(
         "宿題の予定を重要にして",
         {"confidence": 0.10},
@@ -3001,6 +3050,14 @@ def main() -> int:
                     duration_daily_timed["id"],
                     True,
                 )
+                assert meina_reminders.set_reminder_pre_notify(
+                    duration_daily_timed["id"],
+                    15,
+                )
+                assert meina_reminders.set_reminder_pre_notify(
+                    duration_month_once["id"],
+                    30,
+                )
                 assert meina_reminders.pause_reminder(
                     duration_daily_timed["id"]
                 )
@@ -3034,6 +3091,59 @@ def main() -> int:
                     item for item in monthly_state_items
                     if item.get("paused")
                 ]) == 17
+
+                weekly_pre_notify = (
+                    meina_reminders.filter_reminders_by_pre_notify_presence(
+                        weekly_state_items,
+                        has_pre_notify=True,
+                    )
+                )
+                assert len(weekly_pre_notify) == 5
+                assert {
+                    item["text"] for item in weekly_pre_notify
+                } == {"毎日の時間あり"}
+
+                monthly_pre_notify = (
+                    meina_reminders.filter_reminders_by_pre_notify_presence(
+                        monthly_state_items,
+                        has_pre_notify=True,
+                    )
+                )
+                assert len(monthly_pre_notify) == 18
+                assert {
+                    item["text"] for item in monthly_pre_notify
+                } == {
+                    "毎日の時間あり",
+                    "今月だけの単発",
+                }
+                assert len(
+                    meina_reminders.filter_reminders_by_pre_notify_presence(
+                        monthly_state_items,
+                        has_pre_notify=False,
+                    )
+                ) == 18
+
+                weekly_recurring = meina_reminders.filter_recurring_reminders(
+                    weekly_state_items
+                )
+                assert len(weekly_recurring) == 10
+                assert {
+                    item["text"] for item in weekly_recurring
+                } == {
+                    "毎日の時間あり",
+                    "毎日の時間なし",
+                }
+
+                monthly_recurring = meina_reminders.filter_recurring_reminders(
+                    monthly_state_items
+                )
+                assert len(monthly_recurring) == 34
+                assert {
+                    item["text"] for item in monthly_recurring
+                } == {
+                    "毎日の時間あり",
+                    "毎日の時間なし",
+                }
             finally:
                 meina_reminders.REMINDER_PATH = duration_scope_original_path
 
