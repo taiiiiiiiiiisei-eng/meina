@@ -184,6 +184,13 @@ def main() -> int:
     ):
         print("FAILED: 今週/今月の予定時間合計配線がありません")
         return 1
+    if (
+        "今週の所要時間未設定の予定" not in router_text
+        or "今月の所要時間未設定の予定" not in router_text
+        or "filter_reminders_by_metadata" not in agent_text
+    ):
+        print("FAILED: 期間指定・カテゴリ/場所指定の予定時間分析配線がありません")
+        return 1
     if "reminders_missing_duration" not in agent_text:
         print("FAILED: 所要時間未設定一覧の配線がありません")
         return 1
