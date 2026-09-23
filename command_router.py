@@ -224,6 +224,73 @@ def route_command(text, frame):
                 }
 
     if text and any(p in compact for p in (
+        "今日あとどれくらい空いてる",
+        "今日あと何分空いてる",
+        "今日あと何時間空いてる",
+        "今日の残りどれくらい空いてる",
+        "今日の残り何分空いてる",
+    )):
+        return {
+            "kind": "reminder_remaining_today",
+            "target": "local",
+            "query": None,
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今日どれくらい忙しい",
+        "今日どれくらい予定詰まってる",
+        "今日の予定どれくらい詰まってる",
+        "今日の予定の詰まり具合",
+    )):
+        return {
+            "kind": "reminder_day_load",
+            "target": "local",
+            "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "明日どれくらい忙しい",
+        "明日どれくらい予定詰まってる",
+        "明日の予定どれくらい詰まってる",
+        "明日の予定の詰まり具合",
+    )):
+        return {
+            "kind": "reminder_day_load",
+            "target": "local",
+            "query": "tomorrow",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今週いちばん予定が多い日",
+        "今週一番予定が多い日",
+        "今週予定が一番多い日",
+        "今週予定がいちばん多い日",
+    )):
+        return {
+            "kind": "reminder_week_peak",
+            "target": "local",
+            "query": "count",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今週いちばん忙しい日",
+        "今週一番忙しい日",
+        "今週いちばん詰まってる日",
+        "今週一番詰まってる日",
+        "今週予定時間が一番長い日",
+    )):
+        return {
+            "kind": "reminder_week_peak",
+            "target": "local",
+            "query": "duration",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "所要時間未設定の予定",
         "所要時間がない予定",
         "時間未設定の予定",
