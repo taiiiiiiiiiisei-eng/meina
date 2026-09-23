@@ -1659,6 +1659,36 @@ def main() -> int:
         "summary": False,
     }
 
+    setup_status_week_route = route_command(
+        "今週の予定準備状況を教えて",
+        {"confidence": 0.10},
+    )
+    assert setup_status_week_route is not None
+    assert setup_status_week_route["kind"] == "reminder_setup_status"
+    assert setup_status_week_route["query"] == {
+        "scope": "week",
+    }
+
+    setup_status_month_route = route_command(
+        "今月の設定完了率を教えて",
+        {"confidence": 0.10},
+    )
+    assert setup_status_month_route is not None
+    assert setup_status_month_route["kind"] == "reminder_setup_status"
+    assert setup_status_month_route["query"] == {
+        "scope": "month",
+    }
+
+    setup_status_all_route = route_command(
+        "予定の準備状況を教えて",
+        {"confidence": 0.10},
+    )
+    assert setup_status_all_route is not None
+    assert setup_status_all_route["kind"] == "reminder_setup_status"
+    assert setup_status_all_route["query"] == {
+        "scope": "all",
+    }
+
     setup_gap_breakdown_route = route_command(
         "今週の設定不足内訳を教えて",
         {"confidence": 0.10},
@@ -3267,6 +3297,43 @@ def main() -> int:
                 } == {
                     "毎日の時間あり",
                     "今月だけの単発",
+                }
+
+                assert meina_reminders.reminder_setup_status_summary(
+                    weekly_state_items
+                ) == {
+                    "total_count": 3,
+                    "complete_count": 1,
+                    "incomplete_count": 2,
+                    "completion_percent": 33,
+                    "missing_counts": {
+                        "所要時間": 1,
+                        "メモ": 2,
+                        "事前通知": 2,
+                    },
+                    "most_missing": ["メモ", "事前通知"],
+                }
+                assert meina_reminders.reminder_setup_status_summary(
+                    monthly_state_items
+                ) == {
+                    "total_count": 4,
+                    "complete_count": 2,
+                    "incomplete_count": 2,
+                    "completion_percent": 50,
+                    "missing_counts": {
+                        "所要時間": 1,
+                        "メモ": 2,
+                        "事前通知": 2,
+                    },
+                    "most_missing": ["メモ", "事前通知"],
+                }
+                assert meina_reminders.reminder_setup_status_summary([]) == {
+                    "total_count": 0,
+                    "complete_count": 0,
+                    "incomplete_count": 0,
+                    "completion_percent": 0,
+                    "missing_counts": {},
+                    "most_missing": [],
                 }
 
                 invalid_pre_notify_gap = meina_reminders.reminder_setup_gaps([
