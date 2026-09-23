@@ -1438,7 +1438,11 @@ def _execute_routed_command_base(route):
             category = str(request.get("category") or "").strip() or None
             location = str(request.get("location") or "").strip() or None
 
-            if scope == "week":
+            if scope == "month":
+                start_date = current.date().replace(day=1)
+                end_date = current.date()
+                label = "今月"
+            elif scope == "week":
                 start_date = current.date() - timedelta(days=current.weekday())
                 end_date = current.date()
                 label = "今週"
