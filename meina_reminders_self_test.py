@@ -1173,6 +1173,36 @@ def main() -> int:
         "category": "学校",
     }
 
+    location_completed_week_route = route_command(
+        "図書館で今週終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_completed_week_route is not None
+    assert location_completed_week_route["kind"] == "reminder_completed_period"
+    assert location_completed_week_route["query"] == {
+        "scope": "week",
+        "location": "図書館",
+    }
+
+    location_completed_today_route = route_command(
+        "場所が図書館で今日完了した予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_completed_today_route is not None
+    assert location_completed_today_route["kind"] == "reminder_completed_period"
+    assert location_completed_today_route["query"] == {
+        "scope": "today",
+        "location": "図書館",
+    }
+
+    location_progress_route = route_command(
+        "今日の場所別進捗",
+        {"confidence": 0.10},
+    )
+    assert location_progress_route is not None
+    assert location_progress_route["kind"] == "reminder_location_progress"
+    assert location_progress_route["query"] == "today"
+
     restore_completed_route = route_command(
         "18時の宿題の予定の完了を取り消して",
         {"confidence": 0.10},
@@ -2876,6 +2906,10 @@ def main() -> int:
                     school_remaining["id"],
                     "学校",
                 )
+                assert meina_reminders.set_reminder_location(
+                    school_remaining["id"],
+                    "自習室",
+                )
                 meina_reminders.add_reminder(
                     "明日の予定",
                     "2030-01-08T17:00:00+09:00",
@@ -3036,6 +3070,46 @@ def main() -> int:
                     category="存在しない",
                 )
                 assert missing_category_events == []
+
+                study_room_events = meina_reminders.completion_events_for_date(
+                    history_now.date(),
+                    history_now,
+                    location="自 習 室",
+                )
+                assert [event["text"] for event in study_room_events] == [
+                    "学校宿題完了"
+                ]
+                classroom_events = meina_reminders.completion_events(
+                    history_now.date(),
+                    history_now.date(),
+                    history_now,
+                    location="教室",
+                )
+                assert [event["text"] for event in classroom_events] == [
+                    "毎日の学校確認"
+                ]
+                missing_location_events = meina_reminders.completion_events(
+                    history_now.date(),
+                    history_now.date(),
+                    history_now,
+                    location="存在しない場所",
+                )
+                assert missing_location_events == []
+
+                location_progress = meina_reminders.completion_location_progress(
+                    history_now.date(),
+                    history_now,
+                )
+                assert location_progress["自習室"] == {
+                    "completed": 1,
+                    "remaining": 1,
+                }
+                assert location_progress["教室"] == {
+                    "completed": 1,
+                    "remaining": 0,
+                }
+                assert location_progress["場所未設定"]["completed"] == 1
+                assert location_progress["場所未設定"]["remaining"] >= 1
 
                 today_progress = meina_reminders.completion_progress_summary(
                     history_now,
