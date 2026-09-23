@@ -288,6 +288,44 @@ def _parse_repeat_spec_text(text: str) -> dict | None:
     return None
 
 
+def parse_reminder_detail_command(
+    text: str,
+    now: datetime | None = None,
+) -> dict | None:
+    """予定の詳細確認命令を対象名と任意の日時絞り込みへ変換する。"""
+    raw = str(text or "").strip()
+    if not raw:
+        return None
+
+    compact = re.sub(r"[\s　、,。！!]+", "", raw).rstrip("?？")
+    patterns = (
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:の)?"
+        rf"(?:詳細|詳しい情報|情報)(?:を)?"
+        rf"(?:教えて|見せて|確認して|確認してください)$",
+        rf"^(?P<target>.+?)(?:の)?{_ACTION_NOUN}(?:を)?"
+        rf"詳しく(?:教えて|見せて|確認して|確認してください)$",
+    )
+
+    for pattern in patterns:
+        match = re.fullmatch(pattern, compact)
+        if not match:
+            continue
+
+        selector = parse_reminder_selector_text(match.group("target"), now)
+        if not selector.get("valid", False):
+            return None
+        if not str(selector.get("target") or "").strip():
+            return None
+        return {
+            "target": selector["target"],
+            "date": selector["date"],
+            "hour": selector["hour"],
+            "minute": selector["minute"],
+        }
+
+    return None
+
+
 def parse_reminder_repeat_change_command(
     text: str,
     now: datetime | None = None,
