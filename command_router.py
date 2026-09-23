@@ -601,6 +601,59 @@ def route_command(text, frame):
     )):
         return {"kind": "reminder_overdue", "target": "local", "query": None, "confidence": 1.0}
     if text:
+        note_presence_scope_map = {
+            None: "all",
+            "今日": "today",
+            "明日": "tomorrow",
+            "今週": "week",
+            "今月": "month",
+        }
+        note_presence_summary_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>メモ付き|メモあり|メモ未設定|メモなし)"
+            r"(?:の)?(?:予定|リマインダー|リマインド)?"
+            r"(?:は)?(?:何件|件数)"
+            r"(?:を)?(?:教えて|見せて|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if note_presence_summary_match:
+            state = note_presence_summary_match.group("state")
+            return {
+                "kind": "reminder_note_presence",
+                "target": "local",
+                "query": {
+                    "scope": note_presence_scope_map[
+                        note_presence_summary_match.group("scope")
+                    ],
+                    "has_note": state in ("メモ付き", "メモあり"),
+                    "summary": True,
+                },
+                "confidence": 1.0,
+            }
+
+        note_presence_list_match = re.fullmatch(
+            r"(?:(?P<scope>今日|明日|今週|今月)(?:の)?)?"
+            r"(?P<state>メモ付き|メモあり|メモ未設定|メモなし)"
+            r"(?:の)?(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if note_presence_list_match:
+            state = note_presence_list_match.group("state")
+            return {
+                "kind": "reminder_note_presence",
+                "target": "local",
+                "query": {
+                    "scope": note_presence_scope_map[
+                        note_presence_list_match.group("scope")
+                    ],
+                    "has_note": state in ("メモ付き", "メモあり"),
+                    "summary": False,
+                },
+                "confidence": 1.0,
+            }
+
+    if text:
         scoped_list_scope_map = {
             "今日": "today",
             "明日": "tomorrow",
