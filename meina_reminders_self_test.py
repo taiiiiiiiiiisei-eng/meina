@@ -1210,6 +1210,17 @@ def main() -> int:
         "category": None,
     }
 
+    completed_month_route = route_command(
+        "今月終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert completed_month_route is not None
+    assert completed_month_route["kind"] == "reminder_completed_period"
+    assert completed_month_route["query"] == {
+        "scope": "month",
+        "category": None,
+    }
+
     category_completed_week_route = route_command(
         "学校カテゴリで今週終わった予定を教えて",
         {"confidence": 0.10},
@@ -1218,6 +1229,17 @@ def main() -> int:
     assert category_completed_week_route["kind"] == "reminder_completed_period"
     assert category_completed_week_route["query"] == {
         "scope": "week",
+        "category": "学校",
+    }
+
+    category_completed_month_route = route_command(
+        "学校カテゴリで今月終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert category_completed_month_route is not None
+    assert category_completed_month_route["kind"] == "reminder_completed_period"
+    assert category_completed_month_route["query"] == {
+        "scope": "month",
         "category": "学校",
     }
 
@@ -1230,6 +1252,17 @@ def main() -> int:
     assert location_completed_week_route["query"] == {
         "scope": "week",
         "location": "図書館",
+    }
+
+    location_completed_month_route = route_command(
+        "自習室で今月終わった予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert location_completed_month_route is not None
+    assert location_completed_month_route["kind"] == "reminder_completed_period"
+    assert location_completed_month_route["query"] == {
+        "scope": "month",
+        "location": "自習室",
     }
 
     location_completed_today_route = route_command(
@@ -3199,6 +3232,27 @@ def main() -> int:
                     location="存在しない場所",
                 )
                 assert missing_location_events == []
+
+                month_start = history_now.date().replace(day=1)
+                monthly_school_events = meina_reminders.completion_events(
+                    month_start,
+                    history_now.date(),
+                    history_now,
+                    category="学校",
+                )
+                assert {event["text"] for event in monthly_school_events} == {
+                    "学校宿題完了",
+                    "毎日の学校確認",
+                }
+                monthly_study_room_events = meina_reminders.completion_events(
+                    month_start,
+                    history_now.date(),
+                    history_now,
+                    location="自習室",
+                )
+                assert [event["text"] for event in monthly_study_room_events] == [
+                    "学校宿題完了"
+                ]
 
                 location_progress = meina_reminders.completion_location_progress(
                     history_now.date(),
