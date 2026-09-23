@@ -1517,6 +1517,43 @@ def _execute_routed_command_base(route):
                     for category, count in counts.items()
                 ]
                 result = "今日のカテゴリ別件数は、" + "、".join(parts) + "です。"
+        elif kind == "reminder_location_summary":
+            from meina_reminders import (
+                reminder_location_counts,
+                today_reminders,
+            )
+
+            items = today_reminders()
+            counts = reminder_location_counts(items)
+            if not counts:
+                result = "今日の未完了予定はありません。"
+            else:
+                parts = [
+                    f"{location}が{count}件"
+                    for location, count in counts.items()
+                ]
+                result = "今日の場所別件数は、" + "、".join(parts) + "です。"
+        elif kind == "reminder_missing_location":
+            from meina_reminders import reminders_missing_location
+
+            items = reminders_missing_location()
+            result = (
+                "場所が未設定の予定はありません。"
+                if not items
+                else f"場所が未設定の予定は{len(items)}件です。\n"
+                + _format_reminders(items)
+            )
+        elif kind == "reminder_location_list":
+            from meina_reminders import reminders_by_location
+
+            location = str(query or "").strip()
+            items = reminders_by_location(location)
+            result = (
+                f"場所が「{location}」の予定はありません。"
+                if not items
+                else f"場所が「{location}」の予定です。\n"
+                + _format_reminders(items)
+            )
         elif kind == "reminder_category_list":
             from meina_reminders import reminders_by_category
 
