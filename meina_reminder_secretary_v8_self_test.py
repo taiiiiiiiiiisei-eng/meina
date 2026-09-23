@@ -44,6 +44,8 @@ REQUIRED_KINDS = (
     "reminder_completed_period",
     "reminder_completion_summary",
     "reminder_restore_completed",
+    "reminder_deleted_list",
+    "reminder_restore_deleted",
     "reminder_category_progress",
     "reminder_category_summary",
     "reminder_category_list",
@@ -204,6 +206,12 @@ def main() -> int:
         return 1
     if "find_completed_reminders" not in agent_text or "restore_completed_reminder" not in agent_text:
         print("FAILED: 完了済み単発予定の復元配線がありません")
+        return 1
+    if "list_deleted_reminders" not in agent_text:
+        print("FAILED: 削除済み予定一覧の配線がありません")
+        return 1
+    if "find_deleted_reminders" not in agent_text or "restore_deleted_reminder" not in agent_text:
+        print("FAILED: 削除済み予定の復元配線がありません")
         return 1
     if "completion_events" not in agent_text:
         print("FAILED: 期間・カテゴリ別完了履歴の配線がありません")
