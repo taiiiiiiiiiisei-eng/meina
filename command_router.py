@@ -556,6 +556,20 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "今月何個終わった",
+        "今月何件終わった",
+        "今月何個完了した",
+        "今月何件完了した",
+        "今月の予定の進捗",
+    )):
+        return {
+            "kind": "reminder_completion_summary",
+            "target": "local",
+            "query": "month",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "今週何個終わった",
         "今週何件終わった",
         "今週何個完了した",
@@ -566,6 +580,19 @@ def route_command(text, frame):
             "kind": "reminder_completion_summary",
             "target": "local",
             "query": "week",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
+        "今月の場所別進捗",
+        "今月の場所ごとの進捗",
+        "今月場所別にどれくらい終わった",
+        "今月場所ごとにどれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_location_progress",
+            "target": "local",
+            "query": "month",
             "confidence": 1.0,
         }
 
@@ -609,6 +636,19 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "今月のカテゴリ別進捗",
+        "今月のカテゴリごとの進捗",
+        "今月カテゴリ別にどれくらい終わった",
+        "今月カテゴリごとにどれくらい終わった",
+    )):
+        return {
+            "kind": "reminder_category_progress",
+            "target": "local",
+            "query": "month",
+            "confidence": 1.0,
+        }
+
+    if text and any(p in compact for p in (
         "今週のカテゴリ別進捗",
         "今週のカテゴリごとの進捗",
         "今週カテゴリ別にどれくらい終わった",
@@ -648,11 +688,25 @@ def route_command(text, frame):
         }
 
     if text and any(p in compact for p in (
+        "今月のカテゴリ別件数",
+        "今月のカテゴリ別予定数",
+        "今月のカテゴリ内訳",
+    )):
+        return {"kind":"reminder_category_summary","target":"local","query":"month","confidence":1.0}
+
+    if text and any(p in compact for p in (
         "今週のカテゴリ別件数",
         "今週のカテゴリ別予定数",
         "今週のカテゴリ内訳",
     )):
         return {"kind":"reminder_category_summary","target":"local","query":"week","confidence":1.0}
+
+    if text and any(p in compact for p in (
+        "今月の場所別件数",
+        "今月の場所別予定数",
+        "今月の場所内訳",
+    )):
+        return {"kind":"reminder_location_summary","target":"local","query":"month","confidence":1.0}
 
     if text and any(p in compact for p in (
         "今週の場所別件数",
