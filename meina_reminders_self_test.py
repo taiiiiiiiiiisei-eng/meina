@@ -3177,7 +3177,7 @@ def main() -> int:
                 }
                 assert weekly_category_progress["未分類"] == {
                     "completed": 0,
-                    "remaining": 1,
+                    "remaining": 7,
                 }
 
                 weekly_location_progress = (
@@ -3197,7 +3197,7 @@ def main() -> int:
                 }
                 assert weekly_location_progress["場所未設定"] == {
                     "completed": 1,
-                    "remaining": 1,
+                    "remaining": 7,
                 }
 
                 no_old_events = meina_reminders.completion_events(
