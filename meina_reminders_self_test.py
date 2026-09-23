@@ -1533,6 +1533,50 @@ def main() -> int:
     assert important_list_route is not None
     assert important_list_route["kind"] == "reminder_important"
 
+    important_week_route = route_command(
+        "今週の重要予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert important_week_route is not None
+    assert important_week_route["kind"] == "reminder_important"
+    assert important_week_route["query"] == {
+        "scope": "week",
+        "summary": False,
+    }
+
+    important_month_count_route = route_command(
+        "今月の重要予定は何件？",
+        {"confidence": 0.10},
+    )
+    assert important_month_count_route is not None
+    assert important_month_count_route["kind"] == "reminder_important"
+    assert important_month_count_route["query"] == {
+        "scope": "month",
+        "summary": True,
+    }
+
+    paused_tomorrow_route = route_command(
+        "明日の一時停止中の予定を教えて",
+        {"confidence": 0.10},
+    )
+    assert paused_tomorrow_route is not None
+    assert paused_tomorrow_route["kind"] == "reminder_paused_list"
+    assert paused_tomorrow_route["query"] == {
+        "scope": "tomorrow",
+        "summary": False,
+    }
+
+    paused_week_count_route = route_command(
+        "今週の一時停止中の予定は何件？",
+        {"confidence": 0.10},
+    )
+    assert paused_week_count_route is not None
+    assert paused_week_count_route["kind"] == "reminder_paused_list"
+    assert paused_week_count_route["query"] == {
+        "scope": "week",
+        "summary": True,
+    }
+
     important_set_route = route_command(
         "宿題の予定を重要にして",
         {"confidence": 0.10},
@@ -2948,6 +2992,48 @@ def main() -> int:
                     "今日の単発",
                     "今月だけの単発",
                 }
+
+                assert meina_reminders.set_reminder_importance(
+                    duration_today["id"],
+                    True,
+                )
+                assert meina_reminders.set_reminder_importance(
+                    duration_daily_timed["id"],
+                    True,
+                )
+                assert meina_reminders.pause_reminder(
+                    duration_daily_timed["id"]
+                )
+
+                weekly_state_items = (
+                    meina_reminders.scope_reminders_including_paused(
+                        duration_scope_now,
+                        scope="week",
+                    )
+                )
+                assert len([
+                    item for item in weekly_state_items
+                    if item.get("important")
+                ]) == 6
+                assert len([
+                    item for item in weekly_state_items
+                    if item.get("paused")
+                ]) == 5
+
+                monthly_state_items = (
+                    meina_reminders.scope_reminders_including_paused(
+                        duration_scope_now,
+                        scope="month",
+                    )
+                )
+                assert len([
+                    item for item in monthly_state_items
+                    if item.get("important")
+                ]) == 18
+                assert len([
+                    item for item in monthly_state_items
+                    if item.get("paused")
+                ]) == 17
             finally:
                 meina_reminders.REMINDER_PATH = duration_scope_original_path
 
