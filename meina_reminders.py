@@ -1643,6 +1643,65 @@ def completion_events_for_date(
     )
 
 
+def completion_progress_summary(
+    now: datetime | None = None,
+    *,
+    scope: str = "today",
+) -> dict[str, int]:
+    """今日または今週の完了件数と残り件数を返す。"""
+    current = now or datetime.now().astimezone()
+    normalized = str(scope or "today").strip().lower()
+
+    if normalized == "today":
+        target = current.date()
+        completed = completion_events_for_date(target, current)
+        remaining = _date_reminders(target, current)
+        return {
+            "completed_count": len(completed),
+            "remaining_count": len(remaining),
+        }
+
+    if normalized != "week":
+        return {
+            "completed_count": 0,
+            "remaining_count": 0,
+        }
+
+    monday = current.date() - timedelta(days=current.weekday())
+    sunday = monday + timedelta(days=6)
+    completed = completion_events(
+        monday,
+        current.date(),
+        current,
+    )
+
+    remaining_future = project_reminder_occurrences(
+        current.date(),
+        sunday,
+        current,
+    )
+
+    overdue_ids: set[str] = set()
+    for item in list_reminders():
+        try:
+            due = datetime.fromisoformat(str(item.get("due_at", "")))
+            if due.tzinfo is None and current.tzinfo is not None:
+                due = due.replace(tzinfo=current.tzinfo)
+            elif due.tzinfo is not None and current.tzinfo is not None:
+                due = due.astimezone(current.tzinfo)
+        except (TypeError, ValueError):
+            continue
+        if monday <= due.date() < current.date():
+            reminder_id = str(item.get("id") or "")
+            if reminder_id:
+                overdue_ids.add(reminder_id)
+
+    return {
+        "completed_count": len(completed),
+        "remaining_count": len(remaining_future) + len(overdue_ids),
+    }
+
+
 def completion_category_progress(
     target_date,
     now: datetime | None = None,
