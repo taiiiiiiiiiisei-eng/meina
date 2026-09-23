@@ -1436,6 +1436,7 @@ def _execute_routed_command_base(route):
             current = datetime.now().astimezone()
             scope = str(request.get("scope") or "today")
             category = str(request.get("category") or "").strip() or None
+            location = str(request.get("location") or "").strip() or None
 
             if scope == "week":
                 start_date = current.date() - timedelta(days=current.weekday())
@@ -1451,13 +1452,16 @@ def _execute_routed_command_base(route):
                 end_date,
                 current,
                 category=category,
+                location=location,
             )
             category_text = f"「{category}」カテゴリで" if category else ""
+            location_text = f"場所が「{location}」で" if location else ""
+            filter_text = category_text + location_text
             result = (
-                f"{category_text}{label}完了した予定の履歴はありません。"
+                f"{filter_text}{label}完了した予定の履歴はありません。"
                 if not events
                 else (
-                    f"{category_text}{label}完了した予定は{len(events)}件です。\n"
+                    f"{filter_text}{label}完了した予定は{len(events)}件です。\n"
                     + _format_completion_events(events)
                 )
             )
@@ -1487,6 +1491,20 @@ def _execute_routed_command_base(route):
             )
             if completed_count == 0 and remaining_count == 0:
                 result = f"{label}は完了・未完了ともに記録対象の予定がありません。"
+        elif kind == "reminder_location_progress":
+            from datetime import datetime
+            from meina_reminders import completion_location_progress
+
+            current = datetime.now().astimezone()
+            progress = completion_location_progress(current.date(), current)
+            if not progress:
+                result = "今日の場所別進捗に表示できる予定はありません。"
+            else:
+                parts = [
+                    f"{location}は完了{counts['completed']}件、残り{counts['remaining']}件"
+                    for location, counts in progress.items()
+                ]
+                result = "今日の場所別進捗は、" + "。".join(parts) + "です。"
         elif kind == "reminder_category_progress":
             from datetime import datetime
             from meina_reminders import completion_category_progress
