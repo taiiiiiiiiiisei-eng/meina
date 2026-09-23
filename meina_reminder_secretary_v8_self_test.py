@@ -214,7 +214,7 @@ def main() -> int:
         print("FAILED: 予定カテゴリ集計の配線がありません")
         return 1
     if "remaining_scope_reminders" not in agent_text:
-        print("FAILED: 今日/明日/今週の未完了予定集計配線がありません")
+        print("FAILED: 今日/明日/今週/今月の未完了予定集計配線がありません")
         return 1
     if "completion_events_for_date" not in agent_text:
         print("FAILED: 完了履歴一覧の配線がありません")
@@ -249,6 +249,16 @@ def main() -> int:
         or '"tomorrow"' not in agent_text
     ):
         print("FAILED: 明日のカテゴリ・場所別集計配線がありません")
+        return 1
+    if (
+        "今月のカテゴリ別件数" not in router_text
+        or "今月の場所別件数" not in router_text
+        or "今月のカテゴリ別進捗" not in router_text
+        or "今月の場所別進捗" not in router_text
+        or "今月何個終わった" not in router_text
+        or '"month"' not in agent_text
+    ):
+        print("FAILED: 今月の完了・カテゴリ・場所別集計配線がありません")
         return 1
     if "find_completed_reminders" not in agent_text or "restore_completed_reminder" not in agent_text:
         print("FAILED: 完了済み単発予定の復元配線がありません")
