@@ -28,6 +28,8 @@ REQUIRED_KINDS = (
     "reminder_brief",
     "reminder_conflicts",
     "reminder_free_time",
+    "reminder_schedule_free",
+    "reminder_duration",
     "reminder_important",
     "reminder_importance",
     "reminder_next",
@@ -136,6 +138,12 @@ def main() -> int:
         return 1
     if "find_conflicting_reminders" not in agent_text:
         print("FAILED: 予定追加時の重なり警告配線がありません")
+        return 1
+    if "set_reminder_duration" not in agent_text:
+        print("FAILED: 所要時間変更の実行配線がありません")
+        return 1
+    if "find_first_free_slot" not in agent_text:
+        print("FAILED: 空き枠自動配置の実行配線がありません")
         return 1
     if "set_reminder_importance" not in agent_text or "important_reminders" not in agent_text:
         print("FAILED: 重要予定の設定・一覧配線がありません")
