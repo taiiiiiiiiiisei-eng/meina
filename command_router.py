@@ -450,6 +450,36 @@ def route_command(text, frame):
     if text and any(p in compact for p in ("今日の予定", "今日のリマインダー", "今日のリマインド")):
         return {"kind": "reminder_today", "target": "local", "query": None, "confidence": 1.0}
     if text and any(p in compact for p in (
+        "今日のカテゴリ別件数",
+        "今日のカテゴリ別予定数",
+        "今日のカテゴリ内訳",
+        "今日の予定カテゴリ内訳",
+    )):
+        return {
+            "kind": "reminder_category_summary",
+            "target": "local",
+            "query": "today",
+            "confidence": 1.0,
+        }
+
+    if text:
+        category_list_match = re.fullmatch(
+            r"(?P<category>.+?)カテゴリ(?:の)?"
+            r"(?:予定|リマインダー|リマインド)"
+            r"(?:を)?(?:教えて|見せて|一覧|確認して|確認してください)?[?？]?",
+            str(text).strip(),
+        )
+        if category_list_match:
+            category = category_list_match.group("category").strip()
+            if category and len(category) <= 32:
+                return {
+                    "kind": "reminder_category_list",
+                    "target": "local",
+                    "query": category,
+                    "confidence": 1.0,
+                }
+
+    if text and any(p in compact for p in (
         "重要な予定",
         "大事な予定",
         "優先予定",
@@ -461,6 +491,7 @@ def route_command(text, frame):
     if text:
         from meina_reminder_parser import (
             parse_reminder_action_request,
+            parse_reminder_category_command,
             parse_reminder_duration_command,
             parse_reminder_importance_command,
             parse_reminder_move_free_command,
@@ -474,6 +505,15 @@ def route_command(text, frame):
             parse_reminder_reschedule_command,
             parse_reminder_snooze_command,
         )
+
+        category_change = parse_reminder_category_command(text)
+        if category_change is not None:
+            return {
+                "kind": "reminder_category",
+                "target": "local",
+                "query": category_change,
+                "confidence": 1.0,
+            }
 
         duration_change = parse_reminder_duration_command(text)
         if duration_change is not None:
