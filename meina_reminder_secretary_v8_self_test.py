@@ -53,6 +53,7 @@ REQUIRED_KINDS = (
     "reminder_category_summary",
     "reminder_category_list",
     "reminder_note",
+    "reminder_note_presence",
     "reminder_location",
     "reminder_location_list",
     "reminder_missing_location",
@@ -180,6 +181,14 @@ def main() -> int:
         or "一時停止中" not in agent_text
     ):
         print("FAILED: 予定詳細確認の配線がありません")
+        return 1
+    if (
+        "note_presence_list_match" not in router_text
+        or "note_presence_summary_match" not in router_text
+        or 'elif kind == "reminder_note_presence"' not in agent_text
+        or "filter_reminders_by_note_presence" not in agent_text
+    ):
+        print("FAILED: メモ有無による予定一覧・件数確認の配線がありません")
         return 1
     if "find_first_free_slot" not in agent_text:
         print("FAILED: 空き枠自動配置の実行配線がありません")
