@@ -1947,6 +1947,91 @@ def _execute_routed_command_base(route):
                     f"{subject}は{len(items)}件です。\n"
                     + _format_reminders(items)
                 )
+        elif kind == "reminder_pre_notify_presence":
+            from meina_reminders import (
+                filter_reminders_by_pre_notify_presence,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            has_pre_notify = bool(request.get("has_pre_notify"))
+            summary_only = bool(request.get("summary"))
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            items = filter_reminders_by_pre_notify_presence(
+                source,
+                has_pre_notify=has_pre_notify,
+            )
+            state_label = (
+                "事前通知あり"
+                if has_pre_notify
+                else "事前通知未設定"
+            )
+            subject = (
+                f"{scope_labels[requested_scope]}の{state_label}予定"
+                if requested_scope in scope_labels
+                else f"{state_label}予定"
+            )
+
+            if summary_only:
+                result = f"{subject}は{len(items)}件です。"
+            elif not items:
+                result = f"{subject}はありません。"
+            else:
+                result = (
+                    f"{subject}は{len(items)}件です。\n"
+                    + _format_reminders(items)
+                )
+        elif kind == "reminder_recurring_list":
+            from meina_reminders import (
+                filter_recurring_reminders,
+                scope_reminders_including_paused,
+            )
+
+            request = query if isinstance(query, dict) else {}
+            requested_scope = str(request.get("scope") or "all")
+            summary_only = bool(request.get("summary"))
+            scope_labels = {
+                "today": "今日",
+                "tomorrow": "明日",
+                "week": "今週",
+                "month": "今月",
+            }
+            source = scope_reminders_including_paused(
+                scope=(
+                    requested_scope
+                    if requested_scope in scope_labels
+                    else "all"
+                ),
+            )
+            items = filter_recurring_reminders(source)
+            subject = (
+                f"{scope_labels[requested_scope]}の繰り返し予定"
+                if requested_scope in scope_labels
+                else "繰り返し予定"
+            )
+
+            if summary_only:
+                result = f"{subject}は{len(items)}件です。"
+            elif not items:
+                result = f"{subject}はありません。"
+            else:
+                result = (
+                    f"{subject}は{len(items)}件です。\n"
+                    + _format_reminders(items)
+                )
         elif kind == "reminder_deleted_list":
             from meina_reminders import (
                 format_reminder_due,
