@@ -260,6 +260,12 @@ def main() -> int:
     ):
         print("FAILED: 今月の完了・カテゴリ・場所別集計配線がありません")
         return 1
+    if (
+        "今月終わった予定" not in router_text
+        or "scope == \"month\"" not in agent_text
+    ):
+        print("FAILED: 今月の完了履歴配線がありません")
+        return 1
     if "find_completed_reminders" not in agent_text or "restore_completed_reminder" not in agent_text:
         print("FAILED: 完了済み単発予定の復元配線がありません")
         return 1
